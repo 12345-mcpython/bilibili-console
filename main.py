@@ -17,6 +17,16 @@ from bs4 import BeautifulSoup
 
 import os
 
+test_cookie = "_uuid=4D779741-5FF10-952C-D9E4-29DCDDC6B9AB38010infoc; b_nut=1658576443; " \
+              "buvid3=A6E299C8-DE54-5E68-3E9C-1FC404F85D4342775infoc; " \
+              "buvid4=8427C489-9DB8-44A3-B0DE-DFE66130D43E42775-022072319-kji2bknSwKd8UOWJnmLjdV80CM/2V0" \
+              "+NqSg67PrOX099fj7ud7u2FQ%3D%3D; i-wanna-go-back=-1; b_ut=7; CURRENT_BLACKGAP=0; " \
+              "rpdid=0zbfAHF9QV|RTEXDkOq|3Bt|3w1OffDf; PVID=1; fingerprint=844016f38fbc4bb4a65d3949861d2fb5; " \
+              "buvid_fp_plain=undefined; buvid_fp=844016f38fbc4bb4a65d3949861d2fb5; nostalgia_conf=-1; " \
+              "b_lsid=8D66F3E1_182719BCDD6; sid=7h0dsy5u; theme_style=light; " \
+              "b_timer=%7B%22ffp%22%3A%7B%22333.788.fp.risk_A6E299C8%22%3A%22182719BD91C%22%2C%22333.1007.fp" \
+              ".risk_A6E299C8%22%3A%22182719D8E0E%22%7D%7D; innersign=1; CURRENT_FNVAL=4048 "
+
 with open("cookie.txt") as f:
     cookie = f.read()
 
@@ -24,17 +34,28 @@ public_header = {"cookie": cookie,
                  "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                                "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77"}
 
+cached = {}
 
-def get_tag(avid, cid):
+
+def get(url, params=None, **kwargs) -> requests.Response:
+    if cached.get(url):
+        return cached.get(url)
+    else:
+        r = requests.get(url, params=params, **kwargs)
+        cached[url] = r
+        return r
+
+
+def get_tag(avid, cid) -> list:
     ls = []
     url = f"https://api.bilibili.com/x/web-interface/view/detail/tag?aid={avid}&cid={cid}"
-    r = requests.get(url, headers=public_header)
+    r = get(url, headers=public_header)
     for i in r.json()['data']:
         ls.append(i['tag_name'])
     return ls
 
 
-def play(avid, cid):
+def play(avid, cid) -> None:
     header = {
         'host': 'api.bilibili.com',
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
@@ -49,14 +70,14 @@ def play(avid, cid):
     os.system(command)
 
 
-def get_title(video_url, av_or_bv):
-    soup = BeautifulSoup(requests.get(video_url if av_or_bv else "https://www.bilibili.com/video/" + str(video_url),
+def get_title(video_url, av_or_bv) -> str:
+    soup = BeautifulSoup(get(video_url if av_or_bv else "https://www.bilibili.com/video/" + str(video_url),
                                       headers=public_header).text, "lxml")
     return soup.find(class_="video-title").string
 
 
 def get_author_name_video(video_url, av_or_bv, return_mid=False):
-    soup = BeautifulSoup(requests.get(video_url if av_or_bv else "https://www.bilibili.com/video/" + str(video_url),
+    soup = BeautifulSoup(get(video_url if av_or_bv else "https://www.bilibili.com/video/" + str(video_url),
                                       headers=public_header).text, "lxml")
     a = soup.find(class_="username")
     a.find("span").extract()
@@ -81,14 +102,14 @@ def read_local_collection():
 
 def get_cid(avid):
     cid_url = "https://api.bilibili.com/x/player/pagelist?aid={aid}&jsonp=jsonp".format(aid=avid)
-    return requests.get(cid_url, headers=public_header).json()["data"][0]["cid"]
+    return get(cid_url, headers=public_header).json()["data"][0]["cid"]
 
 
 def view_comment(avid, page=1):
     if not isinstance(avid, int):
         avid = avid.strip()
     url = f"http://api.bilibili.com/x/v2/reply/main?mode=0&oid={avid}&next={page}&type=1"
-    r = requests.get(url, headers=public_header)
+    r = get(url, headers=public_header)
     return r.json()['data']['replies'], r.json()['data']['cursor']['all_count']
 
 
@@ -99,15 +120,15 @@ def video_status(av_or_bv: str):
         url = "http://api.bilibili.com/x/web-interface/archive/stat?aid={}".format(av_or_bv)
     if av_or_bv.startswith("BV"):
         url = "http://api.bilibili.com/x/web-interface/archive/stat?bvid={}".format(av_or_bv)
-    r = requests.get(url.format(av_or_bv), headers=public_header)
-    print(r.url)
+
+    r = get(url.format(av_or_bv), headers=public_header)
     json = r.json()
     return json['data']['bvid'], json['data']['aid'], json['data']['view'], json['data']['danmaku'], json['data'][
         'like'], json['data']['coin'], json['data']['favorite'], json['data']['share'], json['data']['reply']
 
 
 def get_author_avatar(mid):
-    r = requests.get(f"https://api.bilibili.com/x/space/acc/info?mid={mid}&jsonp=jsonp", headers=public_header)
+    r = get(f"https://api.bilibili.com/x/space/acc/info?mid={mid}&jsonp=jsonp", headers=public_header)
     return r.json()['data']['face']
 
 
@@ -115,9 +136,41 @@ def view_picture(url):
     os.system("mpv " + url)
 
 
+def main_help():
+    print("help 显示该内容")
+    print("recommend 显示推荐内容")
+    print("search 搜索功能")
+    print("collection 使用本地收藏夹")
+    print("address 使用地址&BV&av播放视频")
+
+
+def licenses():
+    print("""MIT License
+
+Copyright (c) 2022 "Laosun Studios"。
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.""")
+
+
 while True:
     print("LBCC v1.0.0-dev by Laosun.")
-    print("Type \"help\" for more information.")
+    print("Type \"help\" or \"license\" for more information.")
     choose1 = input("选择一个选项: ")
     if choose1 == "recommend":
         flag = True
@@ -207,13 +260,17 @@ while True:
         if IS_AV:
             av_or_bv = av_or_bv.strip("av")
         if av_or_bv.startswith("BV"):
-            av_or_bv = requests.get("http://api.bilibili.com/x/web-interface/archive/stat?bvid=" + av_or_bv,
+            av_or_bv = get("http://api.bilibili.com/x/web-interface/archive/stat?bvid=" + av_or_bv,
                                     headers=public_header)
             av_or_bv = av_or_bv.json()['data']['aid']
         cid = get_cid(av_or_bv)
         play(av_or_bv, cid)
     elif choose1 == "exit":
         break
+    elif choose1 == "help":
+        main_help()
+    elif choose1 == 'license':
+        licenses()
     elif choose1 == "collection":
         try:
             collection = read_local_collection()
@@ -334,7 +391,5 @@ while True:
                         print("未知选项！")
                 if not flag_search:
                     break
-
-
     else:
         print("未知选项！")
