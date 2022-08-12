@@ -37,12 +37,23 @@ public_header = {"cookie": cookie,
 cached = {}
 
 
-def get(url, params=None, **kwargs) -> requests.Response:
+def get(url, params=None, no_cache = False, **kwargs) -> requests.Response:
     if cached.get(url):
         return cached.get(url)
     else:
-        r = requests.get(url, params=params, **kwargs)
-        cached[url] = r
+        count = 3
+        while True:
+            try:
+                r = requests.get(url, params=params, **kwargs)
+                break
+            except requests.exceptions.RequestException as e:
+                print(f"Request {url} error! Will try {count} counts!")
+                count -= 1
+                if count <= 0:
+                    print("Request error!")
+                    raise e
+        if not no_cache:
+            cached[url] = r
         return r
 
 
@@ -62,7 +73,7 @@ def play(avid, cid) -> None:
         'cookie': cookie
     }
     url1 = f"https://api.bilibili.com/x/player/playurl?avid={avid}&cid={cid}&qn=80&type=&otype=json"
-    req = requests.get(url1, headers=header)
+    req = get(url1, headers=header, no_cache=True)
     url111 = req.json()["data"]["durl"][0]["url"]
     command = "mpv --user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0\" " \
               "--referrer=\"https://www.bilibili.com\" \"{}\"".format(
@@ -109,7 +120,7 @@ def view_comment(avid, page=1):
     if not isinstance(avid, int):
         avid = avid.strip()
     url = f"http://api.bilibili.com/x/v2/reply/main?mode=0&oid={avid}&next={page}&type=1"
-    r = get(url, headers=public_header)
+    r = get(url, headers=public_header, no_cache=True)
     return r.json()['data']['replies'], r.json()['data']['cursor']['all_count']
 
 
@@ -178,7 +189,7 @@ while True:
             url = "https://api.bilibili.com/x/web-interface/index/top/feed/rcmd?y_num=5&fresh_idx_1h=1&fresh_idx=1" \
                   "&feed_version=V4&fetch_row=1&homepage_ver=1&ps=11&fresh_type=3 "
 
-            r = requests.get(url, headers=public_header)
+            r = get(url, headers=public_header, no_cache=True)
 
             for i in r.json()["data"]['item']:
                 flag1 = True
@@ -338,7 +349,7 @@ while True:
         page = 1
         flag_search = True
         while flag_search:
-            r = requests.get(search_url.format(search_thing, page), headers=public_header)
+            r = get(search_url.format(search_thing, page), headers=public_header)
             if not r.json()['data'].get("result"):
                 print("到头了！")
                 flag_search = False
