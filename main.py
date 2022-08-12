@@ -17,27 +17,7 @@ from bs4 import BeautifulSoup
 
 import os
 
-test_cookie = "_uuid=4D779741-5FF10-952C-D9E4-29DCDDC6B9AB38010infoc; b_nut=1658576443; " \
-              "buvid3=A6E299C8-DE54-5E68-3E9C-1FC404F85D4342775infoc; " \
-              "buvid4=8427C489-9DB8-44A3-B0DE-DFE66130D43E42775-022072319-kji2bknSwKd8UOWJnmLjdV80CM/2V0" \
-              "+NqSg67PrOX099fj7ud7u2FQ%3D%3D; i-wanna-go-back=-1; b_ut=7; CURRENT_BLACKGAP=0; " \
-              "rpdid=0zbfAHF9QV|RTEXDkOq|3Bt|3w1OffDf; PVID=1; fingerprint=844016f38fbc4bb4a65d3949861d2fb5; " \
-              "buvid_fp_plain=undefined; buvid_fp=844016f38fbc4bb4a65d3949861d2fb5; nostalgia_conf=-1; " \
-              "b_lsid=8D66F3E1_182719BCDD6; sid=7h0dsy5u; theme_style=light; " \
-              "b_timer=%7B%22ffp%22%3A%7B%22333.788.fp.risk_A6E299C8%22%3A%22182719BD91C%22%2C%22333.1007.fp" \
-              ".risk_A6E299C8%22%3A%22182719D8E0E%22%7D%7D; innersign=1; CURRENT_FNVAL=4048 "
-
-with open("cookie.txt") as f:
-    cookie = f.read()
-
-public_header = {"cookie": cookie,
-                 "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                               "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77"}
-
-cached = {}
-
-
-def get(url, params=None, no_cache = False, **kwargs) -> requests.Response:
+def get(url, params=None, no_cache=False, **kwargs) -> requests.Response:
     if cached.get(url):
         return cached.get(url)
     else:
@@ -83,13 +63,13 @@ def play(avid, cid) -> None:
 
 def get_title(video_url, av_or_bv) -> str:
     soup = BeautifulSoup(get(video_url if av_or_bv else "https://www.bilibili.com/video/" + str(video_url),
-                                      headers=public_header).text, "lxml")
+                             headers=public_header).text, "lxml")
     return soup.find(class_="video-title").string
 
 
 def get_author_name_video(video_url, av_or_bv, return_mid=False):
     soup = BeautifulSoup(get(video_url if av_or_bv else "https://www.bilibili.com/video/" + str(video_url),
-                                      headers=public_header).text, "lxml")
+                             headers=public_header).text, "lxml")
     a = soup.find(class_="username")
     a.find("span").extract()
     if return_mid:
@@ -155,6 +135,36 @@ def main_help():
     print("address 使用地址&BV&av播放视频")
 
 
+def comment_viewer(aid):
+    _, total = view_comment(aid)
+    print("总数: ", total)
+    max_page = total // 20 + 1
+    print(max_page)
+    now = 1
+    flag_comment = True
+    while flag_comment:
+        data, _ = view_comment(aid, now)
+        if not data:
+            print("到头了!")
+            break
+        for i_ in data:
+            print("用户: ", i_['member']['uname'])
+            print("内容: ")
+            print(i_['content']['message'])
+            print("点赞量: ", i_['like'])
+            print("\n")
+            while True:
+                message = input("评论选项: ")
+                if message == "quit":
+                    flag_comment = False
+                    break
+                if not message:
+                    break
+                now += 1
+            if not flag_comment:
+                break
+
+
 def licenses():
     print("""MIT License
 
@@ -178,11 +188,30 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.""")
 
+test_cookie = "_uuid=4D779741-5FF10-952C-D9E4-29DCDDC6B9AB38010infoc; b_nut=1658576443; " \
+              "buvid3=A6E299C8-DE54-5E68-3E9C-1FC404F85D4342775infoc; " \
+              "buvid4=8427C489-9DB8-44A3-B0DE-DFE66130D43E42775-022072319-kji2bknSwKd8UOWJnmLjdV80CM/2V0" \
+              "+NqSg67PrOX099fj7ud7u2FQ%3D%3D; i-wanna-go-back=-1; b_ut=7; CURRENT_BLACKGAP=0; " \
+              "rpdid=0zbfAHF9QV|RTEXDkOq|3Bt|3w1OffDf; PVID=1; fingerprint=844016f38fbc4bb4a65d3949861d2fb5; " \
+              "buvid_fp_plain=undefined; buvid_fp=844016f38fbc4bb4a65d3949861d2fb5; nostalgia_conf=-1; " \
+              "b_lsid=8D66F3E1_182719BCDD6; sid=7h0dsy5u; theme_style=light; " \
+              "b_timer=%7B%22ffp%22%3A%7B%22333.788.fp.risk_A6E299C8%22%3A%22182719BD91C%22%2C%22333.1007.fp" \
+              ".risk_A6E299C8%22%3A%22182719D8E0E%22%7D%7D; innersign=1; CURRENT_FNVAL=4048 "
+
+with open("cookie.txt") as f:
+    cookie = f.read()
+
+public_header = {"cookie": cookie,
+                 "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                               "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77"}
+
+cached = {}
+
+print("LBCC v1.0.0-dev by Laosun.")
+print("Type \"help\" or \"license\" for more information.")
 
 while True:
-    print("LBCC v1.0.0-dev by Laosun.")
-    print("Type \"help\" or \"license\" for more information.")
-    choose1 = input("选择一个选项: ")
+    choose1 = input("主选项: ")
     if choose1 == "recommend":
         flag = True
         while flag:
@@ -209,7 +238,7 @@ while True:
                 print("comment: ", comment_count)
                 print("Tag: ", ", ".join(get_tag(avid, cid)))
                 while True:
-                    choose = input("选择一个选项： ")
+                    choose = input("推荐选项: ")
                     if choose == "play":
                         play(avid, cid)
                     elif choose == "exit":
@@ -217,33 +246,16 @@ while True:
                         flag1 = False
                         break
                     elif choose == "view_comment":
-                        _, total = view_comment(avid)
-                        print("总数: ", total)
-                        max_page = total // 20 + 1
-                        now = 1
-                        while True:
-                            data, _ = view_comment(avid, now)
-                            if not data:
-                                print("到头了!")
-                                break
-                            for i in data:
-                                print("用户: ", i['member']['uname'])
-                                print("内容: ")
-                                print(i['content']['message'])
-                                print("点赞量: ", i['like'])
-                                print("\n")
-                            message = input()
-                            if message == "quit": break
-                            now += 1
+                        comment_viewer(avid)
                     elif not choose:
                         break
                     elif choose == 'download':
                         download(avid, cid)
                     elif choose == "collection":
                         write_local_collection(avid)
-                        print("成功! ")
+                        print("收藏到本地收藏夹.")
                     else:
-                        print("未知选项！")
+                        print("未知选项!")
                 if not flag1: break
                 print("\n" * 2)
     elif choose1 == "address":
@@ -255,24 +267,24 @@ while True:
             IS_AV = True
         except (TypeError, ValueError):
             pass
-        print("标题： ", get_title(video, av_or_bv=video.startswith("https")))
+        print("标题: ", get_title(video, av_or_bv=video.startswith("https")))
         av_or_bv = video.split("/")[-1].split("?")[0]
         print("信息: ")
         bvid, avid, view, danmaku, like, coin, favorite, share, comment_count = video_status(str(av_or_bv))
         print('avid: ', avid)
         print("bvid: ", bvid)
-        print("view: ", view)
-        print("danmaku: ", danmaku)
-        print("like: ", like)
-        print("coin: ", coin)
-        print("favorite: ", favorite)
-        print("share: ", share)
-        print("comment: ", comment_count)
+        print("观看量: ", view)
+        print("弹幕: ", danmaku)
+        print("点赞量: ", like)
+        print("硬币量: ", coin)
+        print("收藏量: ", favorite)
+        print("转发量: ", share)
+        print("评论量: ", comment_count)
         if IS_AV:
             av_or_bv = av_or_bv.strip("av")
         if av_or_bv.startswith("BV"):
             av_or_bv = get("http://api.bilibili.com/x/web-interface/archive/stat?bvid=" + av_or_bv,
-                                    headers=public_header)
+                           headers=public_header)
             av_or_bv = av_or_bv.json()['data']['aid']
         cid = get_cid(av_or_bv)
         play(av_or_bv, cid)
@@ -286,10 +298,10 @@ while True:
         try:
             collection = read_local_collection()
         except FileNotFoundError as e:
-            print("收藏文件未存在！")
+            print("收藏文件未存在!")
             continue
         if not collection:
-            print("收藏夹为空！")
+            print("收藏夹为空!")
             continue
         for i in collection:
             if not i.strip():
@@ -311,7 +323,7 @@ while True:
             print("author: ", username)
             flag = True
             while True:
-                choose = input("选择一个选项： ")
+                choose = input("收藏选项: ")
                 if choose == "play":
                     play(i, get_cid(i))
                 elif choose == "exit":
@@ -322,26 +334,9 @@ while True:
                 elif choose == "view_author_avatar":
                     view_picture(get_author_avatar(mid))
                 elif choose == "view_comment":
-                    _, total = view_comment(i)
-                    print("总数: ", total)
-                    max_page = total // 20 + 1
-                    now = 1
-                    while True:
-                        data, _ = view_comment(i, now)
-                        if not data:
-                            print("到头了!")
-                            break
-                        for i_ in data:
-                            print("用户: ", i_['member']['uname'])
-                            print("内容: ")
-                            print(i_['content']['message'])
-                            print("点赞量: ", i_['like'])
-                            print("\n")
-                        message = input()
-                        if message == "quit": break
-                        now += 1
+                    comment_viewer(i)
                 else:
-                    print("未知选项！")
+                    print("未知选项!")
             if not flag: break
     elif choose1 == "search":
         search_url = "http://api.bilibili.com/x/web-interface/search/type?keyword={}&search_type=video&page={}"
@@ -351,17 +346,15 @@ while True:
         while flag_search:
             r = get(search_url.format(search_thing, page), headers=public_header)
             if not r.json()['data'].get("result"):
-                print("到头了！")
+                print("到头了!")
                 flag_search = False
                 break
             for i in r.json()['data'].get("result"):
+                _, _, view, danmaku, like, coin, favorite, share, comment_count = video_status(str(i['aid']))
                 print("avid: ", i['aid'])
                 print('author: ', i['author'])
                 print("bvid: ", i['bvid'])
                 print("title: ", get_title("av" + str(i['aid']), av_or_bv=False))
-                print("description:")
-                print(i['description'])
-                _, _, view, danmaku, like, coin, favorite, share, comment_count = video_status(str(i['aid']))
                 print("view: ", view)
                 print("danmaku: ", danmaku)
                 print("like: ", like)
@@ -369,8 +362,10 @@ while True:
                 print("favorite: ", favorite)
                 print("share: ", share)
                 print("comment: ", comment_count)
+                print("description:")
+                print(i['description'])
                 while True:
-                    choose = input("选择一个选项： ")
+                    choose = input("搜索选项: ")
                     if choose == "play":
                         play(i['aid'], get_cid(i['aid']))
                     elif choose == "exit":
@@ -379,28 +374,10 @@ while True:
                     elif not choose:
                         break
                     elif choose == "view_comment":
-                        _, total = view_comment(i['aid'])
-                        print("总数: ", total)
-                        max_page = total // 20 + 1
-                        print(max_page)
-                        now = 1
-                        while True:
-                            data, _ = view_comment(i['aid'], now)
-                            if not data:
-                                print("到头了!")
-                                break
-                            for i_ in data:
-                                print("用户: ", i_['member']['uname'])
-                                print("内容: ")
-                                print(i_['content']['message'])
-                                print("点赞量: ", i_['like'])
-                                print("\n")
-                            message = input()
-                            if message == "quit": break
-                            now += 1
+                        comment_viewer(i['aid'])
                     else:
-                        print("未知选项！")
+                        print("未知选项!")
                 if not flag_search:
                     break
     else:
-        print("未知选项！")
+        print("未知选项!")
