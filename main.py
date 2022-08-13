@@ -68,10 +68,14 @@ def get_title(video_url, av_or_bv) -> str:
 
 
 def get_author_name_video(video_url, av_or_bv, return_mid=False):
+    print(video_url)
     soup = BeautifulSoup(get(video_url if av_or_bv else "https://www.bilibili.com/video/" + str(video_url),
-                             headers=public_header).text, "lxml")
+                             headers=public_header).text, "lxml")                   
     a = soup.find(class_="username")
-    a.find("span").extract()
+    if a:
+        a.find("span").extract()
+    else:
+        print("多作者暂未实现!")    
     if return_mid:
         return a.string.strip(), a.get("href").split("/")[-1]
     return a.string.strip()
