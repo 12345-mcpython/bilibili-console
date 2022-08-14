@@ -10,6 +10,7 @@ for i in range(10000000):
     else:
         _2 += 2
 print(_1 > _2)"""
+import shutil
 
 import requests
 
@@ -110,15 +111,12 @@ def play(avid, cid) -> None:
     command = "mpv --sub-file=\"cached/{}.ass\" --user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0\" " \
               "--referrer=\"https://www.bilibili.com\" \"{}\"".format(cid,
                                                                       url111)
-    print(avid, cid)
-    print(command)
     if not os.path.exists("cached"):
         os.mkdir("cached")
     if not os.path.exists(f"cached/{cid}.xml"):
         r = requests.get(f"https://comment.bilibili.com/{cid}.xml")
         with open(f"cached/{cid}.xml", "wb") as f:
             f.write(r.content)
-    print(width, height)
     Danmaku2ASS([f"cached/{cid}.xml"], "autodetect", f"cached/{cid}.ass", width, height, 0, "sans-serif", 25.0, 1.0,
                 5.0, 5.0, None,
                 None, False)
@@ -257,6 +255,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.""")
 
 
+def clean_cache():
+    shutil.rmtree("cached")
+    os.mkdir("cached")
+
+
 test_cookie = "_uuid=4D779741-5FF10-952C-D9E4-29DCDDC6B9AB38010infoc; b_nut=1658576443; " \
               "buvid3=A6E299C8-DE54-5E68-3E9C-1FC404F85D4342775infoc; " \
               "buvid4=8427C489-9DB8-44A3-B0DE-DFE66130D43E42775-022072319-kji2bknSwKd8UOWJnmLjdV80CM/2V0" \
@@ -297,6 +300,7 @@ print("Type \"help\" or \"license\" for more information.")
 
 while True:
     choose1 = input("主选项: ")
+    choose1 = choose1.strip()
     if choose1 == "recommend":
         flag = True
         while flag:
@@ -309,19 +313,19 @@ while True:
                 flag1 = True
                 avid = i['id']
                 cid = i['cid']
-                print("Title: ", i['title'])
-                print("owner: ", i['owner']['name'])
                 bvid, _, view, danmaku, like_, coin, favorite, share, comment_count = video_status(i['bvid'])
+                print("标题: ", i['title'])
+                print("作者: ", i['owner']['name'])
                 print('avid: ', avid)
                 print("bvid: ", bvid)
-                print("view: ", view)
-                print("danmaku: ", danmaku)
-                print("like: ", like_)
-                print("coin: ", coin)
-                print("favorite: ", favorite)
-                print("share: ", share)
-                print("comment: ", comment_count)
-                print("Tag: ", ", ".join(get_tag(avid, cid)))
+                print("观看量: ", view)
+                print("弹幕: ", danmaku)
+                print("点赞量: ", like_)
+                print("硬币量: ", coin)
+                print("收藏量: ", favorite)
+                print("转发量: ", share)
+                print("评论量: ", comment_count)
+                print("标签: ", ", ".join(get_tag(avid, cid)))
                 while True:
                     choose = input("推荐选项: ")
                     if choose == "play":
@@ -360,7 +364,6 @@ while True:
             video = get(video).url
         print("标题: ", get_title(video, av_or_bv=video.startswith("https")))
         av_or_bv = video.split("/")[-1].split("?")[0]
-        print("信息: ")
         bvid, avid, view, danmaku, like_, coin, favorite, share, comment_count = video_status(str(av_or_bv))
         print('avid: ', avid)
         print("bvid: ", bvid)
@@ -402,16 +405,16 @@ while True:
             print("标题: ", get_title(f"av{i}", av_or_bv=False))
             bvid, avid, view, danmaku, like_, coin, favorite, share, comment_count = video_status(i)
             username, mid = get_author_name_video(f"av{i}", av_or_bv=False, return_mid=True)
+            print("作者: ", username)
             print('avid: ', avid)
             print("bvid: ", bvid)
-            print("view: ", view)
-            print("danmaku: ", danmaku)
-            print("like: ", like_)
-            print("coin: ", coin)
-            print("favorite: ", favorite)
-            print("share: ", share)
-            print("comment: ", comment_count)
-            print("author: ", username)
+            print("观看量: ", view)
+            print("弹幕: ", danmaku)
+            print("点赞量: ", like_)
+            print("硬币量: ", coin)
+            print("收藏量: ", favorite)
+            print("转发量: ", share)
+            print("评论量: ", comment_count)
             flag = True
             while True:
                 choose = input("收藏选项: ")
@@ -446,19 +449,20 @@ while True:
                 break
             for i in r.json()['data'].get("result"):
                 _, _, view, danmaku, like_, coin, favorite, share, comment_count = video_status(str(i['aid']))
+                print("标题: ", get_title("av" + str(i['aid']), av_or_bv=False))
+                print('作者: ', i['author'])
+                print("观看量: ", view)
                 print("avid: ", i['aid'])
-                print('author: ', i['author'])
                 print("bvid: ", i['bvid'])
-                print("title: ", get_title("av" + str(i['aid']), av_or_bv=False))
-                print("view: ", view)
-                print("danmaku: ", danmaku)
-                print("like: ", like_)
-                print("coin: ", coin)
-                print("favorite: ", favorite)
-                print("share: ", share)
-                print("comment: ", comment_count)
-                print("description:")
+                print("弹幕: ", danmaku)
+                print("点赞量: ", like_)
+                print("硬币量: ", coin)
+                print("收藏量: ", favorite)
+                print("转发量: ", share)
+                print("评论量: ", comment_count)
+                print("简介:")
                 print(i['description'])
+                print("")
                 while True:
                     choose = input("搜索选项: ")
                     if choose == "play":
@@ -478,5 +482,8 @@ while True:
                         print("未知选项!")
                 if not flag_search:
                     break
+    elif choose1 == "clean_cache":
+        clean_cache()
+        print("成功清除缓存!")
     else:
         print("未知选项!")
