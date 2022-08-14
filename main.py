@@ -16,8 +16,43 @@ import requests
 from bs4 import BeautifulSoup
 
 import os
+from danmaku2ass import Danmaku2ASS
 
-def get(url, params=None, no_cache=False, **kwargs) -> requests.Response:
+
+def check_av_or_bv(av_or_bv: str):
+    try:
+        int(av_or_bv)
+        return True
+    except:
+        return False
+
+
+def like(av_or_bv: str, unlike=False):
+    data = {}
+    IS_AV = check_av_or_bv(av_or_bv)
+    if IS_AV:
+        data["aid"] = av_or_bv
+    else:
+        data['bvid'] = av_or_bv
+    if not unlike:
+        data['like'] = 1
+    else:
+        data['like'] = 2
+    data['csrf'] = csrf_token
+    r = post("http://api.bilibili.com/x/web-interface/archive/like", data=data, headers=public_header)
+    code = r.json()['code']
+    if code == 0:
+        if not unlike:
+            print("点赞成功!")
+        else:
+            print("取消点赞成功!")
+    else:
+        print("点赞失败!")
+        print(code)
+        print(r.json()['message'])
+
+
+def get(url: str, params=None, no_cache=False, **kwargs) -> requests.Response:
     if cached.get(url):
         return cached.get(url)
     else:
@@ -37,6 +72,21 @@ def get(url, params=None, no_cache=False, **kwargs) -> requests.Response:
         return r
 
 
+def post(url: str, params=None, **kwargs) -> requests.Response:
+    count = 3
+    while True:
+        try:
+            r = requests.post(url, params=params, **kwargs)
+            break
+        except requests.exceptions.RequestException as e:
+            print(f"Request {url} error! Will try {count} counts!")
+            count -= 1
+            if count <= 0:
+                print("Request error!")
+                raise e
+    return r
+
+
 def get_tag(avid, cid) -> list:
     ls = []
     url = f"https://api.bilibili.com/x/web-interface/view/detail/tag?aid={avid}&cid={cid}"
@@ -54,10 +104,24 @@ def play(avid, cid) -> None:
     }
     url1 = f"https://api.bilibili.com/x/player/playurl?avid={avid}&cid={cid}&qn=80&type=&otype=json"
     req = get(url1, headers=header, no_cache=True)
-    url111 = req.json()["data"]["durl"][0]["url"]
-    command = "mpv --user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0\" " \
-              "--referrer=\"https://www.bilibili.com\" \"{}\"".format(
-        url111)
+    url111 = str(req.json()["data"]["durl"][0]["url"])
+    higher = req.json()['data']['quality']
+    width, height = quality[higher]
+    command = "mpv --sub-file=\"cached/{}.ass\" --user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0\" " \
+              "--referrer=\"https://www.bilibili.com\" \"{}\"".format(cid,
+                                                                      url111)
+    print(avid, cid)
+    print(command)
+    if not os.path.exists("cached"):
+        os.mkdir("cached")
+    if not os.path.exists(f"cached/{cid}.xml"):
+        r = requests.get(f"https://comment.bilibili.com/{cid}.xml")
+        with open(f"cached/{cid}.xml", "wb") as f:
+            f.write(r.content)
+    print(width, height)
+    Danmaku2ASS([f"cached/{cid}.xml"], "autodetect", f"cached/{cid}.ass", width, height, 0, "sans-serif", 25.0, 1.0,
+                5.0, 5.0, None,
+                None, False)
     os.system(command)
 
 
@@ -67,15 +131,15 @@ def get_title(video_url, av_or_bv) -> str:
     return soup.find(class_="video-title").string
 
 
-def get_author_name_video(video_url, av_or_bv, return_mid=False):
+def get_author_name_video(video_url, av_or_bv, return_mid=False) -> (str, tuple):
     print(video_url)
     soup = BeautifulSoup(get(video_url if av_or_bv else "https://www.bilibili.com/video/" + str(video_url),
-                             headers=public_header).text, "lxml")                   
+                             headers=public_header).text, "lxml")
     a = soup.find(class_="username")
     if a:
         a.find("span").extract()
     else:
-        print("多作者暂未实现!")    
+        print("多作者暂未实现!")
     if return_mid:
         return a.string.strip(), a.get("href").split("/")[-1]
     return a.string.strip()
@@ -85,17 +149,17 @@ def download(avid, cid):
     pass
 
 
-def write_local_collection(avid):
+def write_local_collection(avid) -> None:
     with open("collection.txt", "a") as write:
         write.write(str(avid) + "\n")
 
 
-def read_local_collection():
+def read_local_collection() -> list:
     with open("collection.txt") as read:
         return read.readlines()
 
 
-def get_cid(avid):
+def get_cid(avid) -> int:
     cid_url = "https://api.bilibili.com/x/player/pagelist?aid={aid}&jsonp=jsonp".format(aid=avid)
     return get(cid_url, headers=public_header).json()["data"][0]["cid"]
 
@@ -172,7 +236,7 @@ def comment_viewer(aid):
 def licenses():
     print("""MIT License
 
-Copyright (c) 2022 "Laosun Studios"。
+Copyright (c) 2022 "Laosun Studios".
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -192,6 +256,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.""")
 
+
 test_cookie = "_uuid=4D779741-5FF10-952C-D9E4-29DCDDC6B9AB38010infoc; b_nut=1658576443; " \
               "buvid3=A6E299C8-DE54-5E68-3E9C-1FC404F85D4342775infoc; " \
               "buvid4=8427C489-9DB8-44A3-B0DE-DFE66130D43E42775-022072319-kji2bknSwKd8UOWJnmLjdV80CM/2V0" \
@@ -202,8 +267,24 @@ test_cookie = "_uuid=4D779741-5FF10-952C-D9E4-29DCDDC6B9AB38010infoc; b_nut=1658
               "b_timer=%7B%22ffp%22%3A%7B%22333.788.fp.risk_A6E299C8%22%3A%22182719BD91C%22%2C%22333.1007.fp" \
               ".risk_A6E299C8%22%3A%22182719D8E0E%22%7D%7D; innersign=1; CURRENT_FNVAL=4048 "
 
+quality = {
+    112: (1920, 1080),
+    80: (1920, 1080),
+    64: (1280, 720),
+    32: (720, 480),
+    16: (480, 360)
+}
+
 with open("cookie.txt") as f:
     cookie = f.read()
+
+cookie_mapping = {}
+
+for i in cookie.split(";"):
+    a, b = i.strip().split("=")
+    cookie_mapping[a] = b
+
+csrf_token = cookie_mapping['bili_jct']
 
 public_header = {"cookie": cookie,
                  "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -230,12 +311,12 @@ while True:
                 cid = i['cid']
                 print("Title: ", i['title'])
                 print("owner: ", i['owner']['name'])
-                bvid, _, view, danmaku, like, coin, favorite, share, comment_count = video_status(i['bvid'])
+                bvid, _, view, danmaku, like_, coin, favorite, share, comment_count = video_status(i['bvid'])
                 print('avid: ', avid)
                 print("bvid: ", bvid)
                 print("view: ", view)
                 print("danmaku: ", danmaku)
-                print("like: ", like)
+                print("like: ", like_)
                 print("coin: ", coin)
                 print("favorite: ", favorite)
                 print("share: ", share)
@@ -251,6 +332,10 @@ while True:
                         break
                     elif choose == "view_comment":
                         comment_viewer(avid)
+                    elif choose == "like":
+                        like(avid)
+                    elif choose == "unlike":
+                        like(avid, unlike=True)
                     elif not choose:
                         break
                     elif choose == 'download':
@@ -271,15 +356,17 @@ while True:
             IS_AV = True
         except (TypeError, ValueError):
             pass
+        if "b23.tv" in video:
+            video = get(video).url
         print("标题: ", get_title(video, av_or_bv=video.startswith("https")))
         av_or_bv = video.split("/")[-1].split("?")[0]
         print("信息: ")
-        bvid, avid, view, danmaku, like, coin, favorite, share, comment_count = video_status(str(av_or_bv))
+        bvid, avid, view, danmaku, like_, coin, favorite, share, comment_count = video_status(str(av_or_bv))
         print('avid: ', avid)
         print("bvid: ", bvid)
         print("观看量: ", view)
         print("弹幕: ", danmaku)
-        print("点赞量: ", like)
+        print("点赞量: ", like_)
         print("硬币量: ", coin)
         print("收藏量: ", favorite)
         print("转发量: ", share)
@@ -313,13 +400,13 @@ while True:
                 break
             i = i[:-1]
             print("标题: ", get_title(f"av{i}", av_or_bv=False))
-            bvid, avid, view, danmaku, like, coin, favorite, share, comment_count = video_status(i)
+            bvid, avid, view, danmaku, like_, coin, favorite, share, comment_count = video_status(i)
             username, mid = get_author_name_video(f"av{i}", av_or_bv=False, return_mid=True)
             print('avid: ', avid)
             print("bvid: ", bvid)
             print("view: ", view)
             print("danmaku: ", danmaku)
-            print("like: ", like)
+            print("like: ", like_)
             print("coin: ", coin)
             print("favorite: ", favorite)
             print("share: ", share)
@@ -337,6 +424,10 @@ while True:
                     break
                 elif choose == "view_author_avatar":
                     view_picture(get_author_avatar(mid))
+                elif choose == "like":
+                    like(i)
+                elif choose == "unlike":
+                    like(i, unlike=True)
                 elif choose == "view_comment":
                     comment_viewer(i)
                 else:
@@ -354,14 +445,14 @@ while True:
                 flag_search = False
                 break
             for i in r.json()['data'].get("result"):
-                _, _, view, danmaku, like, coin, favorite, share, comment_count = video_status(str(i['aid']))
+                _, _, view, danmaku, like_, coin, favorite, share, comment_count = video_status(str(i['aid']))
                 print("avid: ", i['aid'])
                 print('author: ', i['author'])
                 print("bvid: ", i['bvid'])
                 print("title: ", get_title("av" + str(i['aid']), av_or_bv=False))
                 print("view: ", view)
                 print("danmaku: ", danmaku)
-                print("like: ", like)
+                print("like: ", like_)
                 print("coin: ", coin)
                 print("favorite: ", favorite)
                 print("share: ", share)
@@ -375,6 +466,10 @@ while True:
                     elif choose == "exit":
                         flag_search = False
                         break
+                    elif choose == "like":
+                        like(i['aid'])
+                    elif choose == "unlike":
+                        like(i['aid'], unlike=True)
                     elif not choose:
                         break
                     elif choose == "view_comment":
