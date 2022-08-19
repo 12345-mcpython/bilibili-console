@@ -117,9 +117,9 @@ def play(avid, cid) -> None:
         r = requests.get(f"https://comment.bilibili.com/{cid}.xml")
         with open(f"cached/{cid}.xml", "wb") as f:
             f.write(r.content)
-    Danmaku2ASS([f"cached/{cid}.xml"], "autodetect", f"cached/{cid}.ass", width, height, 0, "sans-serif", 25.0, 1.0,
-                5.0, 5.0, None,
-                None, False)
+        Danmaku2ASS([f"cached/{cid}.xml"], "autodetect", f"cached/{cid}.ass", width, height, 0, "sans-serif", 25.0, 1.0,
+                    10, 8, None,
+                    None, False)
     os.system(command)
 
 
@@ -304,9 +304,7 @@ while True:
     if choose1 == "recommend":
         flag = True
         while flag:
-            url = "https://api.bilibili.com/x/web-interface/index/top/feed/rcmd?y_num=5&fresh_idx_1h=1&fresh_idx=1" \
-                  "&feed_version=V4&fetch_row=1&homepage_ver=1&ps=11&fresh_type=3 "
-
+            url = "https://api.bilibili.com/x/web-interface/index/top/feed/rcmd"
             r = get(url, headers=public_header, no_cache=True)
 
             for i in r.json()["data"]['item']:
@@ -438,7 +436,11 @@ while True:
             if not flag: break
     elif choose1 == "search":
         search_url = "http://api.bilibili.com/x/web-interface/search/type?keyword={}&search_type=video&page={}"
-        search_thing = input("请输入搜索的东西: ")
+        try:
+            search_thing = input("请输入搜索的东西: ")
+        except KeyboardInterrupt:
+            print("\n取消搜索.")
+            continue
         page = 1
         flag_search = True
         while flag_search:
