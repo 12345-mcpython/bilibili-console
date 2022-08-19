@@ -234,7 +234,7 @@ def comment_viewer(aid):
 def licenses():
     print("""MIT License
 
-Copyright (c) 2022 "Laosun Studios".
+Copyright (c) 2022 Laosun Studios.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
