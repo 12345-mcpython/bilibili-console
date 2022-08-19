@@ -1,16 +1,30 @@
-"""import random
+"""
+LBCC (Laosun Bilibili Console Client) is a Bilibili console, licensed by MIT License.
 
-_1 = 0
-_2 = 0
+MIT License
 
-for i in range(10000000):
-    a = random.randint(1,2)
-    if a == 1:
-        _1 += 1
-    else:
-        _2 += 2
-print(_1 > _2)"""
+Copyright (c) 2022 Laosun Studios.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
 import shutil
+from typing import Union
 
 import requests
 
@@ -20,7 +34,7 @@ import os
 from danmaku2ass import Danmaku2ASS
 
 
-def check_av_or_bv(av_or_bv: str):
+def check_av_or_bv(av_or_bv: str) -> bool:
     try:
         int(av_or_bv)
         return True
@@ -28,13 +42,13 @@ def check_av_or_bv(av_or_bv: str):
         return False
 
 
-def like(av_or_bv: str, unlike=False):
+def like(abv: str, unlike: bool = False) -> None:
     data = {}
-    IS_AV = check_av_or_bv(av_or_bv)
+    IS_AV: bool = check_av_or_bv(abv)
     if IS_AV:
-        data["aid"] = av_or_bv
+        data["aid"] = abv
     else:
-        data['bvid'] = av_or_bv
+        data['bvid'] = abv
     if not unlike:
         data['like'] = 1
     else:
@@ -88,7 +102,7 @@ def post(url: str, params=None, **kwargs) -> requests.Response:
     return r
 
 
-def get_tag(avid, cid) -> list:
+def get_tag(avid: int, cid: int) -> list:
     ls = []
     url = f"https://api.bilibili.com/x/web-interface/view/detail/tag?aid={avid}&cid={cid}"
     r = get(url, headers=public_header)
@@ -97,7 +111,7 @@ def get_tag(avid, cid) -> list:
     return ls
 
 
-def play(avid, cid) -> None:
+def play(avid: int, cid: int) -> None:
     header = {
         'host': 'api.bilibili.com',
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
@@ -123,14 +137,13 @@ def play(avid, cid) -> None:
     os.system(command)
 
 
-def get_title(video_url, av_or_bv) -> str:
+def get_title(video_url: str, av_or_bv: bool) -> str:
     soup = BeautifulSoup(get(video_url if av_or_bv else "https://www.bilibili.com/video/" + str(video_url),
                              headers=public_header).text, "lxml")
     return soup.find(class_="video-title").string
 
 
-def get_author_name_video(video_url, av_or_bv, return_mid=False) -> (str, tuple):
-    print(video_url)
+def get_author_name_video(video_url: str, av_or_bv: bool, return_mid=False) -> Union[str, tuple]:
     soup = BeautifulSoup(get(video_url if av_or_bv else "https://www.bilibili.com/video/" + str(video_url),
                              headers=public_header).text, "lxml")
     a = soup.find(class_="username")
@@ -147,7 +160,7 @@ def download(avid, cid):
     pass
 
 
-def write_local_collection(avid) -> None:
+def write_local_collection(avid: int) -> None:
     with open("collection.txt", "a") as write:
         write.write(str(avid) + "\n")
 
@@ -157,12 +170,12 @@ def read_local_collection() -> list:
         return read.readlines()
 
 
-def get_cid(avid) -> int:
+def get_cid(avid: str) -> int:
     cid_url = "https://api.bilibili.com/x/player/pagelist?aid={aid}&jsonp=jsonp".format(aid=avid)
     return get(cid_url, headers=public_header).json()["data"][0]["cid"]
 
 
-def view_comment(avid, page=1):
+def view_comment(avid: Union[int, str], page=1):
     if not isinstance(avid, int):
         avid = avid.strip()
     url = f"http://api.bilibili.com/x/v2/reply/main?mode=0&oid={avid}&next={page}&type=1"
@@ -184,12 +197,12 @@ def video_status(av_or_bv: str):
         'like'], json['data']['coin'], json['data']['favorite'], json['data']['share'], json['data']['reply']
 
 
-def get_author_avatar(mid):
+def get_author_avatar(mid: int):
     r = get(f"https://api.bilibili.com/x/space/acc/info?mid={mid}&jsonp=jsonp", headers=public_header)
     return r.json()['data']['face']
 
 
-def view_picture(url):
+def view_picture(url: str):
     os.system("mpv " + url)
 
 
@@ -258,17 +271,6 @@ SOFTWARE.""")
 def clean_cache():
     shutil.rmtree("cached")
     os.mkdir("cached")
-
-
-test_cookie = "_uuid=4D779741-5FF10-952C-D9E4-29DCDDC6B9AB38010infoc; b_nut=1658576443; " \
-              "buvid3=A6E299C8-DE54-5E68-3E9C-1FC404F85D4342775infoc; " \
-              "buvid4=8427C489-9DB8-44A3-B0DE-DFE66130D43E42775-022072319-kji2bknSwKd8UOWJnmLjdV80CM/2V0" \
-              "+NqSg67PrOX099fj7ud7u2FQ%3D%3D; i-wanna-go-back=-1; b_ut=7; CURRENT_BLACKGAP=0; " \
-              "rpdid=0zbfAHF9QV|RTEXDkOq|3Bt|3w1OffDf; PVID=1; fingerprint=844016f38fbc4bb4a65d3949861d2fb5; " \
-              "buvid_fp_plain=undefined; buvid_fp=844016f38fbc4bb4a65d3949861d2fb5; nostalgia_conf=-1; " \
-              "b_lsid=8D66F3E1_182719BCDD6; sid=7h0dsy5u; theme_style=light; " \
-              "b_timer=%7B%22ffp%22%3A%7B%22333.788.fp.risk_A6E299C8%22%3A%22182719BD91C%22%2C%22333.1007.fp" \
-              ".risk_A6E299C8%22%3A%22182719D8E0E%22%7D%7D; innersign=1; CURRENT_FNVAL=4048 "
 
 quality = {
     112: (1920, 1080),
@@ -347,7 +349,8 @@ while True:
                         print("收藏到本地收藏夹.")
                     else:
                         print("未知选项!")
-                if not flag1: break
+                if not flag1:
+                    break
                 print("\n" * 2)
     elif choose1 == "address":
         IS_AV = False
@@ -433,7 +436,8 @@ while True:
                     comment_viewer(i)
                 else:
                     print("未知选项!")
-            if not flag: break
+            if not flag:
+                break
     elif choose1 == "search":
         search_url = "http://api.bilibili.com/x/web-interface/search/type?keyword={}&search_type=video&page={}"
         try:
