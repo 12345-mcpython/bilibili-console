@@ -1,5 +1,11 @@
 """
-LBCC (Laosun Bilibili Console Client) is a Bilibili console, licensed by MIT License.
+Copyright (c) 2022 Laosun Studios. All Rights Reserved.
+
+Distributed under MIT license.
+
+The product is developing. Effect currently 
+displayed is for reference only. Not indicative 
+of final product.
 
 MIT License
 
@@ -23,15 +29,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
 import shutil
 from typing import Union
+import os
 
 import requests
-
 from bs4 import BeautifulSoup
 
-import os
 from danmaku2ass import Danmaku2ASS
+
 
 
 def check_av_or_bv(av_or_bv: str) -> bool:
