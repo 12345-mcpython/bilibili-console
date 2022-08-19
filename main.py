@@ -81,7 +81,7 @@ def triple(abv: bool):
     else:
         data['bvid'] = abv
     data['csrf'] = csrf_token
-    r = post("http://api.bilibili.com/x/web-interface/archive/like/triple")
+    r = post("http://api.bilibili.com/x/web-interface/archive/like/triple", headers=public_header)
     if code == 0:
         print("三连成功!")
     else:
