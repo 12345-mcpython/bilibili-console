@@ -73,6 +73,24 @@ def like(abv: str, unlike: bool = False) -> None:
         print(code)
         print(r.json()['message'])
 
+def triple(abv: bool):
+    data = {}
+    IS_AV: bool = check_av_or_bv(abv)
+    if IS_AV:
+        data["aid"] = abv
+    else:
+        data['bvid'] = abv
+    data['csrf'] = csrf_token
+    r = post("http://api.bilibili.com/x/web-interface/archive/like/triple")
+    if code == 0:
+        print("三连成功!")
+    else:
+        print("三连失败!")
+        print(code)
+        print(r.json()['message'])
+    
+
+
 
 def get(url: str, params=None, no_cache=False, **kwargs) -> requests.Response:
     if cached.get(url):
@@ -347,6 +365,8 @@ while True:
                         like(avid)
                     elif choose == "unlike":
                         like(avid, unlike=True)
+                    elif choose == "triple":
+                        triple(avid)    
                     elif not choose:
                         break
                     elif choose == 'download':
@@ -439,6 +459,8 @@ while True:
                     like(i)
                 elif choose == "unlike":
                     like(i, unlike=True)
+                elif choose == "triple":
+                    triple(i)       
                 elif choose == "view_comment":
                     comment_viewer(i)
                 else:
@@ -487,6 +509,8 @@ while True:
                         like(i['aid'])
                     elif choose == "unlike":
                         like(i['aid'], unlike=True)
+                    elif choose == "triple":
+                        triple(i['aid'])       
                     elif not choose:
                         break
                     elif choose == "view_comment":
