@@ -311,11 +311,12 @@ with open("cookie.txt") as f:
 
 cookie_mapping = {}
 
-for i in cookie.split(";"):
-    a, b = i.strip().split("=")
-    cookie_mapping[a] = b
+if cookie:
+    for i in cookie.split(";"):
+        a, b = i.strip().split("=")
+        cookie_mapping[a] = b
 
-csrf_token = cookie_mapping['bili_jct']
+csrf_token = cookie_mapping.get("bili_jct")
 
 public_header = {"cookie": cookie,
                  "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
