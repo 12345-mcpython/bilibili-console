@@ -35,6 +35,7 @@ from typing import Union
 import os
 import base64
 import json
+import datetime
 
 import requests
 from bs4 import BeautifulSoup
@@ -172,7 +173,6 @@ def login_by_password(username, password, validate, seccode, token, challenge):
     else:
         print("登录失败!")
         print(r.json()['code'])
-    print("登录成功!")
 
 
 def encrypt_password(public_key, data):
@@ -303,13 +303,18 @@ def get_tag(avid: int, cid: int) -> list:
     return ls
 
 
-def play(avid: int, cid: int) -> None:
+def play_with_cid(av_or_bv, cid: int) -> None:
+    url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn=80&type=&otype=json"
+    IS_AV: bool = check_av_or_bv(av_or_bv)
+    if IS_AV:
+        url1 += "&avid=" + av_or_bv
+    else:
+        url1 += "&bvid=" + av_or_bv
     header = {
         'host': 'api.bilibili.com',
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
         'cookie': cookie
     }
-    url1 = f"https://api.bilibili.com/x/player/playurl?avid={avid}&cid={cid}&qn=80&type=&otype=json"
     req = get(url1, headers=header, no_cache=True)
     url111 = str(req.json()["data"]["durl"][0]["url"])
     higher = req.json()['data']['quality']
@@ -327,6 +332,37 @@ def play(avid: int, cid: int) -> None:
                     10, 8, None,
                     None, False)
     os.system(command)
+
+
+def play(av_or_bv):
+    print("\n")
+    print("视频选集")
+    av_or_bv = str(av_or_bv)
+    url = "http://api.bilibili.com/x/web-interface/view/detail"
+    IS_AV: bool = check_av_or_bv(av_or_bv)
+    if IS_AV:
+        url += "?aid=" + av_or_bv
+    else:
+        url += "?bvid=" + av_or_bv
+    r = get(url, headers=public_header)
+    video = r.json()['data']["View"]["pages"]
+    for i in video:
+        print(f"{i['page']}: {i['part']}")
+    print("请以冒号前面的数字为准选择视频.")    
+    while True:    
+        page = input("选择视频: ")
+        if page == "exit":
+            break
+        if not page:
+            continue
+        if not page.isdigit():
+            continue
+        if int(page) > len(video) or int(page) <= 0:
+            print("选视频错误!")
+            continue
+        cid = video[int(page)-1]['cid']
+        play_with_cid(av_or_bv, cid)
+    return    
 
 
 def get_title(video_url: str, av_or_bv: bool) -> str:
@@ -469,6 +505,52 @@ def clean_cache():
     os.mkdir("cached")
 
 
+def get_video_info(av_or_bv: str):
+    av_or_bv = str(av_or_bv)
+    url = "http://api.bilibili.com/x/web-interface/view/detail"
+    IS_AV: bool = check_av_or_bv(av_or_bv)
+    if IS_AV:
+        url += "?aid=" + av_or_bv
+    else:
+        url += "?bvid=" + av_or_bv
+    r = get(url, headers=public_header)
+    video = r.json()['data']["View"]
+    author = r.json()['data']["Card"]
+    status = video['stat']
+    print("长度: ", format_long(video['duration']))
+    print("播放: ", status["view"])
+    print("点赞: ", status['like'])
+    print("投币: ", status["coin"])
+    print("收藏: ", status["favorite"])
+    print("转发: ", status["share"])
+    print("弹幕: ", status["danmaku"])
+    print("评论: ", status["reply"])
+    print("avid: ", video["aid"])
+    print("日期: ", datetime.datetime.fromtimestamp(
+        video["pubdate"]).strftime("%Y-%m-%d %H:%M:%S"))
+    print("简介: \n", video['desc'])
+    print("\n")
+    print("封面: ", video['pic'])
+    print("所有者名字: ", video['owner']['name'])
+    print("mid: ", video['owner']['mid'])
+
+
+def format_long(long):
+    fmt = "{}:{}"
+    if long > 60 * 60:
+        fmt = "{}:{}:{}"
+        hour = long // (60 * 60)
+        minute = (long - (hour * 60 * 60)) // 60
+        sec = long - (hour * 60 * 60) - minute * 60
+    else:
+        minute = (long) // 60
+        sec = long - minute * 60
+    if long > 60 * 60:
+        return fmt.format(hour, minute, sec)
+    else:
+        return fmt.format(minute, sec)
+
+
 def recommend():
     flag = True
     while flag:
@@ -482,21 +564,13 @@ def recommend():
             bvid, _, view, danmaku, like_, coin, favorite, share, comment_count = video_status(
                 i['bvid'])
             print("标题: ", i['title'])
-            print("作者: ", i['owner']['name'])
-            print('avid: ', avid)
             print("bvid: ", bvid)
             print("观看量: ", view)
-            print("弹幕: ", danmaku)
-            print("点赞量: ", like_)
-            print("硬币量: ", coin)
-            print("收藏量: ", favorite)
-            print("转发量: ", share)
-            print("评论量: ", comment_count)
             print("标签: ", ", ".join(get_tag(avid, cid)))
             while True:
                 choose = input("推荐选项: ")
                 if choose == "play":
-                    play(avid, cid)
+                    play(avid)
                 elif choose == "exit":
                     flag = False
                     flag1 = False
@@ -513,6 +587,8 @@ def recommend():
                     break
                 elif choose == 'download':
                     download(avid, cid)
+                elif choose == "view_info":
+                    get_video_info(avid)
                 elif choose == "collection":
                     write_local_collection(avid)
                     print("收藏到本地收藏夹.")
@@ -554,7 +630,7 @@ def address():
                        headers=public_header)
         av_or_bv = av_or_bv.json()['data']['aid']
     cid = get_cid(av_or_bv)
-    play(av_or_bv, cid)
+    play(av_or_bv)
 
 
 def collection():
@@ -575,30 +651,18 @@ def collection():
         print("标题: ", get_title(f"av{i}", av_or_bv=False))
         bvid, avid, view, danmaku, like_, coin, favorite, share, comment_count = video_status(
             i)
-        username, mid = get_author_name_video(
-            f"av{i}", av_or_bv=False, return_mid=True)
-        print("作者: ", username)
-        print('avid: ', avid)
         print("bvid: ", bvid)
         print("观看量: ", view)
-        print("弹幕: ", danmaku)
-        print("点赞量: ", like_)
-        print("硬币量: ", coin)
-        print("收藏量: ", favorite)
-        print("转发量: ", share)
-        print("评论量: ", comment_count)
         flag = True
         while True:
             choose = input("收藏选项: ")
             if choose == "play":
-                play(i, get_cid(i))
+                play(i)
             elif choose == "exit":
                 flag = False
                 break
             elif not choose:
                 break
-            elif choose == "view_author_avatar":
-                view_picture(get_author_avatar(mid))
             elif choose == "like":
                 like(i)
             elif choose == "unlike":
@@ -607,6 +671,8 @@ def collection():
                 triple(i)
             elif choose == "view_comment":
                 comment_viewer(i)
+            elif choose == "view_info":
+                get_video_info(i)
             else:
                 print("未知选项!")
         if not flag:
@@ -632,23 +698,12 @@ def search():
             _, _, view, danmaku, like_, coin, favorite, share, comment_count = video_status(
                 str(i['aid']))
             print("标题: ", get_title("av" + str(i['aid']), av_or_bv=False))
-            print('作者: ', i['author'])
             print("观看量: ", view)
-            print("avid: ", i['aid'])
             print("bvid: ", i['bvid'])
-            print("弹幕: ", danmaku)
-            print("点赞量: ", like_)
-            print("硬币量: ", coin)
-            print("收藏量: ", favorite)
-            print("转发量: ", share)
-            print("评论量: ", comment_count)
-            print("简介:")
-            print(i['description'])
-            print("")
             while True:
                 choose = input("搜索选项: ")
                 if choose == "play":
-                    play(i['aid'], get_cid(i['aid']))
+                    play(i['aid'])
                 elif choose == "exit":
                     flag_search = False
                     break
@@ -662,6 +717,8 @@ def search():
                     break
                 elif choose == "view_comment":
                     comment_viewer(i['aid'])
+                elif choose == "view_info":
+                    get_video_info(i['aid'])
                 else:
                     print("未知选项!")
             if not flag_search:
