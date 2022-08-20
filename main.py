@@ -102,7 +102,6 @@ def logout():
                 f.truncate()
     except json.decoder.JSONDecodeError:
         print("登出失败!")
-        print(r.json()['code'])
 
 
 def login():
@@ -144,7 +143,7 @@ def login():
                         cookie_str += "{}={};".format(key, value)
                         cookie_str = cookie_str[:-1]
                         f.write(cookie_str)
-                print("登录成功!")        
+                print("登录成功!")
 
             else:
                 print("登录失败!")
@@ -163,13 +162,18 @@ def login_by_password(username, password, validate, seccode, token, challenge):
     ), "keep": True, "challenge": challenge, "key": token, "validate": validate, "seccode": seccode}
     r = post("https://passport.bilibili.com/web/login/v2",
              headers={}, data=data)
-    with open("cookie.txt") as f:
-        cookie_str = ""
-        for key, value in r.cookies.items():
-            cookie_str += "{}={};".format(key, value)
-            cookie_str = cookie_str[:-1]
-            f.write(cookie_str)
-    print("登录成功!")        
+    if r.json()['code'] == 0:
+        with open("cookie.txt") as f:
+            cookie_str = ""
+            for key, value in r.cookies.items():
+                cookie_str += "{}={};".format(key, value)
+                cookie_str = cookie_str[:-1]
+                f.write(cookie_str)
+    else:
+        print("登录失败!")
+        print(r.json()['code'])
+    print("登录成功!")
+
 
 def encrypt_password(public_key, data):
     pub_key = rsa.PublicKey.load_pkcs1_openssl_pem(public_key)
