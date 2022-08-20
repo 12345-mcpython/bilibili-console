@@ -138,8 +138,16 @@ def login():
             r_login = post("https://passport.bilibili.com/x/passport-login/web/login/sms",
                            headers=public_header, data=data_login)
             if r_login.json()['code'] == 0:
-                print(r_login.headers)
+                with open("cookie.txt") as f:
+                    cookie_str = ""
+                    for key, value in r_login.cookies.items():
+                        cookie_str += "{}={};".format(key, value)
+                        cookie_str = cookie_str[:-1]
+                        f.write(cookie_str)
+                print("登录成功!")        
+
             else:
+                print("登录失败!")
                 print(r_login.json()['code'])
             break
 
@@ -155,9 +163,13 @@ def login_by_password(username, password, validate, seccode, token, challenge):
     ), "keep": True, "challenge": challenge, "key": token, "validate": validate, "seccode": seccode}
     r = post("https://passport.bilibili.com/web/login/v2",
              headers={}, data=data)
-    print(r.json())
-    print(r.headers)
-
+    with open("cookie.txt") as f:
+        cookie_str = ""
+        for key, value in r.cookies.items():
+            cookie_str += "{}={};".format(key, value)
+            cookie_str = cookie_str[:-1]
+            f.write(cookie_str)
+    print("登录成功!")        
 
 def encrypt_password(public_key, data):
     pub_key = rsa.PublicKey.load_pkcs1_openssl_pem(public_key)
