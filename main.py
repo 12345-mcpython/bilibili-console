@@ -76,6 +76,7 @@ print("Type \"help\" or \"license\" for more information.")
 
 
 def get_login_status():
+    global is_login
     r = get('https://api.bilibili.com/x/member/web/account',
             headers=public_header)
     if r.json()['code'] == -101:
@@ -87,6 +88,8 @@ def get_login_status():
 
 
 def logout():
+    if not is_login:
+        print("你未登录!")
     print("你确定要登出吗?(Y/N)")
     if input() != "y":
         return
@@ -101,45 +104,90 @@ def logout():
         print("登出失败!")
         print(r.json()['code'])
 
+
 def login():
     if is_login:
         print("你已登录!")
         return
     while True:
-        choose = input("选择登录方式(目前只能使用password登录):")
+        choose = input("选择登录方式:")
         if choose == "password":
-            validate, seccode, token, challenge = verify_captcha()
-            username = input("Username: ")
-            password = input("Password: ")
-            login_by_password(username, password, validate, seccode, token, challenge)
+            validate, seccode, key, challenge = verify_captcha_key()
+            username = input("用户名: ")
+            password = input("密码: ")
+            login_by_password(username, password, validate,
+                              seccode, key, challenge)
+            break
+        elif choose == "sms":
+            print("默认手机号国家代码为中国代码(+86)")
+            validate, seccode, token, challenge = verify_captcha_token()
+            tel = input("请输入手机号: ")
+            data = {"tel": tel, "cid": 86, "source": "main_web", "token": token,
+                    "challenge": challenge, "validate": validate, "seccode": seccode}
+            r = post("https://passport.bilibili.com/x/passport-login/web/sms/send",
+                     data=data, headers=public_header)
+            if r.json()['code'] == 0:
+                captcha_key = r.json()['data']['captcha_key']
+            else:
+                print("error")
+                print(r.json()['code'])
+                break
+            code = input("请输入短信认证码: ")
+            data_login = {"code": code, "tel": tel, "cid": 86,
+                          "source": "main_web", "captcha_key": captcha_key}
+            r_login = post("https://passport.bilibili.com/x/passport-login/web/login/sms",
+                           headers=public_header, data=data_login)
+            if r_login.json()['code'] == 0:
+                print(r_login.headers)
+            else:
+                print(r_login.json()['code'])
             break
 
+
 def login_by_password(username, password, validate, seccode, token, challenge):
-    key_request = get('https://passport.bilibili.com/login?act=getkey', headers=public_header)
+    key_request = get(
+        'https://passport.bilibili.com/login?act=getkey', headers=public_header)
     hash, public_key = key_request.json()['hash'], key_request.json()['key']
     password_hashed = hash + password
-    password_encrypt = encrypt(public_key.encode(), password_hashed.encode())
-    data = {"captchaType": 6, "username": username, "password": password_encrypt.decode(), "keep": True, "challenge": challenge, "key": token, "validate": validate, "seccode": seccode}
-    r = post("https://passport.bilibili.com/web/login/v2", headers={}, data=data)
+    password_encrypt = encrypt_password(
+        public_key.encode(), password_hashed.encode())
+    data = {"captchaType": 6, "username": username, "password": password_encrypt.decode(
+    ), "keep": True, "challenge": challenge, "key": token, "validate": validate, "seccode": seccode}
+    r = post("https://passport.bilibili.com/web/login/v2",
+             headers={}, data=data)
     print(r.json())
     print(r.headers)
 
 
-
-def encrypt(public_key, data):
+def encrypt_password(public_key, data):
     pub_key = rsa.PublicKey.load_pkcs1_openssl_pem(public_key)
     return base64.urlsafe_b64encode(rsa.encrypt(data, pub_key))
 
-def verify_captcha():
-    r = get("https://passport.bilibili.com/web/captcha/combine?plat=6", headers=public_header)
+
+def verify_captcha_key():
+    r = get("https://passport.bilibili.com/web/captcha/combine?plat=6",
+            headers=public_header)
     a = r.json()
     key = a['data']['result']['key']
-    print("gt: ", a['data']['result']['gt'],"challenge: ", a['data']['result']['challenge'])
+    print("gt: ", a['data']['result']['gt'],
+          "challenge: ", a['data']['result']['challenge'])
     print("请到 https://kuresaru.github.io/geetest-validator/ 认证")
     validate = input("validate: ")
     seccode = input("seccode: ")
     return validate, seccode, key, a['data']['result']['challenge']
 
+
+def verify_captcha_token():
+    r = get("https://passport.bilibili.com/x/passport-login/captcha?source=main_web",
+            headers=public_header)
+    a = r.json()
+    token = a['data']['token']
+    print("gt: ", a['data']['geetest']['gt'],
+          "challenge: ", a['data']['geetest']['challenge'])
+    print("请到 https://kuresaru.github.io/geetest-validator/ 认证")
+    validate = input("validate: ")
+    seccode = input("seccode: ")
+    return validate, seccode, token, a['data']['geetest']['challenge']
 
 
 def check_av_or_bv(av_or_bv: str) -> bool:
@@ -621,7 +669,7 @@ while True:
     elif choose1 == "logout":
         logout()
     elif choose1 == 'login':
-        login()    
+        login()
     elif choose1 == "exit":
         break
     elif choose1 == "help":
