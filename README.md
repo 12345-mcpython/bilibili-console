@@ -26,12 +26,12 @@ Laosun Bilibili Console Client(LBCC) 是laosun写的Bilibili命令行客户端�
    - [x] 点赞。
    - [ ] 投币。
    - [ ] 转发。
-   - [ ] 三连。
+   - [x] 三连。
    - [ ] 发送弹幕。     
 
 ## 使用
 
-创建一个cookie.txt与collection.txt
+创建cookie.txt与collection.txt
 
 把你账号(如果有的话)的cookie拷贝在cookie.txt里
 
