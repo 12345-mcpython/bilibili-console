@@ -47,9 +47,9 @@ quality = {
     32: (720, 480),
     16: (480, 360)
 }
-
-with open("cookie.txt") as f:
-    cookie = f.read()
+if not os.path.exists("cookie.txt"):
+    with open("cookie.txt") as f:
+        cookie = f.read()
 
 cookie_mapping = {}
 
