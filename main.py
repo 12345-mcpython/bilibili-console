@@ -347,8 +347,8 @@ def play(av_or_bv):
     video = r.json()['data']["View"]["pages"]
     for i in video:
         print(f"{i['page']}: {i['part']}")
-    print("请以冒号前面的数字为准选择视频.")    
-    while True:    
+    print("请以冒号前面的数字为准选择视频.")
+    while True:
         page = input("选择视频: ")
         if page == "exit":
             break
@@ -362,10 +362,10 @@ def play(av_or_bv):
         cid = video[int(page)-1]['cid']
         play_with_cid(av_or_bv, cid)
         break
-    return    
+    return
 
 
-def play_b_collection(av_or_bv):   
+def play_b_collection(av_or_bv):
     av_or_bv = str(av_or_bv)
     url = "http://api.bilibili.com/x/web-interface/view/detail"
     IS_AV: bool = check_av_or_bv(av_or_bv)
@@ -395,8 +395,8 @@ def play_b_collection(av_or_bv):
     b_collection_video = b_collection['sections'][0]['episodes']
     for i, j in enumerate(b_collection_video):
         print(f"{i+1}: {j['title']}")
-    print("请以冒号前面的数字为准选择视频.")    
-    while True:    
+    print("请以冒号前面的数字为准选择视频.")
+    while True:
         page = input("选择视频: ")
         if page == "exit":
             break
@@ -415,10 +415,7 @@ def play_b_collection(av_or_bv):
             continue
         cid = b_collection_video[int(page)-1]['cid']
         play_with_cid(b_collection_video[int(page)-1]['bvid'], cid)
-    return    
-    
-    
-
+    return
 
 
 def get_title(video_url: str, av_or_bv: bool) -> str:
@@ -713,7 +710,7 @@ def collection():
             elif choose == "view_info":
                 get_video_info(i)
             elif choose == "view_b_collection":
-                play_b_collection(i)    
+                play_b_collection(i)
             else:
                 print("未知选项!")
         if not flag:
@@ -761,7 +758,7 @@ def search():
                 elif choose == "view_info":
                     get_video_info(i['aid'])
                 elif choose == "view_b_collection":
-                    play_b_collection(i['aid'])    
+                    play_b_collection(i['aid'])
                 else:
                     print("未知选项!")
             if not flag_search:
