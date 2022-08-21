@@ -300,13 +300,16 @@ def get_tag(avid: int, cid: int) -> list:
     return ls
 
 
-def play_with_cid(av_or_bv, cid: int) -> None:
-    url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn=80&type=&otype=json"
-    IS_AV: bool = check_av_or_bv(av_or_bv)
-    if IS_AV:
-        url1 += "&avid=" + av_or_bv
+def play_with_cid(av_or_bv, cid: int, bangumi=False) -> None:
+    if not bangumi:
+        url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn=80&type=&otype=json"
+        IS_AV: bool = check_av_or_bv(av_or_bv)
+        if IS_AV:
+            url1 += "&avid=" + av_or_bv
+        else:
+            url1 += "&bvid=" + av_or_bv
     else:
-        url1 += "&bvid=" + av_or_bv
+        url1 = f"http://api.bilibili.com/pgc/player/web/playurl?qn=80&cid={cid}&ep_id={av_or_bv}"
     header = {
         'host': 'api.bilibili.com',
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
@@ -318,8 +321,12 @@ def play_with_cid(av_or_bv, cid: int) -> None:
         print(req.url)
         print(req.json())
         return
-    url111 = str(req.json()["data"]["durl"][0]["url"])
-    higher = req.json()['data']['quality']
+    if not bangumi:    
+        url111 = str(req.json()["data"]["durl"][0]["url"])
+        higher = req.json()['data']['quality']
+    else:
+        url111 = str(req.json()["result"]["durl"][0]["url"])
+        higher = req.json()['result']['quality']    
     width, height = quality[higher]
     command = "mpv --sub-file=\"cached/{}.ass\" --user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0\" " \
               "--referrer=\"https://www.bilibili.com\" \"{}\"".format(cid,
@@ -504,36 +511,6 @@ def main_help():
     print("logout 退出")
 
 
-def comment_viewer(aid):
-    _, total = view_comment(aid)
-    print("总数: ", total)
-    max_page = total // 20 + 1
-    print(max_page)
-    now = 1
-    flag_comment = True
-    while flag_comment:
-        data, _ = view_comment(aid, now)
-        if not data:
-            print("到头了!")
-            break
-        for i_ in data:
-            print("用户: ", i_['member']['uname'])
-            print("内容: ")
-            print(i_['content']['message'])
-            print("点赞量: ", i_['like'])
-            print("\n")
-            while True:
-                message = input("评论选项: ")
-                if message == "quit":
-                    flag_comment = False
-                    break
-                if not message:
-                    break
-                now += 1
-            if not flag_comment:
-                break
-
-
 def clean_cache():
     shutil.rmtree("cached")
     os.mkdir("cached")
@@ -583,6 +560,7 @@ def format_long(long):
         minute = (long) // 60
         sec = long - minute * 60
         return fmt.format(minute, sec)
+# ---------------------------------------L559推荐, L610地址, L644本地收藏， L688搜索, L736评论----------------
 
 
 def recommend():
@@ -762,6 +740,72 @@ def search():
                 break
 
 
+def comment_viewer(aid):
+    _, total = view_comment(aid)
+    print("总数: ", total)
+    max_page = total // 20 + 1
+    print(max_page)
+    now = 1
+    flag_comment = True
+    while flag_comment:
+        data, _ = view_comment(aid, now)
+        if not data:
+            print("到头了!")
+            break
+        for i_ in data:
+            print("用户: ", i_['member']['uname'])
+            print("内容: ")
+            print(i_['content']['message'])
+            print("点赞量: ", i_['like'])
+            print("\n")
+            while True:
+                message = input("评论选项: ")
+                if message == "quit":
+                    flag_comment = False
+                    break
+                if not message:
+                    break
+                now += 1
+            if not flag_comment:
+                break
+
+
+def bangumi():
+    while True:
+        choose_bangumi = input("番剧选项: ")
+        if choose_bangumi == "address":
+            url = input("输入地址: ")
+            ssid_or_epid = url.split("/")[-1]
+            if ssid_or_epid.startswith("ss"):
+                url = "http://api.bilibili.com/pgc/view/web/season?season_id="+ssid_or_epid.strip("ss")
+            else:
+                url = "http://api.bilibili.com/pgc/view/web/season?ep_id="+ssid_or_epid.strip('ep')
+            bangumi_url = get(url, headers=public_header)
+            print(bangumi_url, bangumi_url.url, bangumi_url.json())
+            bangumi_page = bangumi_url.json()['result']['episodes']
+            for i, j in enumerate(bangumi_page):
+                print(f"{i+1}: {j['share_copy']} ({j['badge']})")   
+            print("请以冒号前面的数字为准选择视频.")
+            while True:
+                page = input("选择视频: ")
+                if page == "exit":
+                    break
+                if not page:
+                    continue
+                if not page.isdigit():
+                    continue
+                if int(page) > len(bangumi_page) or int(page) <= 0:
+                    print("选视频错误!")
+                    continue
+                cid = bangumi_page[int(page) - 1]['cid']
+                epid = bangumi_page[int(page) - 1]['id']
+                play_with_cid(epid, cid, bangumi=True)
+
+
+
+# ---------------------------------------------------------------
+
+
 get_login_status()
 
 while True:
@@ -787,5 +831,7 @@ while True:
     elif choose1 == "clean_cache":
         clean_cache()
         print("成功清除缓存!")
+    elif choose1 == "bangumi":
+        bangumi()    
     else:
         print("未知选项!")
