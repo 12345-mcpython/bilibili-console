@@ -92,7 +92,7 @@ def logout():
     if not is_login:
         print("你未登录!")
     print("你确定要登出吗?(Y/N)")
-    if input() != "y":
+    if input().lower() != "y":
         return
     r = post("https://passport.bilibili.com/login/exit/v2",
              headers=public_header, data={"biliCSRF": csrf_token})
@@ -110,7 +110,7 @@ def login():
         print("你已登录!")
         return
     while True:
-        choose = input("选择登录方式: ")
+        choose = input("选择登录方式(password/sms): ")
         if choose == "password":
             validate, seccode, key, challenge = verify_captcha_key()
             username = input("用户名: ")
@@ -316,6 +316,11 @@ def play_with_cid(av_or_bv, cid: int) -> None:
         'cookie': cookie
     }
     req = get(url1, headers=header, no_cache=True)
+    if req.json()['code'] != 0:
+        print("获取视频错误!")
+        print(req.url)
+        print(req.json())
+        return
     url111 = str(req.json()["data"]["durl"][0]["url"])
     higher = req.json()['data']['quality']
     width, height = quality[higher]
@@ -362,7 +367,64 @@ def play(av_or_bv):
             continue
         cid = video[int(page)-1]['cid']
         play_with_cid(av_or_bv, cid)
+        break
     return    
+
+
+def play_b_collection(av_or_bv):   
+    av_or_bv = str(av_or_bv)
+    url = "http://api.bilibili.com/x/web-interface/view/detail"
+    IS_AV: bool = check_av_or_bv(av_or_bv)
+    if IS_AV:
+        url += "?aid=" + av_or_bv
+    else:
+        url += "?bvid=" + av_or_bv
+    r = get(url, headers=public_header)
+    if not r.json()['data']['View'].get("ugc_season"):
+        print("视频并没有合集!")
+        return
+    b_collection = r.json()['data']['View']['ugc_season']
+    status = b_collection['stat']
+    print("\n")
+    print("标题", b_collection['title'])
+    print("图片: ", b_collection['cover'])
+    print("合集简介: ", b_collection['intro'])
+    print("总播放: ", status["view"])
+    print("总点赞: ", status['like'])
+    print("总投币: ", status["coin"])
+    print("总收藏: ", status["fav"])
+    print("总转发: ", status["share"])
+    print("总弹幕: ", status["danmaku"])
+    print("总评论: ", status["reply"])
+    print("\n")
+    print("视频合集选集")
+    b_collection_video = b_collection['sections'][0]['episodes']
+    for i, j in enumerate(b_collection_video):
+        print(f"{i+1}: {j['title']}")
+    print("请以冒号前面的数字为准选择视频.")    
+    while True:    
+        page = input("选择视频: ")
+        if page == "exit":
+            break
+        if page.startswith("view_info"):
+            page_ = page.strip("view_info").strip()
+            if not page_.isdecimal():
+                print("参数错误! ")
+                continue
+            get_video_info(b_collection_video[int(page_)-1]['bvid'])
+        if not page:
+            continue
+        if not page.isdigit():
+            continue
+        if int(page) > len(b_collection_video) or int(page) <= 0:
+            print("选视频错误!")
+            continue
+        cid = b_collection_video[int(page)-1]['cid']
+        play_with_cid(b_collection_video[int(page)-1]['bvid'], cid)
+    return    
+    
+    
+
 
 
 def get_title(video_url: str, av_or_bv: bool) -> str:
@@ -444,6 +506,8 @@ def main_help():
     print("search 搜索功能")
     print("collection 使用本地收藏夹")
     print("address 使用地址&BV&av播放视频")
+    print("login 登录")
+    print("logout 退出")
 
 
 def comment_viewer(aid):
@@ -504,7 +568,9 @@ def get_video_info(av_or_bv: str):
     print("avid: ", video["aid"])
     print("日期: ", datetime.datetime.fromtimestamp(
         video["pubdate"]).strftime("%Y-%m-%d %H:%M:%S"))
-    print("简介: \n", video['desc'])
+    print("简介: ")
+    print("\n")
+    print(video['desc'])
     print("\n")
     print("封面: ", video['pic'])
     print("所有者名字: ", video['owner']['name'])
@@ -569,6 +635,8 @@ def recommend():
                 elif choose == "collection":
                     write_local_collection(avid)
                     print("收藏到本地收藏夹.")
+                elif choose == "view_b_collection":
+                    play_b_collection(avid)
                 else:
                     print("未知选项!")
             if not flag1:
@@ -650,6 +718,8 @@ def collection():
                 comment_viewer(i)
             elif choose == "view_info":
                 get_video_info(i)
+            elif choose == "view_b_collection":
+                play_b_collection(i)    
             else:
                 print("未知选项!")
         if not flag:
@@ -696,6 +766,8 @@ def search():
                     comment_viewer(i['aid'])
                 elif choose == "view_info":
                     get_video_info(i['aid'])
+                elif choose == "view_b_collection":
+                    play_b_collection(i['aid'])    
                 else:
                     print("未知选项!")
             if not flag_search:
@@ -721,6 +793,7 @@ while True:
     elif choose1 == 'login':
         login()
     elif choose1 == "exit":
+        print("\n")
         break
     elif choose1 == "help":
         main_help()
