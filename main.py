@@ -39,7 +39,6 @@ import rsa
 
 from danmaku2ass import Danmaku2ASS
 
-
 quality = {
     112: (1920, 1080),
     80: (1920, 1080),
@@ -47,10 +46,12 @@ quality = {
     32: (720, 480),
     16: (480, 360)
 }
-if not os.path.exists("cookie.txt"):
+if os.path.exists("cookie.txt"):
     with open("cookie.txt") as f:
         cookie = f.read()
-
+else:
+    with open("cookie.txt", "w") as f:
+        pass
 cookie_mapping = {}
 
 if cookie:
@@ -236,7 +237,7 @@ def like(abv: str, unlike: bool = False) -> None:
         print(r.json()['message'])
 
 
-def triple(abv: bool):
+def triple(abv: str):
     data = {}
     IS_AV: bool = check_av_or_bv(abv)
     if IS_AV:
@@ -361,7 +362,7 @@ def play(av_or_bv):
         if int(page) > len(video) or int(page) <= 0:
             print("选视频错误!")
             continue
-        cid = video[int(page)-1]['cid']
+        cid = video[int(page) - 1]['cid']
         play_with_cid(av_or_bv, cid)
         break
     return
@@ -396,7 +397,7 @@ def play_b_collection(av_or_bv):
     print("视频合集选集")
     b_collection_video = b_collection['sections'][0]['episodes']
     for i, j in enumerate(b_collection_video):
-        print(f"{i+1}: {j['title']}")
+        print(f"{i + 1}: {j['title']}")
     print("请以冒号前面的数字为准选择视频.")
     while True:
         page = input("选择视频: ")
@@ -407,7 +408,7 @@ def play_b_collection(av_or_bv):
             if not page_.isdecimal():
                 print("参数错误! ")
                 continue
-            get_video_info(b_collection_video[int(page_)-1]['bvid'])
+            get_video_info(b_collection_video[int(page_) - 1]['bvid'])
         if not page:
             continue
         if not page.isdigit():
@@ -415,8 +416,8 @@ def play_b_collection(av_or_bv):
         if int(page) > len(b_collection_video) or int(page) <= 0:
             print("选视频错误!")
             continue
-        cid = b_collection_video[int(page)-1]['cid']
-        play_with_cid(b_collection_video[int(page)-1]['bvid'], cid)
+        cid = b_collection_video[int(page) - 1]['cid']
+        play_with_cid(b_collection_video[int(page) - 1]['bvid'], cid)
     return
 
 
@@ -571,18 +572,16 @@ def get_video_info(av_or_bv: str):
 
 
 def format_long(long):
-    fmt = "{}:{}"
     if long > 60 * 60:
         fmt = "{}:{}:{}"
         hour = long // (60 * 60)
         minute = (long - (hour * 60 * 60)) // 60
         sec = long - (hour * 60 * 60) - minute * 60
-    else:
-        minute = (long) // 60
-        sec = long - minute * 60
-    if long > 60 * 60:
         return fmt.format(hour, minute, sec)
     else:
+        fmt = "{}:{}"
+        minute = (long) // 60
+        sec = long - minute * 60
         return fmt.format(minute, sec)
 
 
@@ -681,10 +680,6 @@ def collection():
         print("收藏夹为空!")
         return
     for i in collection:
-        if not i.strip():
-            print("end! ")
-            break
-            return
         i = i[:-1]
         print("标题: ", get_title(f"av{i}", av_or_bv=False))
         bvid, avid, view, danmaku, like_, coin, favorite, share, comment_count = video_status(
@@ -768,7 +763,6 @@ def search():
 
 
 get_login_status()
-
 
 while True:
     choose1 = input("主选项: ")
