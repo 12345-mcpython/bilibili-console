@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Copyright (c) 2022 Laosun Studios. All Rights Reserved.
 
