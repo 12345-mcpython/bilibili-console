@@ -73,6 +73,17 @@ print("LBCC v1.0.0-dev.")
 print("Type \"help\" for more information.")
 
 
+def compile_command(command, command_format):
+    command_list = command.split(" ")
+    try:
+        if len(command_format.split(" ")) != len(command_list) - 1:
+            return
+        command_format.format(*command_list[1:])
+        return command_list[0],  command_list[1:]
+    except IndexError as e:
+        return
+
+
 def get_login_status():
     global is_login
     r = get('https://api.bilibili.com/x/member/web/account',
@@ -321,12 +332,12 @@ def play_with_cid(av_or_bv, cid: int, bangumi=False) -> None:
         print(req.url)
         print(req.json())
         return
-    if not bangumi:    
+    if not bangumi:
         url111 = str(req.json()["data"]["durl"][0]["url"])
         higher = req.json()['data']['quality']
     else:
         url111 = str(req.json()["result"]["durl"][0]["url"])
-        higher = req.json()['result']['quality']    
+        higher = req.json()['result']['quality']
     width, height = quality[higher]
     command = "mpv --sub-file=\"cached/{}.ass\" --user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0\" " \
               "--referrer=\"https://www.bilibili.com\" \"{}\"".format(cid,
@@ -560,63 +571,9 @@ def format_long(long):
         minute = (long) // 60
         sec = long - minute * 60
         return fmt.format(minute, sec)
-# ---------------------------------------L559推荐, L610地址, L644本地收藏， L688搜索, L736评论----------------
 
-
-def recommend():
-    flag = True
-    while flag:
-        url = "https://api.bilibili.com/x/web-interface/index/top/feed/rcmd"
-        r = get(url, headers=public_header, no_cache=True)
-
-        for i in r.json()["data"]['item']:
-            flag1 = True
-            avid = i['id']
-            cid = i['cid']
-            bvid, _, view, danmaku, like_, coin, favorite, share, comment_count = video_status(
-                i['bvid'])
-            print("标题: ", i['title'])
-            print("作者: ", i['owner']['name'])
-            print("bvid: ", bvid)
-            print("观看量: ", view)
-            print("标签: ", ", ".join(get_tag(avid, cid)))
-            while True:
-                choose = input("推荐选项: ")
-                if choose == "play":
-                    play(avid)
-                elif choose == "exit":
-                    flag = False
-                    flag1 = False
-                    break
-                elif choose == "view_comment":
-                    comment_viewer(avid)
-                elif choose == "like":
-                    like(avid)
-                elif choose == "unlike":
-                    like(avid, unlike=True)
-                elif choose == "triple":
-                    triple(avid)
-                elif not choose:
-                    break
-                elif choose == 'download':
-                    download(avid, cid)
-                elif choose == "view_info":
-                    get_video_info(avid)
-                elif choose == "collection":
-                    write_local_collection(avid)
-                    print("收藏到本地收藏夹.")
-                elif choose == "view_b_collection":
-                    play_b_collection(avid)
-                else:
-                    print("未知选项!")
-            if not flag1:
-                break
-            print("\n" * 2)
-
-
-def address():
+def address(video):
     IS_AV = False
-    video = input("地址或av&bv号: ")
     try:
         int(video)
         video = "av" + video
@@ -644,8 +601,71 @@ def address():
         av_or_bv = get("http://api.bilibili.com/x/web-interface/archive/stat?bvid=" + av_or_bv,
                        headers=public_header)
         av_or_bv = av_or_bv.json()['data']['aid']
-    cid = get_cid(av_or_bv)
     play(av_or_bv)
+
+# ---------------------------------界面-------------------------------
+
+
+def recommend():
+    print("推荐界面")
+    flag = True
+    while flag:
+        r = get("https://api.bilibili.com/x/web-interface/index/top/feed/rcmd?ps=5",
+                headers=public_header, no_cache=True)
+        rcmd = r.json()["data"]['item']
+        for num, item in enumerate(rcmd):
+            print(num + 1, ":")
+            print("封面: ", item['pic'])
+            print("标题: ", item['title'])
+            print("作者: ", item['owner']['name'], " bvid: ", item['bvid']," 日期: ", datetime.datetime.fromtimestamp(
+                item["pubdate"]).strftime("%Y-%m-%d %H:%M:%S"), " 长度:", format_long(item['duration']), " 观看量: ", item['stat']['view'])
+            # print("标签: ", ", ".join(get_tag(avid, cid)))
+        print("请以冒号前面的数字为准选择视频.")
+        while True:
+            command = input("推荐: ")
+            # 零参数定义区域
+            if command == "exit":
+                flag = False
+                break
+            if not command:
+                break
+            like_or_triple = compile_command(command, "{}")
+            if not like_or_triple:
+                coin = compile_command(command, "{} {}")
+                if coin:
+                    # 两个参数定义区域
+                    if coin[0] == "coin":
+                        index = coin[1][0]
+                        coin_count = coin[1][1]
+                        print(index, coin_count)
+                        continue
+                else:
+                    print("未知命令!")
+                    continue        
+            name = like_or_triple[0]     
+            index = like_or_triple[1][0]    
+            # 一个参数定义区域
+            if name == "like":
+                like(rcmd[int(index) - 1]['bvid'])
+            elif name == "triple":
+                triple(rcmd[int(index) - 1]['bvid'])
+            elif name == "view_info":
+                get_video_info(rcmd[int(index) - 1]['bvid'])
+            # 错误二参数定义区域  
+            elif name == "coin":
+                print("参数错误!")    
+            elif name == "play":
+                if int(index) > len(rcmd) or int(index) <= 0:
+                    print("视频超出边界!")
+                    continue
+                play(rcmd[int(index) - 1]['bvid'])    
+            continue
+            
+        continue  
+           
+
+
+
 
 
 def collection():
@@ -777,13 +797,15 @@ def bangumi():
             url = input("输入地址: ")
             ssid_or_epid = url.split("/")[-1]
             if ssid_or_epid.startswith("ss"):
-                url = "http://api.bilibili.com/pgc/view/web/season?season_id="+ssid_or_epid.strip("ss")
+                url = "http://api.bilibili.com/pgc/view/web/season?season_id=" + \
+                    ssid_or_epid.strip("ss")
             else:
-                url = "http://api.bilibili.com/pgc/view/web/season?ep_id="+ssid_or_epid.strip('ep')
+                url = "http://api.bilibili.com/pgc/view/web/season?ep_id=" + \
+                    ssid_or_epid.strip('ep')
             bangumi_url = get(url, headers=public_header)
             bangumi_page = bangumi_url.json()['result']['episodes']
             for i, j in enumerate(bangumi_page):
-                print(f"{i+1}: {j['share_copy']} ({j['badge']})")   
+                print(f"{i+1}: {j['share_copy']} ({j['badge']})")
             print("请以冒号前面的数字为准选择视频.")
             while True:
                 page = input("选择视频: ")
@@ -804,16 +826,14 @@ def bangumi():
 
 # ---------------------------------------------------------------
 
-
 get_login_status()
 
 while True:
     choose1 = input("主选项: ")
     choose1 = choose1.strip()
+    # 零参数定义区域
     if choose1 == "recommend":
         recommend()
-    elif choose1 == "address":
-        address()
     elif choose1 == "collection":
         collection()
     elif choose1 == "search":
@@ -831,6 +851,16 @@ while True:
         clean_cache()
         print("成功清除缓存!")
     elif choose1 == "bangumi":
-        bangumi()    
+        bangumi() 
     else:
-        print("未知选项!")
+        if choose1 == "address":
+            address(input("地址或av&bv号: "))
+        a = compile_command(choose1, "{}")
+        if a:
+            command = a[0]
+            arg = a[1]
+            # 单参数定义区域
+            if command == "address":
+                address(arg)
+        else:        
+            print("未知选项!")
