@@ -781,7 +781,6 @@ def bangumi():
             else:
                 url = "http://api.bilibili.com/pgc/view/web/season?ep_id="+ssid_or_epid.strip('ep')
             bangumi_url = get(url, headers=public_header)
-            print(bangumi_url, bangumi_url.url, bangumi_url.json())
             bangumi_page = bangumi_url.json()['result']['episodes']
             for i, j in enumerate(bangumi_page):
                 print(f"{i+1}: {j['share_copy']} ({j['badge']})")   
