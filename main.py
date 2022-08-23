@@ -25,13 +25,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 The old version also use the GPL-3.0 license, not Mit License.
 """
-
 import shutil
-from typing import Union
+from typing import Union, Tuple
 import os
 import base64
 import json
 import datetime
+import inspect
 
 import requests
 from bs4 import BeautifulSoup
@@ -51,7 +51,7 @@ if os.path.exists("cookie.txt"):
         cookie = f.read()
 else:
     with open("cookie.txt", "w") as f:
-        pass
+        cookie = ""
 cookie_mapping = {}
 
 if cookie:
@@ -67,10 +67,31 @@ public_header = {"cookie": cookie,
 
 cached = {}
 
+command_binding = {}
+
+command_len = {}
+
 is_login = False
 
 print("LBCC v1.0.0-dev.")
 print("Type \"help\" for more information.")
+
+
+def register(target, local="main", args_len=None):
+    def add_register_item(key, value):
+        if not callable(value):
+            raise Exception(f"register object must be callable! But receice:{value} is not callable!")
+        if key in command_binding:
+            print(f"warning: \033[33m{value.__name__} has been registered before, so we will overriden it\033[0m")
+        command_binding[local + "_" + key] = value
+        if args_len:
+            command_len[local + "_" + key] = args_len
+        return value
+
+    if callable(target):  # 如果传入的目标可调用，说明之前没有给出注册名字，我们就以传入的函数或者类的名字作为注册名
+        return add_register_item(target.__name__, target)
+    else:  # 如果不可调用，说明额外说明了注册的可调用对象的名字
+        return lambda x: add_register_item(target, x)
 
 
 def compile_command(command, command_format):
@@ -79,7 +100,7 @@ def compile_command(command, command_format):
         if len(command_format.split(" ")) != len(command_list) - 1:
             return
         command_format.format(*command_list[1:])
-        return command_list[0],  command_list[1:]
+        return command_list[0], command_list[1:]
     except IndexError as e:
         return
 
@@ -113,6 +134,7 @@ def logout():
         print("登出失败!")
 
 
+@register
 def login():
     if is_login:
         print("你已登录!")
@@ -222,6 +244,9 @@ def check_av_or_bv(av_or_bv: str) -> bool:
         return False
 
 
+@register("like", local="recommend", args_len=1)
+@register("like", local="local_collection", args_len=1)
+@register("like", local="search", args_len=1)
 def like(abv: str, unlike: bool = False) -> None:
     data = {}
     IS_AV: bool = check_av_or_bv(abv)
@@ -248,6 +273,9 @@ def like(abv: str, unlike: bool = False) -> None:
         print(r.json()['message'])
 
 
+@register("triple", local="recommend")
+@register("triple", local="local_collection")
+@register("triple", local="search")
 def triple(abv: str):
     data = {}
     IS_AV: bool = check_av_or_bv(abv)
@@ -354,6 +382,9 @@ def play_with_cid(av_or_bv, cid: int, bangumi=False) -> None:
     os.system(command)
 
 
+@register("play", local="recommend")
+@register("play", local="local_collection")
+@register("play", local="search")
 def play(av_or_bv):
     print("\n")
     print("视频选集")
@@ -573,6 +604,12 @@ def format_long(long):
         return fmt.format(minute, sec)
 
 
+def add_command(key, local, lens):
+    command_binding[local + "_" + key] = None
+    command_len[local + "_" + key] = lens
+
+
+@register
 def address(video):
     IS_AV = False
     try:
@@ -604,9 +641,8 @@ def address(video):
         av_or_bv = av_or_bv.json()['data']['aid']
     play(av_or_bv)
 
-# ---------------------------------界面-------------------------------
 
-
+@register
 def recommend():
     print("推荐界面")
     flag = True
@@ -619,52 +655,39 @@ def recommend():
             print("封面: ", item['pic'])
             print("标题: ", item['title'])
             print("作者: ", item['owner']['name'], " bvid: ", item['bvid'], " 日期: ", datetime.datetime.fromtimestamp(
-                item["pubdate"]).strftime("%Y-%m-%d %H:%M:%S"), " 长度:", format_long(item['duration']), " 观看量: ", item['stat']['view'])
+                item["pubdate"]).strftime("%Y-%m-%d %H:%M:%S"), " 长度:", format_long(item['duration']), " 观看量: ",
+                  item['stat']['view'])
             # print("标签: ", ", ".join(get_tag(avid, cid)))
         print("请以冒号前面的数字为准选择视频.")
         while True:
             command = input("推荐: ")
-            # 零参数定义区域
-            if command == "exit":
+            if command == 'exit':
                 flag = False
                 break
             if not command:
                 break
-            like_or_triple = compile_command(command, "{}")
-            if not like_or_triple:
-                coin = compile_command(command, "{} {}")
-                if coin:
-                    # 两个参数定义区域
-                    if coin[0] == "coin":
-                        index = coin[1][0]
-                        coin_count = coin[1][1]
-                        print(index, coin_count)
-                        continue
-                else:
-                    print("未知命令!")
-                    continue
-            name = like_or_triple[0]
-            index = like_or_triple[1][0]
-            # 一个参数定义区域
-            if name == "like":
-                like(rcmd[int(index) - 1]['bvid'])
-            elif name == "triple":
-                triple(rcmd[int(index) - 1]['bvid'])
-            elif name == "view_info":
-                get_video_info(rcmd[int(index) - 1]['bvid'])
-            # 错误二参数定义区域
-            elif name == "coin":
+            a = process_command(command, local="recommend", run=False)
+            if not a:
+                continue
+            else:
+                a, index = a
+            if not str(index[0]).isdecimal():
                 print("参数错误!")
-            elif name == "play":
-                if int(index) > len(rcmd) or int(index) <= 0:
-                    print("视频超出边界!")
-                    continue
-                play(rcmd[int(index) - 1]['bvid'])
-            continue
+                continue
+            if int(index[0]) > len(rcmd) or int(index[0]) <= 0:
+                print("选择的视频超出范围!")
+                continue
+            if a == "play":
+                play(rcmd[int(index[0]) - 1]['bvid'])
+            elif a == "like":
+                like(rcmd[int(index[0]) - 1]['bvid'])
+            elif a == "triple":
+                triple(rcmd[int(index[0]) - 1]['bvid'])
+            elif a == 'unlike':
+                like(rcmd[int(index[0]) - 1]['bvid'], unlike=True)
 
-        continue
 
-
+@register("local_collection")
 def collection():
     try:
         collection = read_local_collection()
@@ -709,6 +732,7 @@ def collection():
             break
 
 
+@register
 def search():
     search_url = "http://api.bilibili.com/x/web-interface/search/type?keyword={}&search_type=video&page={}"
     try:
@@ -787,6 +811,7 @@ def comment_viewer(aid):
                 break
 
 
+@register
 def bangumi():
     while True:
         choose_bangumi = input("番剧选项: ")
@@ -795,14 +820,14 @@ def bangumi():
             ssid_or_epid = url.split("/")[-1]
             if ssid_or_epid.startswith("ss"):
                 url = "http://api.bilibili.com/pgc/view/web/season?season_id=" + \
-                    ssid_or_epid.strip("ss")
+                      ssid_or_epid.strip("ss")
             else:
                 url = "http://api.bilibili.com/pgc/view/web/season?ep_id=" + \
-                    ssid_or_epid.strip('ep')
+                      ssid_or_epid.strip('ep')
             bangumi_url = get(url, headers=public_header)
             bangumi_page = bangumi_url.json()['result']['episodes']
             for i, j in enumerate(bangumi_page):
-                print(f"{i+1}: {j['share_copy']} ({j['badge']})")
+                print(f"{i + 1}: {j['share_copy']} ({j['badge']})")
             print("请以冒号前面的数字为准选择视频.")
             while True:
                 page = input("选择视频: ")
@@ -820,42 +845,45 @@ def bangumi():
                 play_with_cid(epid, cid, bangumi=True)
 
 
-# ---------------------------------------------------------------
+def process_command(command, local="main", run=False) -> Union[Tuple[str, str], None]:
+    command_list = command.split(" ")
+    command_args = command_list[1:]
+    command_first = command_list[0]
+    try:
+        run_func = command_binding[local + "_" + command_first]
+        try:
+            args = inspect.getfullargspec(run_func)
+            args = len(args.args)  # 3
+        except Exception as e:
+            args = command_len.get(local + "_" + command_first)
+        if command_len.get(local + "_" + command_first):
+            args = command_len.get(local + "_" + command_first)
+        if args < len(command_args):
+            print(f"找不到接受实际参数\"{command_list[len(args)]}\"的位置形式参数.")
+            return
+        elif args > len(command_args):
+            print("参数过少!")
+            return
+        if run:
+            if callable(run_func):
+                run_func(*command_args)
+            else:
+                print("该命令不可执行!")
+        else:
+            return command_first, command_args
+    except KeyError as e:
+        print("未知命令!")
+        return
+
+add_command("unlike", "recommend", 1)
+add_command("unlike", "collection", 1)
+add_command("unlike", "search", 1)
+
+
 get_login_status()
 
 while True:
     choose1 = input("主选项: ")
     choose1 = choose1.strip()
-    # 零参数定义区域
-    if choose1 == "recommend":
-        recommend()
-    elif choose1 == "collection":
-        collection()
-    elif choose1 == "search":
-        search()
-    elif choose1 == "logout":
-        logout()
-    elif choose1 == 'login':
-        login()
-    elif choose1 == "exit":
-        print("\n")
-        break
-    elif choose1 == "help":
-        main_help()
-    elif choose1 == "clean_cache":
-        clean_cache()
-        print("成功清除缓存!")
-    elif choose1 == "bangumi":
-        bangumi()
-    else:
-        if choose1 == "address":
-            address(input("地址或av&bv号: "))
-        a = compile_command(choose1, "{}")
-        if a:
-            command = a[0]
-            arg = a[1]
-            # 单参数定义区域
-            if command == "address":
-                address(arg)
-        else:
-            print("未知选项!")
+    if choose1 == "exit": break
+    process_command(choose1, run=True)
