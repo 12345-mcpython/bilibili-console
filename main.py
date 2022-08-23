@@ -572,6 +572,7 @@ def format_long(long):
         sec = long - minute * 60
         return fmt.format(minute, sec)
 
+
 def address(video):
     IS_AV = False
     try:
@@ -617,7 +618,7 @@ def recommend():
             print(num + 1, ":")
             print("封面: ", item['pic'])
             print("标题: ", item['title'])
-            print("作者: ", item['owner']['name'], " bvid: ", item['bvid']," 日期: ", datetime.datetime.fromtimestamp(
+            print("作者: ", item['owner']['name'], " bvid: ", item['bvid'], " 日期: ", datetime.datetime.fromtimestamp(
                 item["pubdate"]).strftime("%Y-%m-%d %H:%M:%S"), " 长度:", format_long(item['duration']), " 观看量: ", item['stat']['view'])
             # print("标签: ", ", ".join(get_tag(avid, cid)))
         print("请以冒号前面的数字为准选择视频.")
@@ -641,9 +642,9 @@ def recommend():
                         continue
                 else:
                     print("未知命令!")
-                    continue        
-            name = like_or_triple[0]     
-            index = like_or_triple[1][0]    
+                    continue
+            name = like_or_triple[0]
+            index = like_or_triple[1][0]
             # 一个参数定义区域
             if name == "like":
                 like(rcmd[int(index) - 1]['bvid'])
@@ -651,21 +652,17 @@ def recommend():
                 triple(rcmd[int(index) - 1]['bvid'])
             elif name == "view_info":
                 get_video_info(rcmd[int(index) - 1]['bvid'])
-            # 错误二参数定义区域  
+            # 错误二参数定义区域
             elif name == "coin":
-                print("参数错误!")    
+                print("参数错误!")
             elif name == "play":
                 if int(index) > len(rcmd) or int(index) <= 0:
                     print("视频超出边界!")
                     continue
-                play(rcmd[int(index) - 1]['bvid'])    
+                play(rcmd[int(index) - 1]['bvid'])
             continue
-            
-        continue  
-           
 
-
-
+        continue
 
 
 def collection():
@@ -823,9 +820,7 @@ def bangumi():
                 play_with_cid(epid, cid, bangumi=True)
 
 
-
 # ---------------------------------------------------------------
-
 get_login_status()
 
 while True:
@@ -851,7 +846,7 @@ while True:
         clean_cache()
         print("成功清除缓存!")
     elif choose1 == "bangumi":
-        bangumi() 
+        bangumi()
     else:
         if choose1 == "address":
             address(input("地址或av&bv号: "))
@@ -862,5 +857,5 @@ while True:
             # 单参数定义区域
             if command == "address":
                 address(arg)
-        else:        
+        else:
             print("未知选项!")
