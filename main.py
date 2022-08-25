@@ -302,7 +302,7 @@ def get(url: str, params=None, no_cache=False, **kwargs) -> requests.Response:
         count = 3
         while True:
             try:
-                r = requests.get(url, params=params, **kwargs)
+                r = requests.get(url, params=params, timeout=5, **kwargs)
                 break
             except requests.exceptions.RequestException as e:
                 print(f"Request {url} error! Will try {count} counts!")
@@ -319,7 +319,7 @@ def post(url: str, params=None, **kwargs) -> requests.Response:
     count = 3
     while True:
         try:
-            r = requests.post(url, params=params, **kwargs)
+            r = requests.post(url, params=params, timeout=5, **kwargs)
             break
         except requests.exceptions.RequestException as e:
             print(f"Request {url} error! Will try {count} counts!")
@@ -348,7 +348,7 @@ def play_with_cid(av_or_bv, cid: int, bangumi=False) -> None:
         else:
             url1 += "&bvid=" + av_or_bv
     else:
-        url1 = f"http://api.bilibili.com/pgc/player/web/playurl?qn=80&cid={cid}&ep_id={av_or_bv}"
+        url1 = f"https://api.bilibili.com/pgc/player/web/playurl?qn=80&cid={cid}&ep_id={av_or_bv}"
     header = {
         'host': 'api.bilibili.com',
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
@@ -379,7 +379,24 @@ def play_with_cid(av_or_bv, cid: int, bangumi=False) -> None:
         Danmaku2ASS([f"cached/{cid}.xml"], "autodetect", f"cached/{cid}.ass", width, height, 0, "sans-serif", 25.0, 1.0,
                     10, 8, None,
                     None, False)
+    time = req.json()['data']["timelength"] / 1000
+    update_history(av_or_bv, cid, time)
     os.system(command)
+
+
+def update_history(av_or_bv, cid, progress):
+    data = {"cid": cid, "played_time": progress}
+    IS_AV: bool = check_av_or_bv(av_or_bv)
+    if IS_AV:
+        data['aid'] = av_or_bv
+    else:
+        data['bvid'] = av_or_bv
+    r = post("http://api.bilibili.com/x/click-interface/web/heartbeat", data=data, headers=public_header)
+    if r.json()['code'] != 0:
+        print(data)
+        print(r.json()['code'])
+        # timelength
+        print(r.json()['message'])
 
 
 @register("play", local="recommend")
@@ -389,10 +406,12 @@ def play(av_or_bv):
     print("\n")
     print("视频选集")
     av_or_bv = str(av_or_bv)
-    url = "http://api.bilibili.com/x/web-interface/view/detail"
+    url = "https://api.bilibili.com/x/web-interface/view/detail"
     IS_AV: bool = check_av_or_bv(av_or_bv)
+    av_or_bv = av_or_bv.strip("av")
     if IS_AV:
         url += "?aid=" + av_or_bv
+
     else:
         url += "?bvid=" + av_or_bv
     r = get(url, headers=public_header)
@@ -851,34 +870,34 @@ def process_command(command, local="main", run=False) -> Union[Tuple[str, str], 
     command_first = command_list[0]
     try:
         run_func = command_binding[local + "_" + command_first]
-        try:
-            args = inspect.getfullargspec(run_func)
-            args = len(args.args)  # 3
-        except Exception as e:
-            args = command_len.get(local + "_" + command_first)
-        if command_len.get(local + "_" + command_first):
-            args = command_len.get(local + "_" + command_first)
-        if args < len(command_args):
-            print(f"找不到接受实际参数\"{command_list[len(args)]}\"的位置形式参数.")
-            return
-        elif args > len(command_args):
-            print("参数过少!")
-            return
-        if run:
-            if callable(run_func):
-                run_func(*command_args)
-            else:
-                print("该命令不可执行!")
-        else:
-            return command_first, command_args
     except KeyError as e:
         print("未知命令!")
         return
+    try:
+        args = inspect.getfullargspec(run_func)
+        args = len(args.args)  # 3
+    except Exception as e:
+        args = command_len.get(local + "_" + command_first)
+    if command_len.get(local + "_" + command_first):
+        args = command_len.get(local + "_" + command_first)
+    if args < len(command_args):
+        print(f"找不到接受实际参数\"{command_list[len(args)]}\"的位置形式参数.")
+        return
+    elif args > len(command_args):
+        print("参数过少!")
+        return
+    if run:
+        if callable(run_func):
+            run_func(*command_args)
+        else:
+            print("该命令不可执行!")
+    else:
+        return command_first, command_args
+
 
 add_command("unlike", "recommend", 1)
 add_command("unlike", "collection", 1)
 add_command("unlike", "search", 1)
-
 
 get_login_status()
 
