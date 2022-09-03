@@ -46,24 +46,29 @@ quality = {
     32: (720, 480),
     16: (480, 360)
 }
+public_header = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                               "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77"}
 if os.path.exists("cookie.txt"):
     with open("cookie.txt") as f:
         cookie = f.read()
 else:
     with open("cookie.txt", "w") as f:
-        cookie = ""
+        print("未登录用户设置cookie.")
+        r = requests.get('https://www.bilibili.com', headers=public_header)
+        string = ""
+        for i in r.cookies:
+            string += i.name + "=" + i.value + ";"
+        f.write(string[:-1])
+        cookie = string
+
 cookie_mapping = {}
 
-if cookie:
-    for i in cookie.split(";"):
-        a, b = i.strip().split("=")
-        cookie_mapping[a] = b
+for i in cookie.split(";"):
+    a, b = i.strip().split("=")
+    cookie_mapping[a] = b
+public_header["Cookie"] = cookie
 
 csrf_token = cookie_mapping.get("bili_jct")
-
-public_header = {"cookie": cookie,
-                 "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                               "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77"}
 
 cached = {}
 
@@ -168,12 +173,16 @@ def login():
             r_login = post("https://passport.bilibili.com/x/passport-login/web/login/sms",
                            headers=public_header, data=data_login)
             if r_login.json()['code'] == 0:
-                with open("cookie.txt") as f:
+                with open("cookie.txt", "w") as f:
                     cookie_str = ""
                     for key, value in r_login.cookies.items():
                         cookie_str += "{}={};".format(key, value)
                         cookie_str = cookie_str[:-1]
-                        f.write(cookie_str)
+                    public_header['cookie'] = cookie_str
+                    r_set = requests.get('https://www.bilibili.com', headers=public_header)
+                    for i in r_set.cookies:
+                        cookie_str += i.name + "=" + i.value + ";"
+                    f.write(cookie_str[:-1])
                 print("登录成功!")
 
             else:
@@ -194,12 +203,16 @@ def login_by_password(username, password, validate, seccode, token, challenge):
     r = post("https://passport.bilibili.com/web/login/v2",
              headers={}, data=data)
     if r.json()['code'] == 0:
-        with open("cookie.txt") as f:
+        with open("cookie.txt", "w") as f:
             cookie_str = ""
             for key, value in r.cookies.items():
                 cookie_str += "{}={};".format(key, value)
                 cookie_str = cookie_str[:-1]
-                f.write(cookie_str)
+            public_header['cookie'] = cookie_str
+            r_set = requests.get('https://www.bilibili.com', headers=public_header)
+            for i in r_set.cookies:
+                cookie_str += i.name + "=" + i.value + ";"
+            f.write(cookie_str[:-1])
     else:
         print("登录失败!")
         print(r.json()['code'])
@@ -380,7 +393,7 @@ def play_with_cid(av_or_bv, cid: int, bangumi=False) -> None:
                     10, 8, None,
                     None, False)
     time = req.json()['data']["timelength"] / 1000
-    update_history(av_or_bv, cid, time)
+    update_history(av_or_bv, cid, round(time, 1))
     os.system(command)
 
 
@@ -436,6 +449,7 @@ def play(av_or_bv):
     return
 
 
+@register("view_b_collection", local="recommend")
 def play_b_collection(av_or_bv):
     av_or_bv = str(av_or_bv)
     url = "http://api.bilibili.com/x/web-interface/view/detail"
@@ -615,11 +629,23 @@ def format_long(long):
         hour = long // (60 * 60)
         minute = (long - (hour * 60 * 60)) // 60
         sec = long - (hour * 60 * 60) - minute * 60
+        if minute < 10:
+            fmt = "{}:0{}:{}"
+        if sec < 10:
+            fmt = "{}:{}:0{}"
+        if sec < 10 and minute < 10:
+            fmt = "{}:0{}:0{}"
         return fmt.format(hour, minute, sec)
     else:
         fmt = "{}:{}"
         minute = (long) // 60
+        if minute < 10:
+            fmt = "0{}:{}"
         sec = long - minute * 60
+        if sec < 10:
+            fmt = "{}:0{}"
+        if sec < 10 and minute < 10:
+            fmt = "0{}:0{}"
         return fmt.format(minute, sec)
 
 
@@ -696,14 +722,17 @@ def recommend():
             if int(index[0]) > len(rcmd) or int(index[0]) <= 0:
                 print("选择的视频超出范围!")
                 continue
+            bvid = rcmd[int(index[0]) - 1]['bvid']
             if a == "play":
-                play(rcmd[int(index[0]) - 1]['bvid'])
+                play(bvid)
             elif a == "like":
-                like(rcmd[int(index[0]) - 1]['bvid'])
+                like(bvid)
             elif a == "triple":
-                triple(rcmd[int(index[0]) - 1]['bvid'])
+                triple(bvid)
             elif a == 'unlike':
-                like(rcmd[int(index[0]) - 1]['bvid'], unlike=True)
+                like(bvid, unlike=True)
+            elif a == "view_b_collection":
+                play_b_collection(bvid)
 
 
 @register("local_collection")
