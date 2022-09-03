@@ -31,15 +31,10 @@ Laosun Bilibili Console Client(LBCC) 是laosun写的Bilibili命令行客户端�
 
 ## 使用
 
-创建cookie.txt与collection.txt
-
-把你账号(如果有的话)的cookie拷贝在cookie.txt里
-
-安装mpv与python
-
-输入pip install -r requirements.txt
-
-输入python main.py即可运行   
+1. pip install -r requirements.txt
+2. 复制账号cookie(或python main.py 输入login登录)拷贝至cookie.txt
+3. 创建collection.txt
+4. python main.py
 
 
 
