@@ -291,7 +291,7 @@ def triple(index: str, rcmd: dict):
         print(r.json()['message'])
 
 
-def play(index: str, rcmd: dict):
+def play(index: str, rcmd: list):
     print("\n")
     print("视频选集")
     bvid = rcmd[int(index) - 1]['bvid']
@@ -433,10 +433,35 @@ def register_all_command():
     register_command("recommend", 0, run=recommend)
     register_command("exit", 0, run=sys.exit, args=(0,))
     register_command("help", 0, run=main_help)
+    register_command("address", 1, run=address)
 
 
 def test(*args, **kwargs):
     print(args, kwargs)
+
+
+def address(video):
+    if "b23.tv" in video:
+        video = get(video).url
+    av_or_bv = video.split("/")[-1].split("?")[0]
+    if not av_or_bv:
+        av_or_bv = video.split("/")[-2]
+    # bvid, avid, view, danmaku, like_, coin, favorite, share, comment_count = video_status(
+    #     str(av_or_bv))
+    # print('avid: ', avid)
+    # print("bvid: ", bvid)
+    # print("观看量: ", view)
+    # print("弹幕: ", danmaku)
+    # print("点赞量: ", like_)
+    # print("硬币量: ", coin)
+    # print("收藏量: ", favorite)
+    # print("转发量: ", share)
+    # print("评论量: ", comment_count)
+    if av_or_bv.startswith("av"):
+        av_or_bv = get("http://api.bilibili.com/x/web-interface/archive/stat?aid=" + av_or_bv,
+                       headers=header)
+        av_or_bv = av_or_bv.json()['data']['bvid']
+    play("0", [{"bvid": av_or_bv}])
 
 
 print("LBCC v1.0.0-dev.")
