@@ -36,6 +36,7 @@ import sys
 # import json
 # import datetime
 # import inspect
+import threading
 import typing
 import datetime
 
@@ -352,7 +353,7 @@ def play_with_cid(bvid: str, cid: int, bangumi=False) -> None:
                 None, False)
     time = req.json()['data']["timelength"] / 1000
     update_history(bvid, cid, round(time) + 1)
-    os.system(command)
+    threading.Thread(target=os.system, args=(command,)).start()
 
 
 def update_history(bvid, cid, progress):
