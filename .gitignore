@@ -6,6 +6,8 @@ __pycache__/
 # C extensions
 *.so
 1.py
+old.py
+init
 cached/*.ass
 cached/*.xml
 
