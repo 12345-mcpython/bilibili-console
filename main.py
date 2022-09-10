@@ -265,6 +265,18 @@ def triple(video_id: str, bvid=True):
         print(r.json()['message'])
 
 
+def collection(avid: str, media_id: str):
+    data = {"rid": avid, "type": 2, "add_media_ids": media_id, "csrf": csrf_token}
+    r = post("http://api.bilibili.com/x/v3/fav/resource/deal", headers=header, data=data)
+    code = r.json()['code']
+    if code == 0:
+        print("收藏成功!")
+    else:
+        print("收藏失败!")
+        print(code)
+        print(r.json()['message'])
+
+
 def play(video_id: str, bvid=True):
     print("\n")
     print("视频选集")
@@ -368,9 +380,10 @@ def recommend():
                   item.stat.view)
         while flag1:
             command = input("推荐选项: ")
+            if command == "exit":
+                flag = False
+                break
             command, argument = parse_text_command(command, local="recommend")
-            if len(argument) == 0:
-                continue
             bvid = rcmd[int(argument[0]) - 1]['bvid']
             if command == "play":
                 play(bvid)
@@ -380,9 +393,9 @@ def recommend():
                 triple(bvid)
             elif command == 'unlike':
                 like(bvid, unlike=True)
-            elif command == "exit":
-                flag1 = False
-                flag = False
+            elif command == "collection":
+                media_id = list_fav(return_info=True)
+                collection(media_id=media_id, avid=rcmd[int(argument[0]) - 1]['id'])
             # elif a == "view_b_collection":
             #     play_b_collection(bvid)
 
@@ -402,8 +415,15 @@ def register_all_command():
     register_command("unlike", 1, should_run=False, local="recommend")
     register_command("play", 1, should_run=False, local="recommend")
     register_command("triple", 1, should_run=False, local="recommend")
-    register_command("next", 0, should_run=False, local="recommend")
     register_command("exit", 0, should_run=False, local="recommend")
+
+    register_command("like", 1, should_run=False, local="favorite")
+    register_command("unlike", 1, should_run=False, local="favorite")
+    register_command("play", 1, should_run=False, local="favorite")
+    register_command("triple", 1, should_run=False, local="favorite")
+    register_command("exit", 0, should_run=False, local="favorite")
+
+    register_command("collection", 1, should_run=False, local="recommend")
     register_command("add_cookie", 0, run=add_cookie)
     register_command("set_default_cookie", 0, run=set_default_cookie)
 
@@ -450,7 +470,7 @@ def address(video: str):
 # 3.get http://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id={get_media_id}
 # 4.Traverse data.medias
 # 5.loop 2 and add argument pn=data.info.media_count // 20 + 1
-def list_fav():
+def list_fav(return_info=False):
     fav_list = get(
         "https://api.bilibili.com/x/v3/fav/folder/created/list-all?up_mid={mid}&jsonp=jsonp".format(mid=user_mid),
         headers=header)
@@ -458,45 +478,61 @@ def list_fav():
     for i, j in enumerate(fav_list):
         print(f"{i + 1}: {j.title}")
     while True:
-        choose = input()
+        choose = input("选择收藏夹:")
         if choose == "exit":
             break
         if int(choose) > len(fav_list) or int(choose) <= 0:
             print("选视频超出范围!")
             continue
         a = fav_list[int(choose) - 1].id
-        list_collection(a)
+        if not return_info:
+            list_collection(a)
+            break
+        return a
 
 
 def list_collection(media_id):
     url = f"http://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id={media_id}"
     ls = get(url, headers=header)
-    ls = JSON(ls.json()).data.medias
-    flag1 = True
-    for num, item in enumerate(ls):
-        print(num + 1, ":")
-        item = JSON(item)
-        print("封面: ", item.cover)
-        print("标题: ", item.title)
-        print("作者: ", item.upper.name, " bvid: ", item.bvid, " 日期: ", datetime.datetime.fromtimestamp(
-            item.pubtime).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_long(item.duration), " 观看量: ",
-              item.cnt_info.play)
-    while flag1:
-        command = input("推荐选项: ")
-        command, argument = parse_text_command(command, local="recommend")
-        if len(argument) == 0:
-            continue
-        bvid = ls[int(argument[0]) - 1]['bvid']
-        if command == "play":
-            play(bvid)
-        elif command == "like":
-            like(bvid)
-        elif command == "triple":
-            triple(bvid)
-        elif command == 'unlike':
-            like(bvid, unlike=True)
-        elif command == "exit":
-            flag1 = False
+    ls = JSON(ls.json())
+    total = ls.data.info.media_count // 20 + 1
+    count = 1
+    flag = True
+    while flag:
+        url = f"http://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id={media_id}&pn={count}"
+        ls = get(url, headers=header)
+        ls = JSON(ls.json())
+        if total < count:
+            return
+        ls = ls.data.medias
+        flag1 = True
+        for num, item in enumerate(ls):
+            print(num + 1, ":")
+            item = JSON(item)
+            print("封面: ", item.cover)
+            print("标题: ", item.title)
+            print("作者: ", item.upper.name, " bvid: ", item.bvid, " 日期: ", datetime.datetime.fromtimestamp(
+                item.pubtime).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_long(item.duration), " 观看量: ",
+                  item.cnt_info.play)
+        while flag1:
+            command = input("收藏选项: ")
+            if not command:
+                break
+            command, argument = parse_text_command(command, local="favorite")
+            bvid = ls[int(argument[0]) - 1]['bvid']
+
+            if command == "play":
+                play(bvid)
+            elif command == "exit":
+                return
+            elif command == "like":
+                like(bvid)
+            elif command == "triple":
+                triple(bvid)
+            elif command == 'unlike':
+                like(bvid, unlike=True)
+
+        count += 1
 
 
 def init():
