@@ -10,7 +10,9 @@ old.py
 init
 cached/*.ass
 cached/*.xml
-
+temp_cookie.txt
+users/
+users/*.txt
 # Distribution / packaging
 .Python
 build/
@@ -135,3 +137,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/old_cookie.py
