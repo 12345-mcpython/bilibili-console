@@ -516,6 +516,8 @@ def list_collection(media_id):
                   item.cnt_info.play)
         while flag1:
             command = input("收藏选项: ")
+            if command == "exit":
+                return
             if not command:
                 break
             command, argument = parse_text_command(command, local="favorite")
