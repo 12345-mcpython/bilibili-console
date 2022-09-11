@@ -39,6 +39,8 @@ import sys
 import threading
 import typing
 import datetime
+import dm_pb2
+from google.protobuf import json_format
 
 try:
     import requests
@@ -108,6 +110,8 @@ cached = {}
 is_login = False
 
 user_mid = None
+
+protobuf_danmaku_enable = False
 
 quality = {
     112: (1920, 1080),
@@ -332,18 +336,50 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
               "Gecko/20100101 Firefox/51.0\" " \
               "--referrer=\"https://www.bilibili.com\" \"{}\"".format(cid,
                                                                       flv_url)
-    if not os.path.exists("cached"):
-        os.mkdir("cached")
-    if not os.path.exists(f"cached/{cid}.xml"):
-        r = requests.get(f"https://comment.bilibili.com/{cid}.xml")
-        with open(f"cached/{cid}.xml", "wb") as f:
-            f.write(r.content)
+    if protobuf_danmaku_enable:
+        with open(f"cached/{cid}.xml", "w", encoding="utf-8") as f:
+            f.write(get_danmaku(cid))
+    else:
+        if not os.path.exists(f"cached/{cid}.xml"):
+            r = requests.get(f"https://comment.bilibili.com/{cid}.xml")
+            with open(f"cached/{cid}.xml", "wb") as f:
+                f.write(r.content)
     Danmaku2ASS([f"cached/{cid}.xml"], "autodetect", f"cached/{cid}.ass", width, height, 0, "SimHei", 25.0, 1.0,
                 10, 8, None,
                 None, False)
     time = req.json()['data']["timelength"] / 1000
     update_history(video_id, cid, round(time) + 1)
     threading.Thread(target=os.system, args=(command,)).start()
+
+
+def get_danmaku(cid):
+    url = "https://api.bilibili.com/x/v2/dm/web/seg.so"
+    params = {
+        'type': '1',
+        'oid': cid,
+        'segment_index': '1'
+    }
+    headers = {
+        "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.81 Safari/537.36"
+    }
+    resp = requests.get(url, headers=headers, params=params, timeout=8)
+    content = resp.content
+    # with open('seg.so', 'wb') as f:
+    #     f.write(content)
+
+    danmaku_seg = dm_pb2.DmSegMobileReply()
+    danmaku_seg.ParseFromString(content)
+    xml = '<?xml version="1.0" encoding="UTF-8"?><i><chatserver>chat.bilibili.com</chatserver><chatid>823547756' \
+          '</chatid><mission>0</mission><maxlimit>1000</maxlimit><state>0</state><real_name>0</real_name><source>k-v' \
+          '</source> '
+    for i in danmaku_seg.elems:
+        danmaku = json_format.MessageToDict(i)
+        xml += '<d p="{},{},{},{},{},0,{},{},{}">{}</d>'.format(
+            "%.5f" % (int(danmaku.get('progress', 0)) / 1000), danmaku['mode'], danmaku['fontsize'], danmaku['color'], danmaku['ctime'],
+            danmaku['midHash'],
+            danmaku['id'], danmaku['weight'], danmaku['content'])
+    xml += "</i>"
+    return xml
 
 
 def update_history(video_id, cid, progress, bvid=True):
@@ -413,6 +449,8 @@ def register_all_command():
     register_command("help", 0, run=main_help)
     register_command("address", 1, run=address)
     register_command("favorite", 0, run=list_fav)
+    register_command("enable_protobuf_danmaku", 0, run=enable_protobuf_danmaku)
+    register_command("disable_protobuf_danmaku", 0, run=disable_protobuf_danmaku)
     register_command("like", 1, should_run=False, local="recommend")
     register_command("unlike", 1, should_run=False, local="recommend")
     register_command("play", 1, should_run=False, local="recommend")
@@ -657,6 +695,16 @@ def add_cookie():
     print("Cookie配置成功! LBCC将会重启.")
     input()
     os.execvp(sys.executable, [sys.executable] + sys.argv)
+
+
+def enable_protobuf_danmaku():
+    global protobuf_danmaku_enable
+    protobuf_danmaku_enable = True
+
+
+def disable_protobuf_danmaku():
+    global protobuf_danmaku_enable
+    protobuf_danmaku_enable = False
 
 
 def set_default_cookie():
