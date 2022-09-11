@@ -383,6 +383,8 @@ def recommend():
             if command == "exit":
                 flag = False
                 break
+            if not command:
+                break
             command, argument = parse_text_command(command, local="recommend")
             bvid = rcmd[int(argument[0]) - 1]['bvid']
             if command == "play":
