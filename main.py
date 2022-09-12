@@ -28,6 +28,7 @@ The old version also use the GPL-3.0 license, not MIT License.
 # import shutil
 import json
 import os
+import shutil
 import sys
 
 # from typing import Union, Tuple
@@ -206,14 +207,14 @@ def parse_command(command, local="main"):
 def parse_text_command(command, local="main"):
     if not command_mapping.get(local + "_" + command.split(" ")[0]):
         print("未知命令!")
-        return
+        return None, None
     command_class: Command = command_mapping.get(local + "_" + command.split(" ")[0])
     if len(command.split(" ")) - 1 > command_class.length:
         print("参数过多!")
-        return
+        return None, None
     if len(command.split(" ")) - 1 < command_class.length:
         print("参数过少!")
-        return
+        return None, None
     return command.split(" ")[0], command.split(" ")[1:]
 
 
@@ -349,7 +350,12 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
                 None, False)
     time = req.json()['data']["timelength"] / 1000
     update_history(video_id, cid, round(time) + 1)
-    threading.Thread(target=os.system, args=(command,)).start()
+    a = threading.Thread(target=os.system, args=(command,))
+    a.start()
+    thread_pool.append(a)
+
+
+thread_pool = []
 
 
 def get_danmaku(cid):
@@ -375,7 +381,8 @@ def get_danmaku(cid):
     for i in danmaku_seg.elems:
         danmaku = json_format.MessageToDict(i)
         xml += '<d p="{},{},{},{},{},0,{},{},{}">{}</d>'.format(
-            "%.5f" % (int(danmaku.get('progress', 0)) / 1000), danmaku['mode'], danmaku['fontsize'], danmaku['color'], danmaku['ctime'],
+            "%.5f" % (int(danmaku.get('progress', 0)) / 1000), danmaku['mode'], danmaku['fontsize'], danmaku['color'],
+            danmaku['ctime'],
             danmaku['midHash'],
             danmaku['id'], danmaku['weight'], danmaku['content'])
     xml += "</i>"
@@ -422,6 +429,14 @@ def recommend():
             if not command:
                 break
             command, argument = parse_text_command(command, local="recommend")
+            if not command:
+                continue
+            if not argument[0].isdecimal():
+                print("输入的不是整数!")
+                continue
+            if int(argument[0]) > len(rcmd) or int(argument[0]) <= 0:
+                print("选视频超出范围!")
+                continue
             bvid = rcmd[int(argument[0]) - 1]['bvid']
             if command == "play":
                 play(bvid)
@@ -434,6 +449,7 @@ def recommend():
             elif command == "collection":
                 media_id = list_fav(return_info=True)
                 collection(media_id=media_id, avid=rcmd[int(argument[0]) - 1]['id'])
+                print("收藏成功!")
             # elif a == "view_b_collection":
             #     play_b_collection(bvid)
 
@@ -443,27 +459,41 @@ def register_command(command, length, local="main", run=lambda: None, should_run
                                                      kwargs=kwargs)
 
 
+def exit_all():
+    i: threading.Thread
+    for i in thread_pool:
+        i.join()
+    sys.exit(0)
+
+
 def register_all_command():
     register_command("recommend", 0, run=recommend)
-    register_command("exit", 0, run=sys.exit, args=(0,))
+    register_command("exit", 0, run=exit_all)
     register_command("help", 0, run=main_help)
     register_command("address", 1, run=address)
     register_command("favorite", 0, run=list_fav)
     register_command("enable_protobuf_danmaku", 0, run=enable_protobuf_danmaku)
     register_command("disable_protobuf_danmaku", 0, run=disable_protobuf_danmaku)
+    register_command("clean_memory_cache", 0, run=clean_memory_cache)
+    register_command("clean_local_cache", 0, run=clean_local_cache)
     register_command("like", 1, should_run=False, local="recommend")
     register_command("unlike", 1, should_run=False, local="recommend")
     register_command("play", 1, should_run=False, local="recommend")
     register_command("triple", 1, should_run=False, local="recommend")
     register_command("exit", 0, should_run=False, local="recommend")
-
+    register_command("collection", 1, should_run=False, local="recommend")
+    register_command("like", 1, should_run=False, local="address")
+    register_command("unlike", 1, should_run=False, local="address")
+    register_command("play", 1, should_run=False, local="address")
+    register_command("triple", 1, should_run=False, local="address")
+    register_command("exit", 0, should_run=False, local="address")
+    register_command("collection", 1, should_run=False, local="address")
     register_command("like", 1, should_run=False, local="favorite")
     register_command("unlike", 1, should_run=False, local="favorite")
     register_command("play", 1, should_run=False, local="favorite")
     register_command("triple", 1, should_run=False, local="favorite")
     register_command("exit", 0, should_run=False, local="favorite")
 
-    register_command("collection", 1, should_run=False, local="recommend")
     register_command("add_cookie", 0, run=add_cookie)
     register_command("set_default_cookie", 0, run=set_default_cookie)
 
@@ -480,6 +510,10 @@ def video_status(video_id: str):
 
     r = get(url.format(video_id), headers=header)
     json1 = r.json()
+    if json1['code'] != 0:
+        print("获取状态失败!")
+        print(json1['message'])
+        return None, None, None, None, None, None, None, None, None
     return json1['data']['bvid'], json1['data']['aid'], json1['data']['view'], json1['data']['danmaku'], json1['data'][
         'like'], json1['data']['coin'], json1['data']['favorite'], json1['data']['share'], json1['data']['reply']
 
@@ -493,6 +527,9 @@ def address(video: str):
             video = video.split("/")[-2]
     bvid, avid, view, danmaku, like_, coin, favorite, share, comment_count = video_status(
         str(video))
+    if not all([bvid, avid, view, danmaku, like_, coin, favorite, share, comment_count]):
+        print("链接错误!")
+        return
     print('avid: ', avid)
     print("bvid: ", bvid)
     print("观看量: ", view)
@@ -502,25 +539,51 @@ def address(video: str):
     print("收藏量: ", favorite)
     print("转发量: ", share)
     print("评论量: ", comment_count)
-    play(bvid)
+    while True:
+        command = input("链接选项: ")
+        if command == "exit":
+            break
+        if not command:
+            continue
+        command, argument = parse_text_command(command, local="recommend")
+        if not command:
+            continue
+        if not argument[0].isdecimal():
+            print("输入的不是整数!")
+            continue
+        if command == "play":
+            play(bvid)
+        elif command == "like":
+            like(bvid)
+        elif command == "triple":
+            triple(bvid)
+        elif command == 'unlike':
+            like(bvid, unlike=True)
+        elif command == "collection":
+            media_id = list_fav(return_info=True)
+            collection(media_id=media_id, avid=avid)
+            print("收藏成功!")
 
 
-# 1.get https://api.bilibili.com/x/v3/fav/folder/created/list-all?up_mid={mid}&jsonp=jsonp to get data.list
-# 2.loop data.list to get "id"
-# 3.get http://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id={get_media_id}
-# 4.Traverse data.medias
-# 5.loop 2 and add argument pn=data.info.media_count // 20 + 1
 def list_fav(return_info=False):
     fav_list = get(
         "https://api.bilibili.com/x/v3/fav/folder/created/list-all?up_mid={mid}&jsonp=jsonp".format(mid=user_mid),
         headers=header)
     fav_list = JSON(fav_list.json()).data.list
+    print("\n")
+    print("选择收藏夹")
+    print("\n")
     for i, j in enumerate(fav_list):
         print(f"{i + 1}: {j.title}")
     while True:
-        choose = input("选择收藏夹:")
+        choose = input("选择收藏夹: ")
         if choose == "exit":
             break
+        if not choose:
+            continue
+        if not choose.isdecimal():
+            print("输入的不是整数!")
+            continue
         if int(choose) > len(fav_list) or int(choose) <= 0:
             print("选视频超出范围!")
             continue
@@ -543,6 +606,7 @@ def list_collection(media_id):
         ls = get(url, headers=header)
         ls = JSON(ls.json())
         if total < count:
+            print("到头了!")
             return
         ls = ls.data.medias
         flag1 = True
@@ -561,6 +625,14 @@ def list_collection(media_id):
             if not command:
                 break
             command, argument = parse_text_command(command, local="favorite")
+            if not command:
+                continue
+            if not argument[0].isdecimal():
+                print("输入的不是整数!")
+                continue
+            if int(argument[0]) > len(ls) or int(argument[0]) <= 0:
+                print("选视频超出范围!")
+                continue
             bvid = ls[int(argument[0]) - 1]['bvid']
 
             if command == "play":
@@ -707,6 +779,15 @@ def disable_protobuf_danmaku():
     protobuf_danmaku_enable = False
 
 
+def clean_memory_cache():
+    global cached
+    cached = {}
+
+
+def clean_local_cache():
+    shutil.rmtree("cached")
+
+
 def set_default_cookie():
     ls = os.listdir("./users")
     print("选择cookie")
@@ -762,12 +843,6 @@ if __name__ == "__main__":
             header["cookie"] = f.read()
     get_login_status()
     register_all_command()
-    # user = check_users()
-    # read_cookie(user=True if user else False, username=user if user else "")
-    # print(header)
-    # get_login_status()
-    # test_user()
-    # init_login_cookie()
     cookie_mapping = cookie_to_dict(header["cookie"])
     csrf_token = cookie_mapping.get("bili_jct")
     try:
