@@ -816,9 +816,10 @@ def get_available_user():
     if os.path.exists("default"):
         with open("default") as f:
             return f.read()
-    else:
+    elif len(os.listdir("users")) != 0:
         return os.listdir("users")[0]
-
+    else:
+        return None
 
 def test_cookie():
     for i in os.listdir("users"):
