@@ -548,9 +548,10 @@ def address(video: str):
         command, argument = parse_text_command(command, local="recommend")
         if not command:
             continue
-        if not argument[0].isdecimal() and command != "play":
-            print("输入的不是整数!")
-            continue
+        if command != "play":
+            if not argument[0].isdecimal():
+                print("输入的不是整数!")
+                continue
         if command == "play":
             play(bvid)
         elif command == "like":
