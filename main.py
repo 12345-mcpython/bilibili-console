@@ -478,7 +478,7 @@ def register_all_command():
     register_command("clean_local_cache", 0, run=clean_local_cache)
     register_command("like", 1, should_run=False, local="recommend")
     register_command("unlike", 1, should_run=False, local="recommend")
-    register_command("play", 1, should_run=False, local="recommend")
+    register_command("play", 0, should_run=False, local="recommend")
     register_command("triple", 1, should_run=False, local="recommend")
     register_command("exit", 0, should_run=False, local="recommend")
     register_command("collection", 1, should_run=False, local="recommend")
@@ -548,7 +548,7 @@ def address(video: str):
         command, argument = parse_text_command(command, local="recommend")
         if not command:
             continue
-        if not argument[0].isdecimal():
+        if not argument[0].isdecimal() and command != "play":
             print("输入的不是整数!")
             continue
         if command == "play":
