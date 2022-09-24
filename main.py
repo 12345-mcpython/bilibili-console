@@ -26,6 +26,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 The old version also use the GPL-3.0 license, not MIT License.
 """
 # import shutil
+import argparse
 import json
 import os
 import shutil
@@ -41,12 +42,15 @@ import threading
 import typing
 import datetime
 import dm_pb2
-from google.protobuf import json_format
+
+
+from xml.sax.saxutils import escape
 
 try:
     import requests
     from bs4 import BeautifulSoup
     import rsa
+    from google.protobuf import json_format
 except ImportError as e:
     print("Warning: You don't run \"python -m pip install -r requirements.txt\". LBCC will exit.")
     sys.exit(1)
@@ -122,6 +126,8 @@ quality = {
     16: (480, 360)
 }
 
+default_quality = 80
+
 
 # 辅助方法
 
@@ -183,6 +189,14 @@ def format_long(long):
         if sec < 10 and minute < 10:
             fmt = "0{}:0{}"
         return fmt.format(minute, sec)
+
+
+def view_comment(avid: typing.Union[int, str], page=1):
+    if not isinstance(avid, int):
+        avid = avid.strip()
+    url = f"http://api.bilibili.com/x/v2/reply/main?mode=0&oid={avid}&next={page}&type=1"
+    r = get(url, headers=header, no_cache=True)
+    return r.json()['data']['replies'], r.json()['data']['cursor']['all_count']
 
 
 # 界面
@@ -315,11 +329,11 @@ def play(video_id: str, bvid=True):
 def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     if not bangumi:
         if bvid:
-            url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn=80&type=&otype=json" + "&bvid=" + video_id
+            url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={default_quality}&type=&otype=json" + "&bvid=" + video_id
         else:
-            url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn=80&type=&otype=json" + "&avid=" + video_id
+            url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={default_quality}&type=&otype=json" + "&avid=" + video_id
     else:
-        url1 = f"https://api.bilibili.com/pgc/player/web/playurl?qn=80&cid={cid}&ep_id={video_id}"
+        url1 = f"https://api.bilibili.com/pgc/player/web/playurl?qn={default_quality}&cid={cid}&ep_id={video_id}"
     req = get(url1, headers=header, no_cache=True)
     if req.json()['code'] != 0:
         print("获取视频错误!")
@@ -370,9 +384,6 @@ def get_danmaku(cid):
     }
     resp = requests.get(url, headers=headers, params=params, timeout=8)
     content = resp.content
-    # with open('seg.so', 'wb') as f:
-    #     f.write(content)
-
     danmaku_seg = dm_pb2.DmSegMobileReply()
     danmaku_seg.ParseFromString(content)
     xml = '<?xml version="1.0" encoding="UTF-8"?><i><chatserver>chat.bilibili.com</chatserver><chatid>823547756' \
@@ -384,7 +395,7 @@ def get_danmaku(cid):
             "%.5f" % (int(danmaku.get('progress', 0)) / 1000), danmaku['mode'], danmaku['fontsize'], danmaku['color'],
             danmaku['ctime'],
             danmaku['midHash'],
-            danmaku['id'], danmaku['weight'], danmaku['content'])
+            danmaku['id'], danmaku['weight'], escape(danmaku['content']))
     xml += "</i>"
     return xml
 
@@ -461,6 +472,8 @@ def register_command(command, length, local="main", run=lambda: None, should_run
 
 def exit_all():
     i: threading.Thread
+    if len(thread_pool) > 0:
+        print("请把所有的mpv进程终止.")
     for i in thread_pool:
         i.join()
     sys.exit(0)
@@ -478,13 +491,13 @@ def register_all_command():
     register_command("clean_local_cache", 0, run=clean_local_cache)
     register_command("like", 1, should_run=False, local="recommend")
     register_command("unlike", 1, should_run=False, local="recommend")
-    register_command("play", 0, should_run=False, local="recommend")
+    register_command("play", 1, should_run=False, local="recommend")
     register_command("triple", 1, should_run=False, local="recommend")
     register_command("exit", 0, should_run=False, local="recommend")
     register_command("collection", 1, should_run=False, local="recommend")
     register_command("like", 1, should_run=False, local="address")
     register_command("unlike", 1, should_run=False, local="address")
-    register_command("play", 1, should_run=False, local="address")
+    register_command("play", 0, should_run=False, local="address")
     register_command("triple", 1, should_run=False, local="address")
     register_command("exit", 0, should_run=False, local="address")
     register_command("collection", 1, should_run=False, local="address")
@@ -495,7 +508,7 @@ def register_all_command():
     register_command("exit", 0, should_run=False, local="favorite")
 
     register_command("add_cookie", 0, run=add_cookie)
-    register_command("set_default_cookie", 0, run=set_default_cookie)
+    register_command("set_users", 0, run=set_users)
 
 
 def video_status(video_id: str):
@@ -545,7 +558,7 @@ def address(video: str):
             break
         if not command:
             continue
-        command, argument = parse_text_command(command, local="recommend")
+        command, argument = parse_text_command(command, local="address")
         if not command:
             continue
         if command != "play":
@@ -564,6 +577,24 @@ def address(video: str):
             media_id = list_fav(return_info=True)
             collection(media_id=media_id, avid=avid)
             print("收藏成功!")
+
+
+def config():
+    print("1.清空本地缓存")
+    print("2.清空内存缓存")
+    print("3.调整分辨率")
+    print("4.实验选项")
+    print("5.退出")
+    choose = input()
+    if choose == 1:
+        clean_local_cache()
+    elif choose == 2:
+        clean_memory_cache()
+    elif choose == 3:
+        set_quality()
+    elif choose == 4:
+        print("Error!")
+
 
 
 def list_fav(return_info=False):
@@ -724,7 +755,7 @@ def ask_cookie(first_use):
     global cookie
     if first_use:
         print("你是第一次使用LBCC, 是否配置cookie? (y/n)")
-        print("Laosun Studios保证用户数据是妥善存放在本地且不会被上传到除了B站以外的服务器.")
+        print("Laosun Studios 保证用户数据是妥善存放在本地且不会被上传到除了B站以外的服务器.")
         choose = input()
         if choose.lower() == "y":
             cookie_or_file = input("请输入cookies或文件路径: ")
@@ -744,6 +775,7 @@ def ask_cookie(first_use):
             with open("cookie", "w") as f:
                 pass
             print("Cookie配置成功! LBCC将会退出. ")
+            input()
             sys.exit(0)
     return
 
@@ -789,7 +821,7 @@ def clean_local_cache():
     shutil.rmtree("cached")
 
 
-def set_default_cookie():
+def set_users():
     ls = os.listdir("./users")
     print("选择cookie")
     for i, j in enumerate(ls):
@@ -800,11 +832,32 @@ def set_default_cookie():
         if choose > len(ls) or choose <= 0:
             print("输入错误.")
         print(f"你选择的是{ls[choose - 1].split('.')[0]}.")
-        with open("default", "w") as f:
+        with open("user", "w") as f:
             f.write(ls[choose - 1].split(".")[0])
         print("配置成功. LBCC将会重启.")
         input()
         os.execvp(sys.executable, [sys.executable] + sys.argv)
+
+
+def set_quality():
+    global default_quality
+    for i, j in enumerate(quality.items()):
+        print(f"{i}: {j[1][0]}x{j[1][1]} ")
+    while True:
+        try:
+            quality_choose = int(input())
+        except ValueError:
+            print("请输入数字!")
+            continue
+        if quality_choose < 0 or quality_choose > len(quality.items()):
+            print("超出界限!")
+            continue
+        elif not quality_choose:
+            print("请输入数字!")
+            continue
+        default_quality = quality[quality_choose][0]
+        print("设置成功!")
+        break
 
 
 print("LBCC v1.0.0-dev.")
@@ -814,13 +867,14 @@ print("Type \"help\" for more information.")
 def get_available_user():
     if os.path.exists("cookie"):
         return False
-    if os.path.exists("default"):
-        with open("default") as f:
+    if os.path.exists("user"):
+        with open("user") as f:
             return f.read()
     elif len(os.listdir("users")) != 0:
         return os.listdir("users")[0]
     else:
         return None
+
 
 def test_cookie():
     for i in os.listdir("users"):
@@ -834,7 +888,21 @@ def test_cookie():
             return
 
 
+def parse_experimental_features(feature_args):
+    if feature_args == "protobuf":
+        enable_protobuf_danmaku()
+        print("已启用特性: protobuf弹幕")
+    elif not feature_args:
+        return
+    else:
+        print("未知特性: ", feature_args)
+
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='LBCC命令行参数')
+    parser.add_argument("-ef", '--experimental-features', type=str, help="启用实验特性")
+    args = parser.parse_args()
+    parse_experimental_features(args.experimental_features)
     first_use = init()
     ask_cookie(first_use)
     username = get_available_user()
