@@ -3,9 +3,8 @@
 ## 介绍
 Laosun Bilibili Console Client(LBCC) 是一个Bilibili命令行客户端.
 
-![](https://mc-videos.obs.cn-north-4.myhuaweicloud.com/image/introduce/chapter-1/20220910201126.png)
+![](https://laosun-image.obs.cn-north-4.myhuaweicloud.com/20220926123050.png)
 
-![](https://mc-videos.obs.cn-north-4.myhuaweicloud.com/image/introduce/chapter-1/20220911094408.png)
 
 示例
 ```
