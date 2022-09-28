@@ -41,10 +41,6 @@ import sys
 import threading
 import typing
 import datetime
-import dm_pb2
-
-
-from xml.sax.saxutils import escape
 
 try:
     import requests
@@ -55,7 +51,7 @@ except ImportError as e:
     print("Warning: You don't run \"python -m pip install -r requirements.txt\". LBCC will exit.")
     sys.exit(1)
 
-from danmaku2ass import Danmaku2ASS
+from biliass import Danmaku2ASS
 
 
 class Command:
@@ -350,26 +346,54 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     command = "mpv --sub-file=\"cached/{}.ass\" --user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) " \
               "Gecko/20100101 Firefox/51.0\" " \
               "--referrer=\"https://www.bilibili.com\" \"{}\"".format(cid,
+
                                                                       flv_url)
+    r = requests.get(f"https://comment.bilibili.com/{cid}.xml")
+    # Danmaku2ASS([f"cached/{cid}.xml"], "autodetect", f"cached/{cid}.ass", width, height, 0, "SimHei", 25.0, 1.0,
+    #             10, 8, None,
+    #             None, False, input_format="xml")
     if protobuf_danmaku_enable:
-        with open(f"cached/{cid}.xml", "w", encoding="utf-8") as f:
-            f.write(get_danmaku(cid))
+        so = get_danmaku(cid)
+        a = Danmaku2ASS(
+            so,
+            width,
+            height,
+            input_format="protobuf",
+            reserve_blank=0,
+            font_face="SimHei",
+            font_size=25,
+            text_opacity=0.8,
+            duration_marquee=15.0,
+            duration_still=10.0,
+            comment_filter=None,
+            is_reduce_comments=False,
+            progress_callback=None,
+        )
+        with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
+            f.write(a)
     else:
-        if not os.path.exists(f"cached/{cid}.xml"):
-            r = requests.get(f"https://comment.bilibili.com/{cid}.xml")
-            with open(f"cached/{cid}.xml", "wb") as f:
-                f.write(r.content)
-    Danmaku2ASS([f"cached/{cid}.xml"], "autodetect", f"cached/{cid}.ass", width, height, 0, "SimHei", 25.0, 1.0,
-                10, 8, None,
-                None, False)
+        a = Danmaku2ASS(
+            r.content,
+            width,
+            height,
+            input_format="xml",
+            reserve_blank=0,
+            font_face="SimHei",
+            font_size=25,
+            text_opacity=0.8,
+            duration_marquee=15.0,
+            duration_still=10.0,
+            comment_filter=None,
+            is_reduce_comments=False,
+            progress_callback=None,
+        )
+        with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
+            f.write(a)
     time = req.json()['data']["timelength"] / 1000
     update_history(video_id, cid, round(time) + 1)
     a = threading.Thread(target=os.system, args=(command,))
     a.start()
     thread_pool.append(a)
-
-
-thread_pool = []
 
 
 def get_danmaku(cid):
@@ -383,21 +407,7 @@ def get_danmaku(cid):
         "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.81 Safari/537.36"
     }
     resp = requests.get(url, headers=headers, params=params, timeout=8)
-    content = resp.content
-    danmaku_seg = dm_pb2.DmSegMobileReply()
-    danmaku_seg.ParseFromString(content)
-    xml = '<?xml version="1.0" encoding="UTF-8"?><i><chatserver>chat.bilibili.com</chatserver><chatid>823547756' \
-          '</chatid><mission>0</mission><maxlimit>1000</maxlimit><state>0</state><real_name>0</real_name><source>k-v' \
-          '</source> '
-    for i in danmaku_seg.elems:
-        danmaku = json_format.MessageToDict(i)
-        xml += '<d p="{},{},{},{},{},0,{},{},{}">{}</d>'.format(
-            "%.5f" % (int(danmaku.get('progress', 0)) / 1000), danmaku['mode'], danmaku['fontsize'], danmaku['color'],
-            danmaku['ctime'],
-            danmaku['midHash'],
-            danmaku['id'], danmaku['weight'], escape(danmaku['content']))
-    xml += "</i>"
-    return xml
+    return resp.content
 
 
 def update_history(video_id, cid, progress, bvid=True):
@@ -470,10 +480,10 @@ def register_command(command, length, local="main", run=lambda: None, should_run
                                                      kwargs=kwargs)
 
 
+thread_pool = []
+
+
 def exit_all():
-    i: threading.Thread
-    if len(thread_pool) > 0:
-        print("请把所有的mpv进程终止.")
     for i in thread_pool:
         i.join()
     sys.exit(0)
@@ -506,7 +516,7 @@ def register_all_command():
     register_command("play", 1, should_run=False, local="favorite")
     register_command("triple", 1, should_run=False, local="favorite")
     register_command("exit", 0, should_run=False, local="favorite")
-
+    register_command("config", 0, run=config)
     register_command("add_cookie", 0, run=add_cookie)
     register_command("set_users", 0, run=set_users)
 
@@ -594,7 +604,6 @@ def config():
         set_quality()
     elif choose == 4:
         print("Error!")
-
 
 
 def list_fav(return_info=False):

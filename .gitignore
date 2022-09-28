@@ -6,7 +6,7 @@ __pycache__/
 # C extensions
 *.so
 1.py
-old.py
+old/old.py
 init
 cached/*.ass
 cached/*.xml
@@ -16,6 +16,7 @@ users/*.txt
 # Distribution / packaging
 .Python
 build/
+old/
 develop-eggs/
 dist/
 downloads/
@@ -43,8 +44,8 @@ MANIFEST
 
 # Installer logs
 pip-log.txt
-cookie.txt
-collection.txt
+old/cookie.txt
+old/collection.txt
 pip-delete-this-directory.txt
 
 # Unit test / coverage reports
@@ -137,5 +138,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-/old_cookie.py
+/old/old_cookie.py
 /test.py
+/old/
