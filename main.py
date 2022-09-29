@@ -115,11 +115,11 @@ user_mid = None
 protobuf_danmaku_enable = False
 
 quality = {
-    112: (1920, 1080),
-    80: (1920, 1080),
-    64: (1280, 720),
-    32: (720, 480),
-    16: (480, 360)
+    112: (1920, 1080, True),
+    80: (1920, 1080, False),
+    64: (1280, 720, False),
+    32: (720, 480, False),
+    16: (480, 360, False)
 }
 
 default_quality = 80
@@ -342,7 +342,7 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     else:
         flv_url = str(req.json()["result"]["durl"][0]["url"])
         higher = req.json()['result']['quality']
-    width, height = quality[higher]
+    width, height, is_higher = quality[higher]
     command = "mpv --sub-file=\"cached/{}.ass\" --user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) " \
               "Gecko/20100101 Firefox/51.0\" " \
               "--referrer=\"https://www.bilibili.com\" \"{}\"".format(cid,
@@ -590,20 +590,31 @@ def address(video: str):
 
 
 def config():
+    print("设置")
+    print()
     print("1.清空本地缓存")
     print("2.清空内存缓存")
     print("3.调整分辨率")
     print("4.实验选项")
     print("5.退出")
-    choose = input()
-    if choose == 1:
-        clean_local_cache()
-    elif choose == 2:
-        clean_memory_cache()
-    elif choose == 3:
-        set_quality()
-    elif choose == 4:
-        print("Error!")
+    while True:
+        choose = int(input("设置: "))
+        if choose == 1:
+            clean_local_cache()
+            return
+        elif choose == 2:
+            clean_memory_cache()
+            return
+        elif choose == 3:
+            set_quality()
+            return
+        elif choose == 4:
+            print("Error!")
+        elif choose == 5:
+            return
+        else:
+            print("输入错误.")
+            return
 
 
 def list_fav(return_info=False):
@@ -851,10 +862,10 @@ def set_users():
 def set_quality():
     global default_quality
     for i, j in enumerate(quality.items()):
-        print(f"{i}: {j[1][0]}x{j[1][1]} ")
+        print(f"{i}: {j[1][0]}x{j[1][1]} " + ("高码率" if j[1][2] else ""))
     while True:
         try:
-            quality_choose = int(input())
+            quality_choose = int(input("选择分辨率: "))
         except ValueError:
             print("请输入数字!")
             continue
@@ -864,7 +875,7 @@ def set_quality():
         elif not quality_choose:
             print("请输入数字!")
             continue
-        default_quality = quality[quality_choose][0]
+        default_quality = list(quality.keys())[quality_choose]
         print("设置成功!")
         break
 
