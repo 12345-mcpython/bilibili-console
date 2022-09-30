@@ -42,9 +42,9 @@ import sys
 import threading
 import typing
 import datetime
+import shutil
 
 import requests
-import shutil
 
 from biliass import Danmaku2ASS
 
@@ -337,17 +337,14 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     width, height, is_higher = quality[higher]
     command = "mpv --sub-file=\"cached/{}.ass\" --user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) " \
               "Gecko/20100101 Firefox/51.0\" " \
-              "--referrer=\"https://www.bilibili.com\" \"{}\"".format(cid,
-
-                                                                      flv_url)
-    r = requests.get(f"https://comment.bilibili.com/{cid}.xml")
+              "--referrer=\"https://www.bilibili.com\" \"{}\"".format(cid, flv_url)
+    # r = requests.get(f"https://comment.bilibili.com/{cid}.xml")
     # Danmaku2ASS([f"cached/{cid}.xml"], "autodetect", f"cached/{cid}.ass", width, height, 0, "SimHei", 25.0, 1.0,
     #             10, 8, None,
     #             None, False, input_format="xml")
     # if protobuf_danmaku_enable:
-    so = get_danmaku(cid)
     a = Danmaku2ASS(
-        so,
+        get_danmaku(cid),
         width,
         height,
         input_format="protobuf",
@@ -385,7 +382,6 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     update_history(video_id, cid, round(time) + 1)
     a = threading.Thread(target=os.system, args=(command,))
     a.start()
-    thread_pool.append(a)
 
 
 def get_danmaku(cid):
@@ -460,7 +456,7 @@ def recommend():
                 triple(bvid)
             elif command == 'unlike':
                 like(bvid, unlike=True)
-            elif command == "collection":
+            elif command == "favorite":
                 media_id = list_fav(return_info=True)
                 collection(media_id=media_id, avid=rcmd[int(argument[0]) - 1]['id'])
                 print("收藏成功!")
@@ -473,12 +469,7 @@ def register_command(command, length, local="main", run=lambda: None, should_run
                                                      kwargs=kwargs)
 
 
-thread_pool = []
-
-
 def exit_all():
-    for i in thread_pool:
-        i.join()
     sys.exit(0)
 
 
@@ -487,8 +478,6 @@ def register_all_command():
     register_command("exit", 0, run=exit_all)
     register_command("address", 1, run=address)
     register_command("favorite", 0, run=list_fav)
-    register_command("enable_protobuf_danmaku", 0, run=enable_protobuf_danmaku)
-    register_command("disable_protobuf_danmaku", 0, run=disable_protobuf_danmaku)
     register_command("clean_memory_cache", 0, run=clean_memory_cache)
     register_command("clean_local_cache", 0, run=clean_local_cache)
     register_command("like", 1, should_run=False, local="recommend")
@@ -571,34 +560,10 @@ def address(video: str):
             triple(bvid)
         elif command == 'unlike':
             like(bvid, unlike=True)
-        elif command == "collection":
+        elif command == "favorite":
             media_id = list_fav(return_info=True)
             collection(media_id=media_id, avid=avid)
             print("收藏成功!")
-
-
-def config():
-    print("设置")
-    print()
-    print("1.清空本地缓存")
-    print("2.清空内存缓存")
-    print("3.调整分辨率")
-    print("4.退出")
-    while True:
-        choose = int(input("设置: "))
-        if choose == 1:
-            clean_local_cache()
-            return
-        elif choose == 2:
-            clean_memory_cache()
-            return
-        elif choose == 3:
-            set_quality()
-            return
-        elif choose == 4:
-            return
-        else:
-            print("输入错误.")
 
 
 def list_fav(return_info=False):
@@ -681,7 +646,6 @@ def list_collection(media_id):
                 triple(bvid)
             elif command == 'unlike':
                 like(bvid, unlike=True)
-
         count += 1
 
 
@@ -699,10 +663,28 @@ def init():
     return True
 
 
-def main():
+def config():
+    print("设置")
+    print()
+    print("1.清空本地缓存")
+    print("2.清空内存缓存")
+    print("3.调整分辨率")
+    print("4.退出")
     while True:
-        command = input("主选项: ")
-        parse_command(command)
+        choose = int(input("设置: "))
+        if choose == 1:
+            clean_local_cache()
+            return
+        elif choose == 2:
+            clean_memory_cache()
+            return
+        elif choose == 3:
+            set_quality()
+            return
+        elif choose == 4:
+            return
+        else:
+            print("输入错误.")
 
 
 def get_login_status(cookie=None, set_is_login=True, list_user=False, printout=True):
@@ -823,16 +805,6 @@ def add_cookie():
     sys.exit(0)
 
 
-def enable_protobuf_danmaku():
-    global protobuf_danmaku_enable
-    protobuf_danmaku_enable = True
-
-
-def disable_protobuf_danmaku():
-    global protobuf_danmaku_enable
-    protobuf_danmaku_enable = False
-
-
 def clean_memory_cache():
     global cached_response
     cached_response = {}
@@ -881,10 +853,6 @@ def set_quality():
         break
 
 
-print("LBCC v1.0.0-dev.")
-print("Type \"help\" for more information.")
-
-
 def get_available_user():
     if not os.path.exists("cookie"):
         return False
@@ -909,6 +877,12 @@ def test_cookie():
             return
 
 
+def main():
+    while True:
+        command = input("主选项: ")
+        parse_command(command)
+
+
 # def parse_experimental_features(feature_args):
 #     if feature_args == "protobuf":
 #         enable_protobuf_danmaku()
@@ -918,6 +892,8 @@ def test_cookie():
 #     else:
 #         print("未知特性: ", feature_args)
 
+print("LBCC v1.0.0-dev.")
+print("Type \"help\" for more information.")
 
 if __name__ == "__main__":
     # parser = argparse.ArgumentParser(description='LBCC命令行参数')
