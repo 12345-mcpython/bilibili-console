@@ -687,32 +687,17 @@ def config():
             print("输入错误.")
 
 
-def get_login_status(cookie=None, set_is_login=True, list_user=False, printout=True):
+def get_login_status():
     global is_login, local_user_mid
-    cached_header = {}
-    if list_user:
-        cached_header = {
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                          "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
-            "referer": "https://www.bilibili.com", 'cookie': cookie}
     r = get('https://api.bilibili.com/x/member/web/account',
-            headers=cached_header if list_user else header)
+            headers=header)
     a = JSON(r)
     if a.code == -101:
-        if printout:
-            print("账号尚未登录! ")
-        return False
+        print("账号尚未登录! ")
     elif a.code == 0:
-        if not list_user:
-            print("账号已登录.")
-            print("欢迎" + a.data.uname + "回来.")
-        else:
-            if printout:
-                print("用户" + a.data.uname + "已经登录.")
-            return a.data.uname
-        if set_is_login:
-            is_login = True
-            local_user_mid = a.data.mid
+        print("账号已登录.")
+        print("欢迎" + a.data.uname + "回来.")
+        local_user_mid = a.data.mid
         return True
 
 
@@ -777,7 +762,6 @@ def ask_cookie(first_use):
             print("Cookie配置成功! LBCC将会退出. ")
             input()
             sys.exit(0)
-    return
 
 
 def add_cookie():
