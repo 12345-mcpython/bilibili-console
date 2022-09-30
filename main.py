@@ -750,6 +750,19 @@ def get_login_status(cookie=None, set_is_login=True, list_user=False, printout=T
         return True
 
 
+def check_login(cookie):
+    cached_header = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
+        "referer": "https://www.bilibili.com", 'cookie': cookie}
+    r = get('https://api.bilibili.com/x/member/web/account',
+            headers=cached_header)
+    a = JSON(r)
+    if JSON(r).code == -101:
+        return False
+    elif a.code == 0:
+        return a.data.uname
+
 def cookie_to_dict(string):
     dictionary = {}
     for i in string.split(";"):
@@ -784,7 +797,7 @@ def ask_cookie(first_use):
                     cookie = f.read()
             else:
                 cookie = cookie_or_file
-            username = get_login_status(cookie, set_is_login=False, list_user=True)
+            username = check_login(cookie)
             if username:
                 print("Cookie指定的用户为: ", username)
             else:
@@ -807,7 +820,7 @@ def add_cookie():
             cookie = f.read()
     else:
         cookie = cookie_or_file
-    username = get_login_status(cookie, set_is_login=False, list_user=True)
+    username = check_login(cookie)
     if username:
         print("Cookie指定的用户为: ", username)
     else:
@@ -817,9 +830,9 @@ def add_cookie():
         f.write(cookie)
     with open("cookie", "w") as f:
         pass
-    print("Cookie配置成功! LBCC将会重启.")
+    print("Cookie配置成功! LBCC将会退出.")
     input()
-    os.execvp(sys.executable, [sys.executable] + sys.argv)
+    sys.exit(0)
 
 
 def enable_protobuf_danmaku():
@@ -854,9 +867,9 @@ def set_users():
         print(f"你选择的是{ls[choose - 1].split('.')[0]}.")
         with open("user", "w") as f:
             f.write(ls[choose - 1].split(".")[0])
-        print("配置成功. LBCC将会重启.")
+        print("配置成功. LBCC将会退出.")
         input()
-        os.execvp(sys.executable, [sys.executable] + sys.argv)
+        sys.exit(0)
 
 
 def set_quality():
@@ -885,7 +898,7 @@ print("Type \"help\" for more information.")
 
 
 def get_available_user():
-    if os.path.exists("cookie"):
+    if not os.path.exists("cookie"):
         return False
     if os.path.exists("user"):
         with open("user") as f:
