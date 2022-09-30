@@ -310,6 +310,8 @@ def play(video_id: str, bvid=True):
     return
 
 
+# TODO:dash
+# mpv.exe videoplayback8.webm --audio-file=videoplayback8.m4a
 def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     if not bangumi:
         if bvid:
@@ -376,8 +378,9 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     #     )
     #     with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
     #         f.write(a)
-    time = req.json()['data']["timelength"] / 1000
-    update_history(video_id, cid, round(time) + 1)
+    if not bangumi:
+        time = req.json()['data']["timelength"] / 1000
+        update_history(video_id, cid, round(time) + 1)
     a = threading.Thread(target=os.system, args=(command,))
     a.start()
 
@@ -481,6 +484,7 @@ def register_all_command():
     register_command("address", 1, run=address)
     register_command("favorite", 0, run=list_fav)
     register_command("search", 0, run=search)
+    register_command("bangumi", 0, run=bangumi)
     register_command("clean_memory_cache", 0, run=clean_memory_cache)
     register_command("clean_local_cache", 0, run=clean_local_cache)
     register_command("like", 1, should_run=False, local="recommend")
@@ -531,6 +535,8 @@ def search():
                 item['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 观看量: ", item['play'])
         while flag1:
             command = input("搜索选项: ")
+            if command == "exit":
+                return
             if not command:
                 break
             command, argument = parse_text_command(command, local="recommend")
@@ -750,6 +756,42 @@ def list_collection(media_id):
             elif command == "view_collection":
                 view_collection(bvid, True)
         count += 1
+
+
+def bangumi():
+    while True:
+        choose_bangumi = input("番剧选项: ")
+        if choose_bangumi == "address":
+            url = input("输入地址: ")
+            ssid_or_epid = url.split("/")[-1]
+            ssid_or_epid = ssid_or_epid.split("?")[0]
+            if ssid_or_epid.startswith("ss"):
+                url = "http://api.bilibili.com/pgc/view/web/season?season_id=" + \
+                      ssid_or_epid.strip("ss")
+            else:
+                url = "http://api.bilibili.com/pgc/view/web/season?ep_id=" + \
+                      ssid_or_epid.strip('ep')
+            bangumi_url = get(url, headers=header)
+            bangumi_page = bangumi_url.json()['result']['episodes']
+            for i, j in enumerate(bangumi_page):
+                print(f"{i + 1}: {j['share_copy']} ({j['badge']})")
+            print("请以冒号前面的数字为准选择视频.")
+            while True:
+                page = input("选择视频: ")
+                if page == "exit":
+                    break
+                if not page:
+                    continue
+                if not page.isdigit():
+                    continue
+                if int(page) > len(bangumi_page) or int(page) <= 0:
+                    print("选视频错误!")
+                    continue
+                cid = bangumi_page[int(page) - 1]['cid']
+                epid = bangumi_page[int(page) - 1]['id']
+                play_with_cid(epid, cid, bangumi=True)
+        elif choose_bangumi == "exit":
+            return
 
 
 def view_collection(video_id, bvid=True):
