@@ -25,12 +25,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 The old version also use the GPL-3.0 license, not MIT License.
 """
-# import shutil
-import argparse
-import json
-import os
-import shutil
-import sys
 
 # from typing import Union, Tuple
 # import os
@@ -38,18 +32,19 @@ import sys
 # import json
 # import datetime
 # import inspect
+# import shutil
+# import argparse
+# import rsa
+
+import json
+import os
+import sys
 import threading
 import typing
 import datetime
 
-try:
-    import requests
-    from bs4 import BeautifulSoup
-    import rsa
-    from google.protobuf import json_format
-except ImportError as e:
-    print("Warning: You don't run \"python -m pip install -r requirements.txt\". LBCC will exit.")
-    sys.exit(1)
+import requests
+import shutil
 
 from biliass import Danmaku2ASS
 
@@ -100,17 +95,17 @@ class JSON:
 header = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                         "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77", "referer": "https://www.bilibili.com"}
 
-cookie = ""
+local_cookie = ""
 
 cookie_mapping = {}
 
 command_mapping = {}
 
-cached = {}
+cached_response = {}
 
 is_login = False
 
-user_mid = None
+local_user_mid = None
 
 protobuf_danmaku_enable = False
 
@@ -128,8 +123,8 @@ default_quality = 80
 # 辅助方法
 
 def get(url: str, params=None, no_cache=False, **kwargs) -> requests.Response:
-    if cached.get(url):
-        return cached.get(url)
+    if cached_response.get(url):
+        return cached_response.get(url)
     else:
         count = 3
         while True:
@@ -142,7 +137,7 @@ def get(url: str, params=None, no_cache=False, **kwargs) -> requests.Response:
                 if count <= 0:
                     raise request_error
         if not no_cache:
-            cached[url] = r
+            cached_response[url] = r
         return r
 
 
@@ -226,11 +221,6 @@ def parse_text_command(command, local="main"):
         print("参数过少!")
         return None, None
     return command.split(" ")[0], command.split(" ")[1:]
-
-
-def main_help():
-    print("recommend 推荐")
-    print("exit 退出")
 
 
 def like(video_id, bvid=True, unlike=False):
@@ -325,9 +315,11 @@ def play(video_id: str, bvid=True):
 def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     if not bangumi:
         if bvid:
-            url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={default_quality}&type=&otype=json" + "&bvid=" + video_id
+            url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={default_quality}&ty" \
+                   f"pe=&otype=json&bvid={video_id}"
         else:
-            url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={default_quality}&type=&otype=json" + "&avid=" + video_id
+            url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={default_quality}&type=&oty" \
+                   f"pe=json&avid={video_id}"
     else:
         url1 = f"https://api.bilibili.com/pgc/player/web/playurl?qn={default_quality}&cid={cid}&ep_id={video_id}"
     req = get(url1, headers=header, no_cache=True)
@@ -352,43 +344,43 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     # Danmaku2ASS([f"cached/{cid}.xml"], "autodetect", f"cached/{cid}.ass", width, height, 0, "SimHei", 25.0, 1.0,
     #             10, 8, None,
     #             None, False, input_format="xml")
-    if protobuf_danmaku_enable:
-        so = get_danmaku(cid)
-        a = Danmaku2ASS(
-            so,
-            width,
-            height,
-            input_format="protobuf",
-            reserve_blank=0,
-            font_face="SimHei",
-            font_size=25,
-            text_opacity=0.8,
-            duration_marquee=15.0,
-            duration_still=10.0,
-            comment_filter=None,
-            is_reduce_comments=False,
-            progress_callback=None,
-        )
-        with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
-            f.write(a)
-    else:
-        a = Danmaku2ASS(
-            r.content,
-            width,
-            height,
-            input_format="xml",
-            reserve_blank=0,
-            font_face="SimHei",
-            font_size=25,
-            text_opacity=0.8,
-            duration_marquee=15.0,
-            duration_still=10.0,
-            comment_filter=None,
-            is_reduce_comments=False,
-            progress_callback=None,
-        )
-        with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
-            f.write(a)
+    # if protobuf_danmaku_enable:
+    so = get_danmaku(cid)
+    a = Danmaku2ASS(
+        so,
+        width,
+        height,
+        input_format="protobuf",
+        reserve_blank=0,
+        font_face="SimHei",
+        font_size=25,
+        text_opacity=0.8,
+        duration_marquee=15.0,
+        duration_still=10.0,
+        comment_filter=None,
+        is_reduce_comments=False,
+        progress_callback=None,
+    )
+    with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
+        f.write(a)
+    # else:
+    #     a = Danmaku2ASS(
+    #         r.content,
+    #         width,
+    #         height,
+    #         input_format="xml",
+    #         reserve_blank=0,
+    #         font_face="SimHei",
+    #         font_size=25,
+    #         text_opacity=0.8,
+    #         duration_marquee=15.0,
+    #         duration_still=10.0,
+    #         comment_filter=None,
+    #         is_reduce_comments=False,
+    #         progress_callback=None,
+    #     )
+    #     with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
+    #         f.write(a)
     time = req.json()['data']["timelength"] / 1000
     update_history(video_id, cid, round(time) + 1)
     a = threading.Thread(target=os.system, args=(command,))
@@ -404,7 +396,8 @@ def get_danmaku(cid):
         'segment_index': '1'
     }
     headers = {
-        "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.81 Safari/537.36"
+        "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/72.0.3626.81 Safari/537.36 "
     }
     resp = requests.get(url, headers=headers, params=params, timeout=8)
     return resp.content
@@ -492,7 +485,6 @@ def exit_all():
 def register_all_command():
     register_command("recommend", 0, run=recommend)
     register_command("exit", 0, run=exit_all)
-    register_command("help", 0, run=main_help)
     register_command("address", 1, run=address)
     register_command("favorite", 0, run=list_fav)
     register_command("enable_protobuf_danmaku", 0, run=enable_protobuf_danmaku)
@@ -571,10 +563,6 @@ def address(video: str):
         command, argument = parse_text_command(command, local="address")
         if not command:
             continue
-        if command != "play":
-            if not argument[0].isdecimal():
-                print("输入的不是整数!")
-                continue
         if command == "play":
             play(bvid)
         elif command == "like":
@@ -595,8 +583,7 @@ def config():
     print("1.清空本地缓存")
     print("2.清空内存缓存")
     print("3.调整分辨率")
-    print("4.实验选项")
-    print("5.退出")
+    print("4.退出")
     while True:
         choose = int(input("设置: "))
         if choose == 1:
@@ -609,17 +596,14 @@ def config():
             set_quality()
             return
         elif choose == 4:
-            print("Error!")
-        elif choose == 5:
             return
         else:
             print("输入错误.")
-            return
 
 
 def list_fav(return_info=False):
     fav_list = get(
-        "https://api.bilibili.com/x/v3/fav/folder/created/list-all?up_mid={mid}&jsonp=jsonp".format(mid=user_mid),
+        "https://api.bilibili.com/x/v3/fav/folder/created/list-all?up_mid={mid}&jsonp=jsonp".format(mid=local_user_mid),
         headers=header)
     fav_list = JSON(fav_list.json()).data.list
     print("\n")
@@ -722,7 +706,7 @@ def main():
 
 
 def get_login_status(cookie=None, set_is_login=True, list_user=False, printout=True):
-    global is_login, user_mid
+    global is_login, local_user_mid
     cached_header = {}
     if list_user:
         cached_header = {
@@ -746,7 +730,7 @@ def get_login_status(cookie=None, set_is_login=True, list_user=False, printout=T
             return a.data.uname
         if set_is_login:
             is_login = True
-            user_mid = a.data.mid
+            local_user_mid = a.data.mid
         return True
 
 
@@ -762,6 +746,7 @@ def check_login(cookie):
         return False
     elif a.code == 0:
         return a.data.uname
+
 
 def cookie_to_dict(string):
     dictionary = {}
@@ -785,7 +770,7 @@ def generate_search_cookie():
 
 
 def ask_cookie(first_use):
-    global cookie
+    global local_cookie
     if first_use:
         print("你是第一次使用LBCC, 是否配置cookie? (y/n)")
         print("Laosun Studios 保证用户数据是妥善存放在本地且不会被上传到除了B站以外的服务器.")
@@ -794,18 +779,18 @@ def ask_cookie(first_use):
             cookie_or_file = input("请输入cookies或文件路径: ")
             if os.path.exists(cookie_or_file):
                 with open(cookie_or_file) as f:
-                    cookie = f.read()
+                    local_cookie = f.read()
             else:
-                cookie = cookie_or_file
-            username = check_login(cookie)
+                local_cookie = cookie_or_file
+            username = check_login(local_cookie)
             if username:
                 print("Cookie指定的用户为: ", username)
             else:
                 print("Cookie未指定用户,取消配置.")
                 return
             with open(f"users/{username}.txt", "w") as f:
-                f.write(cookie)
-            with open("cookie", "w") as f:
+                f.write(local_cookie)
+            with open("cookie", "w"):
                 pass
             print("Cookie配置成功! LBCC将会退出. ")
             input()
@@ -849,8 +834,8 @@ def disable_protobuf_danmaku():
 
 
 def clean_memory_cache():
-    global cached
-    cached = {}
+    global cached_response
+    cached_response = {}
 
 
 def clean_local_cache():
@@ -916,29 +901,29 @@ def test_cookie():
     for i in os.listdir("users"):
         with open(f"users/{i}") as f:
             cookie = f.read()
-        username = get_login_status(cookie, set_is_login=False, list_user=True, printout=False)
+        username = check_login(cookie)
         if username:
-            print(f"Cookie {i} 有效.")
+            print(f"Cookie {username} 有效.")
         else:
             print(f"Cookie {i} 无效或已登出.")
             return
 
 
-def parse_experimental_features(feature_args):
-    if feature_args == "protobuf":
-        enable_protobuf_danmaku()
-        print("已启用特性: protobuf弹幕")
-    elif not feature_args:
-        return
-    else:
-        print("未知特性: ", feature_args)
+# def parse_experimental_features(feature_args):
+#     if feature_args == "protobuf":
+#         enable_protobuf_danmaku()
+#         print("已启用特性: protobuf弹幕")
+#     elif not feature_args:
+#         return
+#     else:
+#         print("未知特性: ", feature_args)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='LBCC命令行参数')
-    parser.add_argument("-ef", '--experimental-features', type=str, help="启用实验特性")
-    args = parser.parse_args()
-    parse_experimental_features(args.experimental_features)
+    # parser = argparse.ArgumentParser(description='LBCC命令行参数')
+    # parser.add_argument("-ef", '--experimental-features', type=str, help="启用实验特性")
+    # args = parser.parse_args()
+    # parse_experimental_features(args.experimental_features)
     first_use = init()
     ask_cookie(first_use)
     username = get_available_user()
