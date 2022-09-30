@@ -821,6 +821,9 @@ def add_cookie():
     else:
         cookie = cookie_or_file
     username = check_login(cookie)
+    if username in os.listdir("users"):
+        print("用户已经添加过!取消配置.")
+        return
     if username:
         print("Cookie指定的用户为: ", username)
     else:
@@ -828,7 +831,7 @@ def add_cookie():
         return
     with open(f"users/{username}.txt", "w") as f:
         f.write(cookie)
-    with open("cookie", "w") as f:
+    with open("cookie", "w"):
         pass
     print("Cookie配置成功! LBCC将会退出.")
     input()
