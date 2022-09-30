@@ -460,6 +460,8 @@ def recommend():
                 media_id = list_fav(return_info=True)
                 collection(media_id=media_id, avid=rcmd[int(argument[0]) - 1]['id'])
                 print("收藏成功!")
+            elif command == "video_info":
+                get_video_info(bvid, True)
             # elif a == "view_b_collection":
             #     play_b_collection(bvid)
 
@@ -486,12 +488,12 @@ def register_all_command():
     register_command("triple", 1, should_run=False, local="recommend")
     register_command("exit", 0, should_run=False, local="recommend")
     register_command("collection", 1, should_run=False, local="recommend")
-    register_command("like", 1, should_run=False, local="address")
-    register_command("unlike", 1, should_run=False, local="address")
+    register_command("like", 0, should_run=False, local="address")
+    register_command("unlike", 0, should_run=False, local="address")
     register_command("play", 0, should_run=False, local="address")
-    register_command("triple", 1, should_run=False, local="address")
+    register_command("triple", 0, should_run=False, local="address")
     register_command("exit", 0, should_run=False, local="address")
-    register_command("collection", 1, should_run=False, local="address")
+    register_command("collection", 0, should_run=False, local="address")
     register_command("like", 1, should_run=False, local="favorite")
     register_command("unlike", 1, should_run=False, local="favorite")
     register_command("play", 1, should_run=False, local="favorite")
@@ -502,24 +504,62 @@ def register_all_command():
     register_command("set_users", 0, run=set_users)
 
 
-def video_status(video_id: str):
-    url = "http://api.bilibili.com/x/web-interface/archive/stat?aid={}"
-    if video_id.startswith('av'):
-        video_id = video_id.strip("av")
-        url = "http://api.bilibili.com/x/web-interface/archive/stat?aid={}".format(
-            video_id)
-    if video_id.startswith("BV"):
-        url = "http://api.bilibili.com/x/web-interface/archive/stat?bvid={}".format(
-            video_id)
+def get_video_info(video_id: str, bvid=True, easy=False):
+    url = "http://api.bilibili.com/x/web-interface/view/detail"
+    if bvid:
+        url += "?bvid=" + video_id
+    else:
+        url += "?aid=" + video_id
+    r = get(url, headers=header)
+    video = r.json()['data']["View"]
+    avid = video['aid']
+    bvid = video['bvid']
+    title = video['title']
+    # author = r.json()['data']["Card"]
+    status = video['stat']
+    video = JSON(video)
+    if easy:
+        print("封面: ", video.pic)
+        print("标题: ", video.title)
+        print("作者: ", video.owner.name, " bvid: ", video.bvid, " 日期: ", datetime.datetime.fromtimestamp(
+            video.pubdate).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_long(video.duration), " 观看量: ",
+              video.stat.view)
+        return
+    print('avid: ', avid)
+    print("bvid: ", bvid)
+    print("标题: ", title)
+    print("视频时长: ", format_long(video['duration']))
+    print("播放: ", status["view"])
+    print("点赞: ", status['like'])
+    print("投币: ", status["coin"])
+    print("收藏: ", status["favorite"])
+    print("转发: ", status["share"])
+    print("弹幕: ", status["danmaku"])
+    print("评论: ", status["reply"])
+    print("avid: ", video["aid"])
+    print("日期: ", datetime.datetime.fromtimestamp(
+        video["pubdate"]).strftime("%Y-%m-%d %H:%M:%S"))
+    print("简介: ")
+    print("\n")
+    print(video['desc'])
+    print("\n")
+    print("封面: ", video['pic'])
+    print("作者: ", video['owner']['name'])
+    print("mid: ", video['owner']['mid'])
 
-    r = get(url.format(video_id), headers=header)
-    json1 = r.json()
-    if json1['code'] != 0:
-        print("获取状态失败!")
-        print(json1['message'])
-        return None, None, None, None, None, None, None, None, None
-    return json1['data']['bvid'], json1['data']['aid'], json1['data']['view'], json1['data']['danmaku'], json1['data'][
-        'like'], json1['data']['coin'], json1['data']['favorite'], json1['data']['share'], json1['data']['reply']
+
+def get_bvid(avid):
+    url = "http://api.bilibili.com/x/web-interface/view/detail"
+    url += "?aid=" + avid
+    r = get(url, headers=header)
+    return r.json()['data']['View']['bvid']
+
+
+def get_aid(bvid):
+    url = "http://api.bilibili.com/x/web-interface/view/detail"
+    url += "?bvid=" + bvid
+    r = get(url, headers=header)
+    return r.json()['data']['View']['aid']
 
 
 def address(video: str):
@@ -529,20 +569,16 @@ def address(video: str):
         video = video.split("/")[-1].split("?")[0]
         if not video:
             video = video.split("/")[-2]
-    bvid, avid, view, danmaku, like_, coin, favorite, share, comment_count = video_status(
-        str(video))
-    if not all([bvid, avid, view, danmaku, like_, coin, favorite, share, comment_count]):
-        print("链接错误!")
-        return
-    print('avid: ', avid)
-    print("bvid: ", bvid)
-    print("观看量: ", view)
-    print("弹幕: ", danmaku)
-    print("点赞量: ", like_)
-    print("硬币量: ", coin)
-    print("收藏量: ", favorite)
-    print("转发量: ", share)
-    print("评论量: ", comment_count)
+    avid = ""
+    bvid = video
+    is_bvid = True
+    if video.isdecimal():
+        is_bvid = False
+        avid = video
+        bvid = get_bvid(avid)
+    print()
+    get_video_info(video, is_bvid, easy=True)
+
     while True:
         command = input("链接选项: ")
         if command == "exit":
@@ -560,6 +596,8 @@ def address(video: str):
             triple(bvid)
         elif command == 'unlike':
             like(bvid, unlike=True)
+        elif command == "video_info":
+            get_video_info(bvid, is_bvid)
         elif command == "favorite":
             media_id = list_fav(return_info=True)
             collection(media_id=media_id, avid=avid)
@@ -599,11 +637,11 @@ def list_collection(media_id):
     url = f"http://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id={media_id}"
     ls = get(url, headers=header)
     ls = JSON(ls.json())
-    total = ls.data.info.media_count // 20 + 1
+    total = ls.data.info.media_count // 5 + 1
     count = 1
     flag = True
     while flag:
-        url = f"http://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id={media_id}&pn={count}"
+        url = f"http://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={media_id}&pn={count}"
         ls = get(url, headers=header)
         ls = JSON(ls.json())
         if total < count:
@@ -646,6 +684,8 @@ def list_collection(media_id):
                 triple(bvid)
             elif command == 'unlike':
                 like(bvid, unlike=True)
+            elif command == "video_info":
+                get_video_info(bvid, True)
         count += 1
 
 
@@ -698,6 +738,7 @@ def get_login_status():
         print("账号已登录.")
         print("欢迎" + a.data.uname + "回来.")
         local_user_mid = a.data.mid
+        is_login = True
         return True
 
 
