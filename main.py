@@ -107,8 +107,6 @@ is_login = False
 
 local_user_mid = None
 
-protobuf_danmaku_enable = False
-
 quality = {
     112: (1920, 1080, True),
     80: (1920, 1080, False),
@@ -482,6 +480,7 @@ def register_all_command():
     register_command("exit", 0, run=exit_all)
     register_command("address", 1, run=address)
     register_command("favorite", 0, run=list_fav)
+    register_command("search", 0, run=search)
     register_command("clean_memory_cache", 0, run=clean_memory_cache)
     register_command("clean_local_cache", 0, run=clean_local_cache)
     register_command("like", 1, should_run=False, local="recommend")
@@ -507,6 +506,87 @@ def register_all_command():
     register_command("config", 0, run=config)
     register_command("add_cookie", 0, run=add_cookie)
     register_command("set_users", 0, run=set_users)
+
+
+def search():
+    search_url = "http://api.bilibili.com/x/web-interface/search/type?keyword={}&search_type=video&page={}"
+    try:
+        search_thing = input("请输入搜索的东西: ")
+    except KeyboardInterrupt:
+        print("\n取消搜索.")
+        return
+    page = 1
+    while 1:
+        r = get(search_url.format(search_thing, page), headers=header)
+        if not r.json()['data'].get("result"):
+            print("到头了!")
+            return
+        flag1 = True
+        result = r.json()['data']['result']
+        for num, item in enumerate(result):
+            print(num + 1, ":")
+            print("封面: ", item['pic'])
+            print("标题: ", item['title'].replace("<em class=\"keyword\">", "").replace("</em>", ""))
+            print("作者: ", item['author'], " bvid: ", item['bvid'], " 日期: ", datetime.datetime.fromtimestamp(
+                item['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 观看量: ", item['play'])
+        while flag1:
+            command = input("搜索选项: ")
+            if command == "exit":
+                return
+            if not command:
+                break
+            command, argument = parse_text_command(command, local="favorite")
+            if not command:
+                continue
+            if not argument[0].isdecimal():
+                print("输入的不是整数!")
+                continue
+            if int(argument[0]) > len(result) or int(argument[0]) <= 0:
+                print("选视频超出范围!")
+                continue
+            bvid = result[int(argument[0]) - 1]['bvid']
+            if command == "play":
+                play(bvid)
+            elif command == "exit":
+                return
+            elif command == "like":
+                like(bvid)
+            elif command == "triple":
+                triple(bvid)
+            elif command == 'unlike':
+                like(bvid, unlike=True)
+            elif command == "video_info":
+                get_video_info(bvid, True)
+            elif command == "view_collection":
+                view_collection(bvid, True)
+        page += 1
+        # if not r.json()['data'].get("result"):
+        #     print("到头了!")
+        #     break
+        # for i in r.json()['data'].get("result"):
+        #     get_video_info(i['bvid'], True, True)
+        #     while True:
+        #         choose = input("搜索选项: ")
+        #         command, argument = parse_text_command(choose, local='search')
+        #         if command == "play":
+        #             play(i['aid'])
+        #         elif command == "exit":
+        #             return
+        #         elif command == "like":
+        #             like(i['aid'])
+        #         elif command == "unlike":
+        #             like(i['aid'], unlike=True)
+        #         elif command == "triple":
+        #             triple(i['aid'])
+        #         elif not choose:
+        #             page += 1
+        #             break
+        #         elif choose == "view_info":
+        #             get_video_info(i['aid'])
+        #         elif choose == "view_collection":
+        #             view_collection(i['aid'])
+        #         else:
+        #             print("未知选项!")
 
 
 def get_video_info(video_id: str, bvid=True, easy=False):
