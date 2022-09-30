@@ -20,6 +20,7 @@ old/
 develop-eggs/
 dist/
 downloads/
+cookie
 eggs/
 .eggs/
 lib/
