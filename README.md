@@ -163,7 +163,7 @@ PS E:\code\python\bilibili-console>
    - [ ] 手机验证码登录.
 - [x] 推荐.
 - [ ] 搜索.
-   - [ ] *视频搜索.
+   - [x] 视频搜索.
    - [ ] 其他搜索.
 - [x] 播放视频.
    - [x] 通过地址播放视频. 
@@ -188,9 +188,7 @@ PS E:\code\python\bilibili-console>
 
 0. 安装python与mpv
 1. pip install -r requirements.txt
-2. 复制账号cookie(或python main.py 输入login登录)拷贝至cookie.txt
-3. 创建collection.txt
-4. python main.py
+2. python main.py
 
 
 
