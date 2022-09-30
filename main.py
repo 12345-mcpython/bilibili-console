@@ -531,20 +531,17 @@ def search():
                 item['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 观看量: ", item['play'])
         while flag1:
             command = input("搜索选项: ")
-            if command == "exit":
-                return
             if not command:
                 break
-            command, argument = parse_text_command(command, local="favorite")
-            if not command:
-                continue
+            command, argument = parse_text_command(command, local="recommend")
             if not argument[0].isdecimal():
                 print("输入的不是整数!")
                 continue
+            bvid = result[int(argument[0]) - 1]['bvid']
+            avid = result[int(argument[0]) - 1]['aid']
             if int(argument[0]) > len(result) or int(argument[0]) <= 0:
                 print("选视频超出范围!")
                 continue
-            bvid = result[int(argument[0]) - 1]['bvid']
             if command == "play":
                 play(bvid)
             elif command == "exit":
@@ -557,36 +554,13 @@ def search():
                 like(bvid, unlike=True)
             elif command == "video_info":
                 get_video_info(bvid, True)
+            elif command == "favorite":
+                media_id = list_fav(return_info=True)
+                collection(media_id=media_id, avid=avid)
+                print("收藏成功!")
             elif command == "view_collection":
                 view_collection(bvid, True)
         page += 1
-        # if not r.json()['data'].get("result"):
-        #     print("到头了!")
-        #     break
-        # for i in r.json()['data'].get("result"):
-        #     get_video_info(i['bvid'], True, True)
-        #     while True:
-        #         choose = input("搜索选项: ")
-        #         command, argument = parse_text_command(choose, local='search')
-        #         if command == "play":
-        #             play(i['aid'])
-        #         elif command == "exit":
-        #             return
-        #         elif command == "like":
-        #             like(i['aid'])
-        #         elif command == "unlike":
-        #             like(i['aid'], unlike=True)
-        #         elif command == "triple":
-        #             triple(i['aid'])
-        #         elif not choose:
-        #             page += 1
-        #             break
-        #         elif choose == "view_info":
-        #             get_video_info(i['aid'])
-        #         elif choose == "view_collection":
-        #             view_collection(i['aid'])
-        #         else:
-        #             print("未知选项!")
 
 
 def get_video_info(video_id: str, bvid=True, easy=False):
