@@ -462,6 +462,8 @@ def recommend():
                 print("收藏成功!")
             elif command == "video_info":
                 get_video_info(bvid, True)
+            elif command == "view_collection":
+                view_collection(bvid, True)
             # elif a == "view_b_collection":
             #     play_b_collection(bvid)
 
@@ -488,17 +490,20 @@ def register_all_command():
     register_command("triple", 1, should_run=False, local="recommend")
     register_command("exit", 0, should_run=False, local="recommend")
     register_command("collection", 1, should_run=False, local="recommend")
+    register_command("view_collection", 1, should_run=False, local='recommend')
     register_command("like", 0, should_run=False, local="address")
     register_command("unlike", 0, should_run=False, local="address")
     register_command("play", 0, should_run=False, local="address")
     register_command("triple", 0, should_run=False, local="address")
     register_command("exit", 0, should_run=False, local="address")
+    register_command("view_collection", 0, should_run=False, local='address')
     register_command("collection", 0, should_run=False, local="address")
     register_command("like", 1, should_run=False, local="favorite")
     register_command("unlike", 1, should_run=False, local="favorite")
     register_command("play", 1, should_run=False, local="favorite")
     register_command("triple", 1, should_run=False, local="favorite")
     register_command("exit", 0, should_run=False, local="favorite")
+    register_command("view_collection", 1, should_run=False, local='favorite')
     register_command("config", 0, run=config)
     register_command("add_cookie", 0, run=add_cookie)
     register_command("set_users", 0, run=set_users)
@@ -598,6 +603,8 @@ def address(video: str):
             like(bvid, unlike=True)
         elif command == "video_info":
             get_video_info(bvid, is_bvid)
+        elif command == "view_collection":
+            view_collection(bvid, is_bvid)
         elif command == "favorite":
             media_id = list_fav(return_info=True)
             collection(media_id=media_id, avid=avid)
@@ -686,7 +693,61 @@ def list_collection(media_id):
                 like(bvid, unlike=True)
             elif command == "video_info":
                 get_video_info(bvid, True)
+            elif command == "view_collection":
+                view_collection(bvid, True)
         count += 1
+
+
+def view_collection(video_id, bvid=True):
+    video_id = str(video_id)
+    url = "http://api.bilibili.com/x/web-interface/view/detail"
+    if not bvid:
+        url += "?aid=" + video_id
+    else:
+        url += "?bvid=" + video_id
+    r = get(url, headers=header)
+    if not r.json()['data']['View'].get("ugc_season"):
+        print("视频并没有合集!")
+        return
+    b_collection = r.json()['data']['View']['ugc_season']
+    status = b_collection['stat']
+    print("\n")
+    print("标题", b_collection['title'])
+    print("图片: ", b_collection['cover'])
+    print("合集简介: ", b_collection['intro'])
+    print("总播放: ", status["view"])
+    print("总点赞: ", status['like'])
+    print("总投币: ", status["coin"])
+    print("总收藏: ", status["fav"])
+    print("总转发: ", status["share"])
+    print("总弹幕: ", status["danmaku"])
+    print("总评论: ", status["reply"])
+    print("\n")
+    print("视频合集选集")
+    b_collection_video = b_collection['sections'][0]['episodes']
+    for i, j in enumerate(b_collection_video):
+        print(f"{i + 1}: {j['title']}")
+    print("请以冒号前面的数字为准选择视频.")
+    while True:
+        page = input("选择视频: ")
+        if page == "exit":
+            break
+        if page.startswith("view_info"):
+            page_ = page.strip("view_info").strip()
+            if not page_.isdecimal():
+                print("参数错误! ")
+                continue
+            get_video_info(b_collection_video[int(page_) - 1]['bvid'])
+        if not page:
+            continue
+        if not page.isdigit():
+            continue
+        if int(page) > len(b_collection_video) or int(page) <= 0:
+            print("选视频错误!")
+            continue
+        cid = b_collection_video[int(page) - 1]['cid']
+        play_with_cid(b_collection_video[int(page) - 1]['bvid'], cid)
+    return
 
 
 def init():
