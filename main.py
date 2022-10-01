@@ -108,6 +108,8 @@ is_login = False
 local_user_mid = None
 
 quality = {
+    127: (7680, 4320, False),
+    120: (3840, 2160, False),
     112: (1920, 1080, True),
     80: (1920, 1080, False),
     64: (1280, 720, False),
@@ -318,13 +320,12 @@ def play(video_id: str, bvid=True):
             print("选视频超出范围!")
             continue
         cid = video[int(page) - 1]['cid']
-        play_with_cid(video_id, cid)
+        play_with_dash(video_id, cid, bvid)
+        # play_with_cid(video_id, cid)
         break
     return
 
 
-# TODO:dash
-# mpv.exe videoplayback8.webm --audio-file=videoplayback8.m4a
 def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     if not bangumi:
         if bvid:
@@ -398,6 +399,62 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     a.start()
 
 
+# --merge-files
+def play_with_dash(video_id: str, cid: int, bvid=True):
+    if bvid:
+        url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&bvid={video_id}&fnval=16&fourk=0"
+    else:
+        url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&avid={video_id}&fnval=16&fourk=0"
+    r = get(url1, headers=header)
+    videos = r.json()['data']['dash']["video"]
+    audios = r.json()['data']['dash']["audio"]
+
+    video_mapping = {}
+    audio_mapping = {}
+
+    for i in videos:
+        if i['codecs'].startswith('hev'):
+            video_mapping[str(i['id']) + '_hevc'] = i['base_url']
+        if i['codecs'].startswith('avc1'):
+            video_mapping[str(i['id']) + '_avc1'] = i['base_url']
+
+    for i in audios:
+        audio_mapping[str(i['id'])] = i['base_url']
+
+    default_audio = sorted(list(audio_mapping.keys()))[0]
+    default_video = sorted(list(video_mapping.keys()))[0]
+    audio_url = audio_mapping[default_audio]
+    try:
+        video_url = video_mapping[str(default_quality) + "_avc1"]
+    except KeyError:
+        video_url = video_mapping[default_video]
+    width, height, is_higher = quality[default_quality]
+    a = Danmaku2ASS(
+        get_danmaku(cid),
+        width,
+        height,
+        input_format="protobuf",
+        reserve_blank=0,
+        font_face="SimHei",
+        font_size=25,
+        text_opacity=0.8,
+        duration_marquee=15.0,
+        duration_still=10.0,
+        comment_filter=None,
+        is_reduce_comments=False,
+        progress_callback=None,
+    )
+    with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
+        f.write(a)
+    command = f"mpv --sub-file=\"cached/{cid}.ass\" --user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) " \
+              f"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.53\" " \
+              f"--referrer=\"https://www.bilibili.com\" \"{video_url}\" --audio-file=\"{audio_url}\" "
+    time = r.json()['data']["timelength"] / 1000
+    update_history(video_id, cid, round(time) + 1)
+    a = threading.Thread(target=os.system, args=(command,))
+    a.start()
+
+
 def get_danmaku(cid):
     url = "https://api.bilibili.com/x/v2/dm/web/seg.so"
     params = {
@@ -462,6 +519,7 @@ def recommend():
                 print("选视频超出范围!")
                 continue
             bvid = rcmd[int(argument[0]) - 1]['bvid']
+            avid = rcmd[int(argument[0]) - 1]['id']
             if command == "play":
                 play(bvid)
             elif command == "like":
@@ -483,6 +541,8 @@ def recommend():
                 if coin_count != 1 and coin_count != 2:
                     print("输入错误!")
                 coin(bvid, coin_count, bvid=True)
+            elif command == "view_comment":
+                comment_viewer(avid)
 
 
 def register_command(command, length, local="main", run=lambda: None, should_run=True, args=(), kwargs={}):
