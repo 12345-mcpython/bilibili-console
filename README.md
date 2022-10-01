@@ -189,8 +189,3 @@ PS E:\code\python\bilibili-console>
 0. 安装python与mpv
 1. pip install -r requirements.txt
 2. python main.py
-
-
-
-
- 
