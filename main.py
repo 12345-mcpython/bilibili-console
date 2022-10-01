@@ -180,14 +180,6 @@ def format_long(long):
         return fmt.format(minute, sec)
 
 
-def view_comment(avid: typing.Union[int, str], page=1):
-    if not isinstance(avid, int):
-        avid = avid.strip()
-    url = f"http://api.bilibili.com/x/v2/reply/main?mode=0&oid={avid}&next={page}&type=1"
-    r = get(url, headers=header, no_cache=True)
-    return r.json()['data']['replies'], r.json()['data']['cursor']['all_count']
-
-
 # 界面
 
 def parse_command(command, local="main"):
@@ -485,8 +477,10 @@ def register_all_command():
     register_command("favorite", 0, run=list_fav)
     register_command("search", 0, run=search)
     register_command("bangumi", 0, run=bangumi)
-    register_command("clean_memory_cache", 0, run=clean_memory_cache)
-    register_command("clean_local_cache", 0, run=clean_local_cache)
+    register_command("config", 0, run=config)
+    register_command("add_cookie", 0, run=add_cookie)
+    register_command("set_users", 0, run=set_users)
+    # recommend
     register_command("like", 1, should_run=False, local="recommend")
     register_command("unlike", 1, should_run=False, local="recommend")
     register_command("play", 1, should_run=False, local="recommend")
@@ -494,22 +488,94 @@ def register_all_command():
     register_command("exit", 0, should_run=False, local="recommend")
     register_command("collection", 1, should_run=False, local="recommend")
     register_command("view_collection", 1, should_run=False, local='recommend')
+    register_command("video_info", 1, should_run=False, local='recommend')
+    register_command("view_comment", 1, should_run=False, local="recommend")
+    # address
     register_command("like", 0, should_run=False, local="address")
     register_command("unlike", 0, should_run=False, local="address")
     register_command("play", 0, should_run=False, local="address")
     register_command("triple", 0, should_run=False, local="address")
     register_command("exit", 0, should_run=False, local="address")
+    register_command("video_info", 0, should_run=False, local='address')
     register_command("view_collection", 0, should_run=False, local='address')
     register_command("collection", 0, should_run=False, local="address")
+    register_command("view_comment", 0, should_run=False, local="address")
+    # favorite
     register_command("like", 1, should_run=False, local="favorite")
     register_command("unlike", 1, should_run=False, local="favorite")
     register_command("play", 1, should_run=False, local="favorite")
     register_command("triple", 1, should_run=False, local="favorite")
     register_command("exit", 0, should_run=False, local="favorite")
+    register_command("video_info", 1, should_run=False, local='favorite')
     register_command("view_collection", 1, should_run=False, local='favorite')
-    register_command("config", 0, run=config)
-    register_command("add_cookie", 0, run=add_cookie)
-    register_command("set_users", 0, run=set_users)
+    register_command("view_comment", 1, should_run=False, local='favorite')
+    # comment
+    register_command("like", 1, should_run=False, local='comment')
+    register_command("unlike", 1, should_run=False, local='comment')
+    register_command('view_reply', 1, should_run=False, local="comment")
+    # comment_reply
+    register_command("like", 1, should_run=False, local='comment_reply')
+    register_command("unlike", 1, should_run=False, local='comment_reply')
+
+
+def get_comment(avid: typing.Union[int, str], page=0, comment_type=1):
+    if not isinstance(avid, int):
+        avid = avid.strip()
+    url = f"https://api.bilibili.com/x/v2/reply/main?mode=0&oid={avid}&next={page}&type={comment_type}&ps=5"
+    r = get(url, headers=header, no_cache=True)
+    return r.json()['data']['replies'], r.json()['data']['cursor']['all_count']
+
+
+def comment_viewer(avid):
+    _, total = get_comment(avid)
+    page = 0
+    while 1:
+        comment, _ = get_comment(avid, page)
+        for i, j in enumerate(comment):
+            print(f"{i + 1}: ")
+            print(f"作者: {j['member']['uname']} 点赞: {j['like']} 回复量: {j['rcount']}")
+            print(f"内容: {j['content']['message']}")
+        choose = input("评论选项: ")
+        choose = choose.lstrip()
+        choose = choose.rstrip()
+        if choose == 'exit':
+            return
+        if not choose:
+            page += 1
+            continue
+        command, argument = parse_text_command(choose, local="comment")
+        if int(argument[0]) > len(comment) or int(argument[0]) <= 0:
+            print("选视频超出范围!")
+            continue
+        rpid = comment[int(argument[0]) - 1]['rpid']
+        if command == "like":
+            comment_like(avid, rpid)
+        elif command == "unlike":
+            comment_like(avid, rpid, unlike=True)
+
+
+def comment_like(avid, rpid, unlike=False, comment_type=1):
+    data = {
+        "type": comment_type,
+        "oid": avid,
+        "rpid": rpid,
+        'csrf': csrf_token
+    }
+    if unlike:
+        data['action'] = 1
+    else:
+        data['action'] = 1
+    r = post("https://api.bilibili.com/x/v2/reply/action", headers=header, data=data)
+    if r.json()['code'] == 0:
+        print("点赞评论成功!")
+    else:
+        print("点赞评论失败!")
+        print(r.json()['code'])
+        print(r.json()['message'])
+
+
+# def comment_reply_viewer(avid, rpid, type=1):
+#     pass
 
 
 def search():
@@ -540,14 +606,16 @@ def search():
             if not command:
                 break
             command, argument = parse_text_command(command, local="recommend")
+            if not command:
+                continue
             if not argument[0].isdecimal():
                 print("输入的不是整数!")
                 continue
-            bvid = result[int(argument[0]) - 1]['bvid']
-            avid = result[int(argument[0]) - 1]['aid']
             if int(argument[0]) > len(result) or int(argument[0]) <= 0:
                 print("选视频超出范围!")
                 continue
+            bvid = result[int(argument[0]) - 1]['bvid']
+            avid = result[int(argument[0]) - 1]['aid']
             if command == "play":
                 play(bvid)
             elif command == "exit":
@@ -566,6 +634,8 @@ def search():
                 print("收藏成功!")
             elif command == "view_collection":
                 view_collection(bvid, True)
+            elif command == "view_comment":
+                comment_viewer(avid)
         page += 1
 
 
@@ -669,6 +739,8 @@ def address(video: str):
             media_id = list_fav(return_info=True)
             collection(media_id=media_id, avid=avid)
             print("收藏成功!")
+        elif command == "view_comment":
+            comment_viewer(avid)
 
 
 def list_fav(return_info=False):
@@ -740,7 +812,7 @@ def list_collection(media_id):
                 print("选视频超出范围!")
                 continue
             bvid = ls[int(argument[0]) - 1]['bvid']
-
+            avid = ls[int(argument[0]) - 1]['id']
             if command == "play":
                 play(bvid)
             elif command == "exit":
@@ -755,6 +827,8 @@ def list_collection(media_id):
                 get_video_info(bvid, True)
             elif command == "view_collection":
                 view_collection(bvid, True)
+            elif command == "view_comment":
+                comment_viewer(avid)
         count += 1
 
 
