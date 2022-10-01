@@ -1068,6 +1068,7 @@ def clean_memory_cache():
 
 def clean_local_cache():
     shutil.rmtree("cached")
+    os.mkdir('cached')
 
 
 def set_users():
