@@ -240,6 +240,27 @@ def like(video_id, bvid=True, unlike=False):
         print(r.json()['message'])
 
 
+def coin(video_id, coin_count, bvid=True, like=False):
+    if not is_login:
+        print("请先登录!")
+    data = {'csrf': csrf_token, 'multiply': coin_count}
+    if bvid:
+        data["bvid"] = video_id
+    else:
+        data["aid"] = video_id
+    if like:
+        data['select_like'] = 1
+    r = post("http://api.bilibili.com/x/web-interface/coin/add",
+             data=data, headers=header)
+    code = r.json()['code']
+    if code == 0:
+        print("投币成功!")
+    else:
+        print("投币失败!")
+        print(code)
+        print(r.json()['message'])
+
+
 def triple(video_id: str, bvid=True):
     if not is_login:
         print("请先登录!")
@@ -457,8 +478,11 @@ def recommend():
                 get_video_info(bvid, True)
             elif command == "view_collection":
                 view_collection(bvid, True)
-            # elif a == "view_b_collection":
-            #     play_b_collection(bvid)
+            elif command == 'coin':
+                coin_count = int(input("请输入投币量(1-2): "))
+                if coin_count != 1 and coin_count != 2:
+                    print("输入错误!")
+                coin(bvid, coin_count, bvid=True)
 
 
 def register_command(command, length, local="main", run=lambda: None, should_run=True, args=(), kwargs={}):
@@ -490,6 +514,7 @@ def register_all_command():
     register_command("view_collection", 1, should_run=False, local='recommend')
     register_command("video_info", 1, should_run=False, local='recommend')
     register_command("view_comment", 1, should_run=False, local="recommend")
+    register_command("coin", 1, should_run=False, local="recommend")
     # address
     register_command("like", 0, should_run=False, local="address")
     register_command("unlike", 0, should_run=False, local="address")
@@ -500,6 +525,7 @@ def register_all_command():
     register_command("view_collection", 0, should_run=False, local='address')
     register_command("collection", 0, should_run=False, local="address")
     register_command("view_comment", 0, should_run=False, local="address")
+    register_command("coin", 0, should_run=False, local="address")
     # favorite
     register_command("like", 1, should_run=False, local="favorite")
     register_command("unlike", 1, should_run=False, local="favorite")
@@ -509,6 +535,7 @@ def register_all_command():
     register_command("video_info", 1, should_run=False, local='favorite')
     register_command("view_collection", 1, should_run=False, local='favorite')
     register_command("view_comment", 1, should_run=False, local='favorite')
+    register_command("coin", 1, should_run=False, local="favorite")
     # comment
     register_command("like", 1, should_run=False, local='comment')
     register_command("unlike", 1, should_run=False, local='comment')
@@ -636,6 +663,11 @@ def search():
                 view_collection(bvid, True)
             elif command == "view_comment":
                 comment_viewer(avid)
+            elif command == 'coin':
+                coin_count = int(input("请输入投币量(1-2): "))
+                if coin_count != 1 and coin_count != 2:
+                    print("输入错误!")
+                coin(bvid, coin_count, bvid=True)
         page += 1
 
 
@@ -741,6 +773,11 @@ def address(video: str):
             print("收藏成功!")
         elif command == "view_comment":
             comment_viewer(avid)
+        elif command == 'coin':
+            coin_count = int(input("请输入投币量(1-2): "))
+            if coin_count != 1 and coin_count != 2:
+                print("输入错误!")
+            coin(bvid, coin_count, bvid=True)
 
 
 def list_fav(return_info=False):
@@ -829,6 +866,11 @@ def list_collection(media_id):
                 view_collection(bvid, True)
             elif command == "view_comment":
                 comment_viewer(avid)
+            elif command == 'coin':
+                coin_count = int(input("请输入投币量(1-2): "))
+                if coin_count != 1 and coin_count != 2:
+                    print("输入错误!")
+                coin(bvid, coin_count, bvid=True)
         count += 1
 
 
