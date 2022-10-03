@@ -25,7 +25,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 The old version also use the GPL-3.0 license, not MIT License.
 """
-
+import base64
 import json
 import os
 import random
@@ -38,6 +38,7 @@ import shutil
 import uuid
 
 import requests
+import rsa
 
 from biliass import Danmaku2ASS
 
@@ -123,12 +124,145 @@ def logout():
                  headers=header, data={"biliCSRF": csrf_token})
         try:
             if r.json()['code'] == 0:
-                os.remove(f"users/{username}")
+                os.remove(f"users/{username}.txt")
                 print("登出成功! LBCC将退出.")
                 input()
                 sys.exit(0)
         except json.decoder.JSONDecodeError:
             print("登出失败!")
+
+
+def login():
+    while True:
+        choose = input("选择登录方式(password/sms/qrcode): ")
+        if choose == "password":
+            username = input("用户名: ")
+            password = input("密码: ")
+            validate, seccode, key, challenge = verify_captcha_key()
+            login_by_password(username, password, validate,
+                              seccode, key, challenge)
+            break
+        elif choose == "sms":
+            login_by_sms()
+            break
+        elif choose == "qrcode":
+            pass
+
+
+def login_by_sms():
+    print("默认为中国手机号, 如果有异议请提出issues")
+    tel = input("请输入手机号: ")
+    validate, seccode, token, challenge = verify_captcha_token()
+    data = {"tel": tel, "cid": 86, "source": "main_web", "token": token,
+            "challenge": challenge, "validate": validate, "seccode": seccode}
+    r = post("https://passport.bilibili.com/x/passport-login/web/sms/send",
+             data=data, headers=header)
+    if r.json()['code'] == 0:
+        captcha_key = r.json()['data']['captcha_key']
+        print("发送成功!")
+    else:
+        print("发送失败!")
+        print(r.json()['code'])
+        print(r.json()['message'])
+        return
+    code = input("请输入短信认证码: ")
+    data_login = {"code": code, "tel": tel, "cid": 86,
+                  "source": "main_web", "captcha_key": captcha_key}
+    r_login = post("https://passport.bilibili.com/x/passport-login/web/login/sms",
+                   headers=header, data=data_login)
+    if r_login.json()['code'] == 0:
+        cookie = response_to_cookie(r_login)
+        username_local = check_login(cookie)
+        print(f"用户{username_local}登录成功!")
+        choose = input("确认添加用户(y/n): ")
+        if choose.lower() == "y":
+            if username_local in os.listdir("users"):
+                print("用户已经添加过!取消添加.")
+                return
+            with open(f"users/{username_local}.txt", "w") as f:
+                f.write(cookie)
+            print("添加成功! LBCC将退出.")
+            input()
+            sys.exit(0)
+        else:
+            print("取消添加.")
+            print("Cookie: ")
+            print(cookie)
+            return
+
+    else:
+        print("登录失败!")
+        print(r_login.json()['code'])
+
+
+def login_by_password(username, password, validate, seccode, token, challenge):
+    key_request = get(
+        'https://passport.bilibili.com/login?act=getkey', headers=header, no_cache=True)
+    hash, public_key = key_request.json()['hash'], key_request.json()['key']
+    password_hashed = hash + password
+    password_encrypt = encrypt_password(
+        public_key.encode(), password_hashed.encode())
+    data = {"captchaType": 6, "username": username, "password": password_encrypt.decode(
+    ), "keep": True, "challenge": challenge, "key": token, "validate": validate, "seccode": seccode}
+    r = post("https://passport.bilibili.com/web/login/v2",
+             headers={}, data=data)
+    if r.json()['code'] == 0:
+        cookie = response_to_cookie(r)
+        print(cookie)
+        username_local = check_login(cookie)
+        print(f"用户{username_local}登录成功!")
+        choose = input("确认添加用户(y/n): ")
+        if choose.lower() == "y":
+            if username_local in os.listdir("users"):
+                print("用户已经添加过!取消添加.")
+                return
+            with open(f"users/{username_local}.txt", "w") as f:
+                f.write(cookie)
+            print("添加成功! LBCC将退出.")
+            input()
+            sys.exit(0)
+    else:
+        print("登录失败!")
+        print(r.json()['code'])
+        print(r.json()['message'])
+
+
+def encrypt_password(public_key, data):
+    pub_key = rsa.PublicKey.load_pkcs1_openssl_pem(public_key)
+    return base64.urlsafe_b64encode(rsa.encrypt(data, pub_key))
+
+
+def response_to_cookie(request: requests.Response):
+    string = ""
+    for i in request.cookies:
+        string += i.name + "=" + i.value + ";"
+    return string[:-1]
+
+
+def verify_captcha_key():
+    r = get("https://passport.bilibili.com/web/captcha/combine?plat=6",
+            headers=header, no_cache=True)
+    a = r.json()
+    key = a['data']['result']['key']
+    print("gt: ", a['data']['result']['gt'],
+          "challenge: ", a['data']['result']['challenge'])
+    print("请到 https://kuresaru.github.io/geetest-validator/ 认证")
+    validate = input("validate: ")
+    seccode = input("seccode: ")
+    return validate, seccode, key, a['data']['result']['challenge']
+
+
+def verify_captcha_token():
+    r = get("https://passport.bilibili.com/x/passport-login/captcha?source=main_web",
+            headers=header, no_cache=True)
+    a = r.json()
+    token = a['data']['token']
+    print("gt: ", a['data']['geetest']['gt'],
+          "challenge: ", a['data']['geetest']['challenge'])
+    print("请到 https://kuresaru.github.io/geetest-validator/ 认证")
+    validate = input("validate: ")
+    seccode = input("seccode: ")
+    return validate, seccode, token, a['data']['geetest']['challenge']
 
 
 def get(url: str, params=None, no_cache=False, **kwargs) -> requests.Response:
@@ -551,6 +685,7 @@ def register_all_command():
     register_command("add_cookie", 0, run=add_cookie)
     register_command("set_users", 0, run=set_users)
     register_command("logout", 0, run=logout)
+    register_command("login", 0, run=login)
     # recommend
     register_command("like", 1, should_run=False, local="recommend")
     register_command("unlike", 1, should_run=False, local="recommend")
@@ -1049,7 +1184,7 @@ def config():
 def get_login_status():
     global is_login, local_user_mid
     r = get('https://api.bilibili.com/x/member/web/account',
-            headers=header)
+            headers=header, no_cache=True)
     a = JSON(r)
     if a.code == -101:
         print("账号尚未登录! ")
@@ -1067,9 +1202,9 @@ def check_login(cookie):
                       "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
         "referer": "https://www.bilibili.com", 'cookie': cookie}
     r = get('https://api.bilibili.com/x/member/web/account',
-            headers=cached_header)
+            headers=cached_header, no_cache=True)
     a = JSON(r)
-    if JSON(r).code == -101:
+    if a.code == -101:
         return False
     elif a.code == 0:
         return a.data.uname
