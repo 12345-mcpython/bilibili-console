@@ -26,23 +26,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 The old version also use the GPL-3.0 license, not MIT License.
 """
 
-# from typing import Union, Tuple
-# import os
-# import base64
-# import json
-# import datetime
-# import inspect
-# import shutil
-# import argparse
-# import rsa
-
 import json
 import os
+import random
 import sys
 import threading
+import time
 import typing
 import datetime
 import shutil
+import uuid
 
 import requests
 
@@ -654,6 +647,7 @@ def comment_like(avid, rpid, unlike=False, comment_type=1):
         print(r.json()['code'])
         print(r.json()['message'])
 
+
 def search():
     search_url = "http://api.bilibili.com/x/web-interface/search/type?keyword={}&search_type=video&page={}"
     try:
@@ -779,7 +773,7 @@ def get_aid(bvid):
 
 
 def address(video: str):
-    video_processed = ""
+    video_processed = video
     if "b23.tv" in video:
         video = get(video).url
     if video.startswith("http"):
@@ -1089,18 +1083,6 @@ def cookie_to_dict(string):
     return dictionary
 
 
-def response_to_cookie(request: requests.Response):
-    string = ""
-    for i in request.cookies:
-        string += i.name + "=" + i.value + ";"
-    return string[:-1]
-
-
-def generate_search_cookie():
-    r = requests.get("https://www.bilibili.com/", headers=header)
-    return response_to_cookie(r)
-
-
 def ask_cookie(first_use):
     global local_cookie
     if first_use:
@@ -1227,6 +1209,17 @@ def test_cookie():
             return
 
 
+def fake_buvid3():
+    a = str(uuid.uuid4()).upper()
+    for i in range(5):
+        a += str(random.choice([1, 2, 3, 4, 5, 6, 7, 8, 9, 0, "a", "b", "c", "d", "e", "f"])).upper()
+    return a + "infoc"
+
+
+def fake_search_cookie():
+    return f"b_nut={int(time.time())};b_ut=7;buvid3={fake_buvid3()};i-wanna-go-back=-1;innersign=0"
+
+
 def main():
     while True:
         command = input("主选项: ")
@@ -1242,7 +1235,7 @@ if __name__ == "__main__":
     username_file = get_available_user()
     username = ""
     if not username_file:
-        header["cookie"] = generate_search_cookie()
+        header["cookie"] = fake_search_cookie()
     else:
         username = username_file.split(".")[0]
         with open(f"users/{username}.txt") as f:
