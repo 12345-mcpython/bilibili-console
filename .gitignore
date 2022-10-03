@@ -21,6 +21,7 @@ develop-eggs/
 dist/
 downloads/
 cookie
+user
 eggs/
 .eggs/
 lib/
