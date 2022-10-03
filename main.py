@@ -337,7 +337,6 @@ def play(video_id: str, bvid=True):
             continue
         cid = video[int(page) - 1]['cid']
         play_with_dash(video_id, cid, bvid)
-        # play_with_cid(video_id, cid)
         break
     return
 
@@ -368,11 +367,6 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     command = "mpv --sub-file=\"cached/{}.ass\" --user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) " \
               "Gecko/20100101 Firefox/51.0\" " \
               "--referrer=\"https://www.bilibili.com\" \"{}\"".format(cid, flv_url)
-    # r = requests.get(f"https://comment.bilibili.com/{cid}.xml")
-    # Danmaku2ASS([f"cached/{cid}.xml"], "autodetect", f"cached/{cid}.ass", width, height, 0, "SimHei", 25.0, 1.0,
-    #             10, 8, None,
-    #             None, False, input_format="xml")
-    # if protobuf_danmaku_enable:
     a = Danmaku2ASS(
         get_danmaku(cid),
         width,
@@ -390,24 +384,6 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     )
     with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
         f.write(a)
-    # else:
-    #     a = Danmaku2ASS(
-    #         r.content,
-    #         width,
-    #         height,
-    #         input_format="xml",
-    #         reserve_blank=0,
-    #         font_face="SimHei",
-    #         font_size=25,
-    #         text_opacity=0.8,
-    #         duration_marquee=15.0,
-    #         duration_still=10.0,
-    #         comment_filter=None,
-    #         is_reduce_comments=False,
-    #         progress_callback=None,
-    #     )
-    #     with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
-    #         f.write(a)
     if not bangumi:
         time = req.json()['data']["timelength"] / 1000
         update_history(video_id, cid, round(time) + 1)
@@ -677,11 +653,6 @@ def comment_like(avid, rpid, unlike=False, comment_type=1):
         print("点赞评论失败!")
         print(r.json()['code'])
         print(r.json()['message'])
-
-
-# def comment_reply_viewer(avid, rpid, type=1):
-#     pass
-
 
 def search():
     search_url = "http://api.bilibili.com/x/web-interface/search/type?keyword={}&search_type=video&page={}"
@@ -1262,30 +1233,18 @@ def main():
         parse_command(command)
 
 
-# def parse_experimental_features(feature_args):
-#     if feature_args == "protobuf":
-#         enable_protobuf_danmaku()
-#         print("已启用特性: protobuf弹幕")
-#     elif not feature_args:
-#         return
-#     else:
-#         print("未知特性: ", feature_args)
-
 print("LBCC v1.0.0-dev.")
 print("Type \"help\" for more information.")
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description='LBCC命令行参数')
-    # parser.add_argument("-ef", '--experimental-features', type=str, help="启用实验特性")
-    # args = parser.parse_args()
-    # parse_experimental_features(args.experimental_features)
     first_use = init()
     ask_cookie(first_use)
     username_file = get_available_user()
-    username = username_file.split(".")[0]
+    username = ""
     if not username_file:
         header["cookie"] = generate_search_cookie()
     else:
+        username = username_file.split(".")[0]
         with open(f"users/{username}.txt") as f:
             header["cookie"] = f.read()
     get_login_status()
