@@ -791,21 +791,24 @@ def get_aid(bvid):
 
 
 def address(video: str):
+    video_processed = ""
     if "b23.tv" in video:
         video = get(video).url
     if video.startswith("http"):
-        video = video.split("/")[-1].split("?")[0]
-        if not video:
-            video = video.split("/")[-2]
+        video_processed = video.split("/")[-1].split("?")[0]
+        if not video_processed:
+            video_processed = video.split("/")
+            video_processed = video_processed[-2]
+    video_processed = video_processed.strip()
     avid = ""
-    bvid = video
+    bvid = video_processed
     is_bvid = True
     if video.isdecimal():
         is_bvid = False
         avid = video
         bvid = get_bvid(avid)
     print()
-    get_video_info(video, is_bvid, easy=True)
+    get_video_info(video_processed, is_bvid, easy=True)
 
     while True:
         command = input("链接选项: ")
