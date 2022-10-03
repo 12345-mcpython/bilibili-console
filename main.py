@@ -120,7 +120,23 @@ quality = {
 default_quality = 80
 
 
-# 辅助方法
+def logout():
+    if not is_login:
+        print("请先登录!")
+        return
+    choose = input("确认退出登录(y/n): ")
+    if choose.lower() == "y":
+        r = post("https://passport.bilibili.com/login/exit/v2",
+                 headers=header, data={"biliCSRF": csrf_token})
+        try:
+            if r.json()['code'] == 0:
+                os.remove(f"users/{username}")
+                print("登出成功! LBCC将退出.")
+                input()
+                sys.exit(0)
+        except json.decoder.JSONDecodeError:
+            print("登出失败!")
+
 
 def get(url: str, params=None, no_cache=False, **kwargs) -> requests.Response:
     if cached_response.get(url):
@@ -565,6 +581,7 @@ def register_all_command():
     register_command("config", 0, run=config)
     register_command("add_cookie", 0, run=add_cookie)
     register_command("set_users", 0, run=set_users)
+    register_command("logout", 0, run=logout)
     # recommend
     register_command("like", 1, should_run=False, local="recommend")
     register_command("unlike", 1, should_run=False, local="recommend")
@@ -1109,7 +1126,6 @@ def response_to_cookie(request: requests.Response):
 
 
 def generate_search_cookie():
-    print("配置搜索Cookie.")
     r = requests.get("https://www.bilibili.com/", headers=header)
     return response_to_cookie(r)
 
@@ -1189,7 +1205,7 @@ def set_users():
             print("输入错误.")
         print(f"你选择的是{ls[choose - 1].split('.')[0]}.")
         with open("user", "w") as f:
-            f.write(ls[choose - 1].split(".")[0])
+            f.write(ls[choose - 1].split(".")[0] + ".txt")
         print("配置成功. LBCC将会退出.")
         input()
         sys.exit(0)
@@ -1265,11 +1281,12 @@ if __name__ == "__main__":
     # parse_experimental_features(args.experimental_features)
     first_use = init()
     ask_cookie(first_use)
-    username = get_available_user()
-    if not username:
+    username_file = get_available_user()
+    username = username_file.split(".")[0]
+    if not username_file:
         header["cookie"] = generate_search_cookie()
     else:
-        with open(f"users/{username}") as f:
+        with open(f"users/{username}.txt") as f:
             header["cookie"] = f.read()
     get_login_status()
     register_all_command()
