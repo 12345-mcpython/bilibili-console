@@ -413,21 +413,22 @@ def play_with_dash(video_id: str, cid: int, bvid=True):
     audio_mapping = {}
 
     for i in videos:
-        if i['codecs'].startswith('hev'):
-            video_mapping[str(i['id']) + '_hevc'] = i['base_url']
-        if i['codecs'].startswith('avc1'):
-            video_mapping[str(i['id']) + '_avc1'] = i['base_url']
+        if not video_mapping.get(i['id']):
+            video_mapping[i['id']] = [i['base_url']]
+        else:
+            video_mapping[i['id']].append(i['base_url'])
 
     for i in audios:
-        audio_mapping[str(i['id'])] = i['base_url']
+        audio_mapping[i['id']] = i['base_url']
 
-    default_audio = sorted(list(audio_mapping.keys()))[0]
-    default_video = sorted(list(video_mapping.keys()))[0]
+    default_audio = sorted(list(audio_mapping.keys()), reverse=True)[0]
+    default_video = sorted(list(video_mapping.keys()), reverse=True)[0]
+
     audio_url = audio_mapping[default_audio]
     try:
-        video_url = video_mapping[str(default_quality) + "_avc1"]
+        video_url = video_mapping[default_quality][0]
     except KeyError:
-        video_url = video_mapping[default_video]
+        video_url = video_mapping[default_video][0]
     width, height, is_higher = quality[default_quality]
     a = Danmaku2ASS(
         get_danmaku(cid),
