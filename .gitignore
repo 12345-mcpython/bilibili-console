@@ -63,6 +63,9 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+cached/
+cached/*.jpg
+
 
 # Translations
 *.mo
