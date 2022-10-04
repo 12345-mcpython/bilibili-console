@@ -37,6 +37,7 @@ import datetime
 import shutil
 import uuid
 
+import qrcode
 import requests
 import rsa
 
@@ -146,7 +147,8 @@ def login():
             login_by_sms()
             break
         elif choose == "qrcode":
-            pass
+            login_by_qrcode()
+            break
 
 
 def login_by_sms():
@@ -225,6 +227,43 @@ def login_by_password(username, password, validate, seccode, token, challenge):
         print("登录失败!")
         print(r.json()['code'])
         print(r.json()['message'])
+
+
+def login_by_qrcode():
+    r = get("http://passport.bilibili.com/x/passport-login/web/qrcode/generate", headers=header)
+    url = r.json()['data']['url']
+    qrcode_key = r.json()['data']['qrcode_key']
+    image = qrcode.make(url)
+    with open("cached/qrcode.jpg", "wb") as f:
+        image.save(f)
+    a = threading.Thread(target=os.system, args=("mpv cached/qrcode.jpg --loop",))
+    a.start()
+    while True:
+        r = get("http://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key=" + qrcode_key)
+        code = r.json()['data']['code']
+        if code == 86101:
+            print("未扫码. 等待5秒...")
+            time.sleep(5)
+            continue
+        elif code == 86090:
+            print("扫码成功! 手机端请确认! 等待2秒...")
+            time.sleep(2)
+        elif code == 0:
+            print("手机端已确认! 登录完毕!")
+            break
+    cookie = response_to_cookie(r)
+    username_local = check_login(cookie)
+    print(f"用户{username_local}登录成功!")
+    choose = input("确认添加用户(y/n): ")
+    if choose.lower() == "y":
+        if username_local in os.listdir("users"):
+            print("用户已经添加过!取消添加.")
+            return
+        with open(f"users/{username_local}.txt", "w") as f:
+            f.write(cookie)
+        print("添加成功! LBCC将退出.")
+        input()
+        sys.exit(0)
 
 
 def encrypt_password(public_key, data):
