@@ -1,4 +1,4 @@
 requests~=2.27.1
 rsa~=4.8
-lxml~=4.8.0
-protobuf
+protobuf~=4.21.5
+qrcode~=7.3.1
