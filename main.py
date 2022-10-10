@@ -1249,10 +1249,10 @@ def check_login(cookie):
         return a.data.uname
 
 
-def cookie_to_dict(string):
+def cookie_to_dict(string: str):
     dictionary = {}
-    for i in string.split(";"):
-        key, value = i.strip().split("=")
+    for i in string.split(";", maxsplit=1):
+        key, value = i.strip().split("=", maxsplit=1)
         dictionary[key] = value
     return dictionary
 
