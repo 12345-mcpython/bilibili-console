@@ -60,9 +60,7 @@ Laosun Bilibili Console Client(LBCC) 是一个Bilibili命令行客户端.
 
 ## 使用
 
-0. 安装python与mpv
-1. pip install -r requirements.txt
-2. python main.py
+[教程](USAGE.md)
 
 ## 致谢
 
