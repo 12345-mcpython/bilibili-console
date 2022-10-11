@@ -1260,8 +1260,7 @@ def cookie_to_dict(string: str):
 def ask_cookie(first_use):
     global local_cookie
     if first_use:
-        print("你是第一次使用LBCC, 是否配置cookie? (y/n)")
-        print("Laosun Studios 保证用户数据是妥善存放在本地且不会被上传到除了B站以外的服务器.")
+        print("第一次使用LBCC, 是否配置cookie? (y/n)")
         choose = input()
         if choose.lower() == "y":
             cookie_or_file = input("请输入cookies或文件路径: ")
