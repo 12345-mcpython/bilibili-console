@@ -987,7 +987,7 @@ def address(video: str):
             get_video_info(bvid, is_bvid)
         elif command == "view_collection":
             view_collection(bvid, is_bvid)
-        elif command == "favorite":
+        elif command == "collection":
             media_id = list_fav(return_info=True)
             collection(media_id=media_id, avid=avid)
             print("收藏成功!")
