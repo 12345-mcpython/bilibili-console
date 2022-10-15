@@ -21,6 +21,14 @@ def response_to_cookie(request: requests.Response):
     return string[:-1]
 
 
+def cookie_to_dict(string: str):
+    dictionary = {}
+    for i in string.split(";", maxsplit=1):
+        key, value = i.strip().split("=", maxsplit=1)
+        dictionary[key] = value
+    return dictionary
+
+
 def format_long(long):
     if long > 60 * 60:
         fmt = "{}:{}:{}"
