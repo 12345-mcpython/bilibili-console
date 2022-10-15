@@ -8,7 +8,7 @@ import re
 import xml.dom.minidom
 from typing import Callable, Optional, Union, List, Generator, Tuple
 
-from biliass.protobuf.danmaku_pb2 import DanmakuEvent
+from bilibili.biliass.protobuf.danmaku_pb2 import DanmakuEvent
 
 
 #

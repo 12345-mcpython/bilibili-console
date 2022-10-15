@@ -25,9 +25,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 The old version also use the GPL-3.0 license, not MIT License.
 """
-import base64
-import json
 import os
+import json
 import random
 import sys
 import threading
@@ -39,53 +38,11 @@ import uuid
 
 import qrcode
 import requests
-import rsa
 
-from biliass import Danmaku2ASS
-
-
-class Command:
-    def __init__(self, command, length=0, run=lambda: None, should_run=True, args=(), kwargs={}):
-        self.command = command
-        self.length = length
-        self.run = run
-        self.should_run = should_run
-        self.args = args
-        self.kwargs = kwargs
-
-    def __str__(self):
-        return "<{} command={} length={}>".format(type(self).__name__, self.command, self.length)
-
-
-class JSON:
-    def __init__(self, json_str: typing.Union[str, requests.Response, dict]):
-        if isinstance(json_str, requests.Response):
-            self.json = json_str.json()
-        elif isinstance(json_str, dict):
-            self.json = json_str
-        elif isinstance(json_str, JSON):
-            self.json = json_str.json
-        else:
-            self.json = json.loads(json_str)
-
-    def __getattr__(self, item):
-        if isinstance(self.json[item], dict):
-            return JSON(json.dumps(self.json[item], ensure_ascii=False))
-        if isinstance(self.json[item], list):
-            return [JSON(json.dumps(item, ensure_ascii=False)) for item in self.json[item]]
-        return self.json[item]
-
-    def __str__(self):
-        return json.dumps(self.json, ensure_ascii=False)
-
-    def __repr__(self):
-        return json.dumps(self.json, ensure_ascii=False)
-
-    def __getitem__(self, item):
-        if isinstance(self.json[item], dict):
-            return JSON(json.dumps(self.json[item], ensure_ascii=False))
-        return self.json[item]
-
+from bilibili.biliass import Danmaku2ASS
+from bilibili.command import parse_text_command, parse_command, register_command
+from bilibili.util_classes import JSON
+from bilibili.utils import get, post, format_long, response_to_cookie, encrypt_password
 
 header = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                         "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77", "referer": "https://www.bilibili.com"}
@@ -93,8 +50,6 @@ header = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/5
 local_cookie = ""
 
 cookie_mapping = {}
-
-command_mapping = {}
 
 cached_response = {}
 
@@ -266,18 +221,6 @@ def login_by_qrcode():
         sys.exit(0)
 
 
-def encrypt_password(public_key, data):
-    pub_key = rsa.PublicKey.load_pkcs1_openssl_pem(public_key)
-    return base64.urlsafe_b64encode(rsa.encrypt(data, pub_key))
-
-
-def response_to_cookie(request: requests.Response):
-    string = ""
-    for i in request.cookies:
-        string += i.name + "=" + i.value + ";"
-    return string[:-1]
-
-
 def verify_captcha_key():
     r = get("https://passport.bilibili.com/web/captcha/combine?plat=6",
             headers=header, no_cache=True)
@@ -304,97 +247,7 @@ def verify_captcha_token():
     return validate, seccode, token, a['data']['geetest']['challenge']
 
 
-def get(url: str, params=None, no_cache=False, **kwargs) -> requests.Response:
-    if cached_response.get(url):
-        return cached_response.get(url)
-    else:
-        count = 3
-        while True:
-            try:
-                r = requests.get(url, params=params, timeout=5, **kwargs)
-                break
-            except requests.exceptions.RequestException as request_error:
-                print(f"Request {url} error! Will try {count} counts!")
-                count -= 1
-                if count <= 0:
-                    raise request_error
-        if not no_cache:
-            cached_response[url] = r
-        return r
-
-
-def post(url: str, params=None, **kwargs) -> requests.Response:
-    count = 3
-    while True:
-        try:
-            r = requests.post(url, params=params, timeout=5, **kwargs)
-            break
-        except requests.exceptions.RequestException as error:
-            print(f"Request {url} error! Will try {count} counts!")
-            count -= 1
-            if count <= 0:
-                print("Request error!")
-                raise error
-    return r
-
-
-def format_long(long):
-    if long > 60 * 60:
-        fmt = "{}:{}:{}"
-        hour = long // (60 * 60)
-        minute = (long - (hour * 60 * 60)) // 60
-        sec = long - (hour * 60 * 60) - minute * 60
-        if minute < 10:
-            fmt = "{}:0{}:{}"
-        if sec < 10:
-            fmt = "{}:{}:0{}"
-        if sec < 10 and minute < 10:
-            fmt = "{}:0{}:0{}"
-        return fmt.format(hour, minute, sec)
-    else:
-        fmt = "{}:{}"
-        minute = long // 60
-        if minute < 10:
-            fmt = "0{}:{}"
-        sec = long - minute * 60
-        if sec < 10:
-            fmt = "{}:0{}"
-        if sec < 10 and minute < 10:
-            fmt = "0{}:0{}"
-        return fmt.format(minute, sec)
-
-
 # 界面
-
-def parse_command(command, local="main"):
-    if not command_mapping.get(local + "_" + command.split(" ")[0]):
-        print("未知命令!")
-        return
-    command_class: Command = command_mapping.get(local + "_" + command.split(" ")[0])
-    if len(command.split(" ")) - 1 > command_class.length:
-        print("参数过多!")
-        return
-    if len(command.split(" ")) - 1 < command_class.length:
-        print("参数过少!")
-        return
-    if command_class.should_run:
-        command_class.run(*command.split(" ")[1:], *command_class.args, **command_class.kwargs)
-    else:
-        return command.split(" ")[0], command.split(" ")[1:]
-
-
-def parse_text_command(command, local="main"):
-    if not command_mapping.get(local + "_" + command.split(" ")[0]):
-        print("未知命令!")
-        return None, None
-    command_class: Command = command_mapping.get(local + "_" + command.split(" ")[0])
-    if len(command.split(" ")) - 1 > command_class.length:
-        print("参数过多!")
-        return None, None
-    if len(command.split(" ")) - 1 < command_class.length:
-        print("参数过少!")
-        return None, None
-    return command.split(" ")[0], command.split(" ")[1:]
 
 
 def like(video_id, bvid=True, unlike=False):
@@ -625,7 +478,7 @@ def get_danmaku(cid):
         "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                       "Chrome/72.0.3626.81 Safari/537.36 "
     }
-    resp = requests.get(url, headers=headers, params=params, timeout=8)
+    resp = get(url, headers=headers, params=params)
     return resp.content
 
 
@@ -704,18 +557,9 @@ def recommend():
                 comment_viewer(avid)
 
 
-def register_command(command, length, local="main", run=lambda: None, should_run=True, args=(), kwargs={}):
-    command_mapping[local + "_" + command] = Command(local + "_" + command, length, run, should_run, args=args,
-                                                     kwargs=kwargs)
-
-
-def exit_all():
-    sys.exit(0)
-
-
 def register_all_command():
     register_command("recommend", 0, run=recommend)
-    register_command("exit", 0, run=exit_all)
+    register_command("exit", 0, run=sys.exit)
     register_command("address", 1, run=address)
     register_command("favorite", 0, run=list_fav)
     register_command("search", 0, run=search)

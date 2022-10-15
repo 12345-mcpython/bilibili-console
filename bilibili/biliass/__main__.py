@@ -2,8 +2,8 @@ import argparse
 import logging
 import sys
 
-from biliass import Danmaku2ASS
-from biliass.__version__ import VERSION as biliass_version
+from bilibili.biliass import Danmaku2ASS
+from bilibili.biliass import VERSION as biliass_version
 
 
 def main():
