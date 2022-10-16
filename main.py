@@ -57,8 +57,6 @@ is_login = False
 local_user_mid = None
 
 quality = {
-    127: (7680, 4320, False),
-    120: (3840, 2160, False),
     112: (1920, 1080, True),
     80: (1920, 1080, False),
     64: (1280, 720, False),
@@ -1025,8 +1023,6 @@ def view_collection(video_id, bvid=True):
     return
 
 
-
-
 def config():
     print("设置")
     print()
@@ -1074,9 +1070,6 @@ def clean_memory_cache():
 def clean_local_cache():
     shutil.rmtree("cached")
     os.mkdir('cached')
-
-
-
 
 
 def set_quality():
