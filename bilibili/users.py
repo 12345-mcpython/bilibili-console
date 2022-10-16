@@ -9,7 +9,7 @@ import requests
 from bilibili.util_classes import JSON
 
 
-def set_users():
+def set_user():
     ls = os.listdir("./users")
     print("选择cookie")
     for i, j in enumerate(ls):

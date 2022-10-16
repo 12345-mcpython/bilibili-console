@@ -39,7 +39,7 @@ import qrcode
 from bilibili import init
 from bilibili.biliass import Danmaku2ASS
 from bilibili.command import parse_text_command, parse_command, register_command
-from bilibili.users import check_login, get_available_user, fake_search_cookie, ask_cookie, add_cookie, set_users
+from bilibili.users import check_login, get_available_user, fake_search_cookie, ask_cookie, add_cookie, set_user
 from bilibili.util_classes import JSON
 from bilibili.utils import get, post, format_long, response_to_cookie, encrypt_password, cookie_to_dict
 
@@ -539,6 +539,35 @@ def recommend():
                 comment_viewer(avid)
 
 
+def add_user():
+    print("添加用户")
+    choose = input("添加方式(cookie/login): ")
+    if choose == "cookie":
+        add_cookie()
+    elif choose == "login":
+        login()
+    else:
+        print("未知输入, 取消添加用户")
+
+
+def user_manager():
+    print("用户管理")
+    print()
+    print(f"当前用户为{username}, mid: {local_user_mid}")
+    print("1.添加用户")
+    print("2.登出当前用户")
+    print("3.切换用户")
+    choose = input("选项: ")
+    if choose == "1":
+        add_user()
+    elif choose == '2':
+        logout()
+    elif choose == "3":
+        set_user()
+    else:
+        print("未知输入, 用户管理已退出")
+
+
 def register_all_command():
     register_command("recommend", 0, run=recommend)
     register_command("exit", 0, run=sys.exit)
@@ -547,10 +576,7 @@ def register_all_command():
     register_command("search", 0, run=search)
     register_command("bangumi", 0, run=bangumi)
     register_command("config", 0, run=config)
-    register_command("add_cookie", 0, run=add_cookie)
-    register_command("set_users", 0, run=set_users)
-    register_command("logout", 0, run=logout)
-    register_command("login", 0, run=login)
+    register_command("manage_user", 0, run=user_manager)
     # recommend
     register_command("like", 1, should_run=False, local="recommend")
     register_command("unlike", 1, should_run=False, local="recommend")

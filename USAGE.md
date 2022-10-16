@@ -72,12 +72,7 @@
 
 操作命令与 `address` 命令相同.
 
-### 1.2.5 关于用户的命令 
-
-1. `set_users` 设置当前用户
-2. `logout` 退出
-3. `login` 登录
-4. `add_cookie` 通过cookie添加用户
+### 1.2.5 manage_user 管理用户
 
 ### 1.2.6 config 设置
 
