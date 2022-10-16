@@ -46,8 +46,6 @@ from bilibili.utils import get, post, format_long, response_to_cookie, encrypt_p
 header = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                         "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77", "referer": "https://www.bilibili.com"}
 
-local_cookie = ""
-
 cookie_mapping = {}
 
 cached_response = {}
@@ -91,9 +89,9 @@ def login():
         if choose == "password":
             username = input("用户名: ")
             password = input("密码: ")
-            validate, seccode, key, challenge = verify_captcha_key()
+            validate, seccode, token, challenge = verify_captcha_token()
             login_by_password(username, password, validate,
-                              seccode, key, challenge)
+                              seccode, token, challenge)
             break
         elif choose == "sms":
             login_by_sms()
@@ -156,9 +154,9 @@ def login_by_password(username, password, validate, seccode, token, challenge):
     password_hashed = hash + password
     password_encrypt = encrypt_password(
         public_key.encode(), password_hashed.encode())
-    data = {"captchaType": 6, "username": username, "password": password_encrypt.decode(
-    ), "keep": True, "challenge": challenge, "key": token, "validate": validate, "seccode": seccode}
-    r = post("https://passport.bilibili.com/web/login/v2",
+    data = {"username": username, "password": password_encrypt.decode(
+    ), "keep": 0, "challenge": challenge, "token": token, "validate": validate, "seccode": seccode}
+    r = post("http://passport.bilibili.com/x/passport-login/web/login",
              headers={}, data=data)
     if r.json()['code'] == 0:
         cookie = response_to_cookie(r)
@@ -216,19 +214,6 @@ def login_by_qrcode():
         print("添加成功! LBCC将退出.")
         input()
         sys.exit(0)
-
-
-def verify_captcha_key():
-    r = get("https://passport.bilibili.com/web/captcha/combine?plat=6",
-            headers=header, no_cache=True)
-    a = r.json()
-    key = a['data']['result']['key']
-    print("gt: ", a['data']['result']['gt'],
-          "challenge: ", a['data']['result']['challenge'])
-    print("请到 https://kuresaru.github.io/geetest-validator/ 认证")
-    validate = input("validate: ")
-    seccode = input("seccode: ")
-    return validate, seccode, key, a['data']['result']['challenge']
 
 
 def verify_captcha_token():
