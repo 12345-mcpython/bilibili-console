@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """
-Copyright (c) 2022 Laosun Studios. All Rights Reserved.
+Copyright (c) 2022 Laosun Studios.
 
 Distributed under GPL-3.0 License.
 
 The product is developing. Effect currently
 displayed is for reference only. Not indicative
 of final product.
-
-Copyright (C) 2022 Laosun Studios.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -577,6 +575,7 @@ def register_all_command():
     register_command("bangumi", 0, run=bangumi)
     register_command("config", 0, run=config)
     register_command("manage_user", 0, run=user_manager)
+    register_command("precious", 0, run=precious)
     # recommend
     register_command("like", 1, should_run=False, local="recommend")
     register_command("unlike", 1, should_run=False, local="recommend")
@@ -982,6 +981,59 @@ def bangumi():
             return
 
 
+def precious():
+    url = "https://api.bilibili.com/x/web-interface/popular/precious?page_size=100&page=1"
+    r = get(url, headers=header)
+    precious_list = r.json()['data']['list']
+    for i, j in enumerate(precious_list):
+        print(f"{i + 1}: ")
+        print(f"标题: {j['title']} 作者: {j['owner']['name']}")
+        print(f"成就: {j['achievement']}")
+        print(f"bvid: {j['bvid']} aid: {j['aid']}")
+    while True:
+        command = input("入站必刷选项: ")
+        if command == "exit":
+            return
+        if not command:
+            break
+        command, argument = parse_text_command(command, local="recommend")
+        if not command:
+            continue
+        if not argument[0].isdecimal():
+            print("输入的不是整数!")
+            continue
+        if int(argument[0]) > len(precious_list) or int(argument[0]) <= 0:
+            print("选视频超出范围!")
+            continue
+        bvid = precious_list[int(argument[0]) - 1]['bvid']
+        avid = precious_list[int(argument[0]) - 1]['aid']
+        if command == "play":
+            play(bvid)
+        elif command == "exit":
+            return
+        elif command == "like":
+            like(bvid)
+        elif command == "triple":
+            triple(bvid)
+        elif command == 'unlike':
+            like(bvid, unlike=True)
+        elif command == "video_info":
+            get_video_info(bvid, True)
+        elif command == "view_collection":
+            view_collection(bvid, True)
+        elif command == "view_comment":
+            comment_viewer(avid)
+        elif command == 'coin':
+            coin_count = int(input("请输入投币量(1-2): "))
+            if coin_count != 1 and coin_count != 2:
+                print("输入错误!")
+            coin(bvid, coin_count, bvid=True)
+        elif command == "favorite":
+            media_id = list_fav(return_info=True)
+            collection(media_id=media_id, avid=precious_list[int(argument[0]) - 1]['id'])
+            print("收藏成功!")
+
+
 def view_collection(video_id, bvid=True):
     video_id = str(video_id)
     url = "http://api.bilibili.com/x/web-interface/view/detail"
@@ -1111,7 +1163,15 @@ def main():
 
 
 print("LBCC v1.0.0-dev.")
-print("Type \"help\" for more information.")
+print()
+
+print("""Copyright (C) 2022 Laosun Studios.
+
+This program comes with ABSOLUTELY NO WARRANTY; 
+This is free software, and you are welcome to redistribute it
+under certain conditions.""")
+
+print("")
 
 if __name__ == "__main__":
     first_use = init()
