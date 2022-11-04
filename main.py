@@ -23,14 +23,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 The old version also use the GPL-3.0 license, not MIT License.
 """
-import os
+import datetime
 import json
+import os
+import shutil
 import sys
 import threading
 import time
 import typing
-import datetime
-import shutil
 
 import qrcode
 
@@ -63,11 +63,19 @@ quality = {
 default_quality = 80
 
 
+def safe_input(input_thing):
+    try:
+        return input(input_thing)
+    except KeyboardInterrupt:
+        sys.exit(0)
+
+
 def logout():
     if not is_login:
         print("请先登录!")
         return
-    choose = input("确认退出登录(y/n): ")
+
+    choose = safe_input("确认退出登录(y/n): ")
     if choose.lower() == "y":
         r = post("https://passport.bilibili.com/login/exit/v2",
                  headers=header, data={"biliCSRF": csrf_token})
@@ -75,7 +83,7 @@ def logout():
             if r.json()['code'] == 0:
                 os.remove(f"users/{username}.txt")
                 print("登出成功! LBCC将退出.")
-                input()
+                safe_input()
                 sys.exit(0)
         except json.decoder.JSONDecodeError:
             print("登出失败!")
@@ -83,10 +91,10 @@ def logout():
 
 def login():
     while True:
-        choose = input("选择登录方式(password/sms/qrcode): ")
+        choose = safe_input("选择登录方式(password/sms/qrcode): ")
         if choose == "password":
-            username = input("用户名: ")
-            password = input("密码: ")
+            username = safe_input("用户名: ")
+            password = safe_input("密码: ")
             validate, seccode, token, challenge = verify_captcha_token()
             login_by_password(username, password, validate,
                               seccode, token, challenge)
@@ -101,7 +109,7 @@ def login():
 
 def login_by_sms():
     print("默认为中国手机号, 如果有异议请提出issues")
-    tel = input("请输入手机号: ")
+    tel = safe_input("请输入手机号: ")
     validate, seccode, token, challenge = verify_captcha_token()
     data = {"tel": tel, "cid": 86, "source": "main_web", "token": token,
             "challenge": challenge, "validate": validate, "seccode": seccode}
@@ -115,7 +123,7 @@ def login_by_sms():
         print(r.json()['code'])
         print(r.json()['message'])
         return
-    code = input("请输入短信认证码: ")
+    code = safe_input("请输入短信认证码: ")
     data_login = {"code": code, "tel": tel, "cid": 86,
                   "source": "main_web", "captcha_key": captcha_key}
     r_login = post("https://passport.bilibili.com/x/passport-login/web/login/sms",
@@ -124,7 +132,7 @@ def login_by_sms():
         cookie = response_to_cookie(r_login)
         username_local = check_login(cookie)
         print(f"用户{username_local}登录成功!")
-        choose = input("确认添加用户(y/n): ")
+        choose = safe_input("确认添加用户(y/n): ")
         if choose.lower() == "y":
             if username_local in os.listdir("users"):
                 print("用户已经添加过!取消添加.")
@@ -132,7 +140,7 @@ def login_by_sms():
             with open(f"users/{username_local}.txt", "w") as f:
                 f.write(cookie)
             print("添加成功! LBCC将退出.")
-            input()
+            safe_input()
             sys.exit(0)
         else:
             print("取消添加.")
@@ -161,7 +169,7 @@ def login_by_password(username, password, validate, seccode, token, challenge):
         print(cookie)
         username_local = check_login(cookie)
         print(f"用户{username_local}登录成功!")
-        choose = input("确认添加用户(y/n): ")
+        choose = safe_input("确认添加用户(y/n): ")
         if choose.lower() == "y":
             if username_local in os.listdir("users"):
                 print("用户已经添加过!取消添加.")
@@ -169,7 +177,7 @@ def login_by_password(username, password, validate, seccode, token, challenge):
             with open(f"users/{username_local}.txt", "w") as f:
                 f.write(cookie)
             print("添加成功! LBCC将退出.")
-            input()
+            safe_input()
             sys.exit(0)
     else:
         print("登录失败!")
@@ -202,7 +210,7 @@ def login_by_qrcode():
     cookie = response_to_cookie(r)
     username_local = check_login(cookie)
     print(f"用户{username_local}登录成功!")
-    choose = input("确认添加用户(y/n): ")
+    choose = safe_input("确认添加用户(y/n): ")
     if choose.lower() == "y":
         if username_local in os.listdir("users"):
             print("用户已经添加过!取消添加.")
@@ -210,7 +218,7 @@ def login_by_qrcode():
         with open(f"users/{username_local}.txt", "w") as f:
             f.write(cookie)
         print("添加成功! LBCC将退出.")
-        input()
+        safe_input()
         sys.exit(0)
 
 
@@ -222,8 +230,8 @@ def verify_captcha_token():
     print("gt: ", a['data']['geetest']['gt'],
           "challenge: ", a['data']['geetest']['challenge'])
     print("请到 https://kuresaru.github.io/geetest-validator/ 认证")
-    validate = input("validate: ")
-    seccode = input("seccode: ")
+    validate = safe_input("validate: ")
+    seccode = safe_input("seccode: ")
     return validate, seccode, token, a['data']['geetest']['challenge']
 
 
@@ -323,7 +331,7 @@ def play(video_id: str, bvid=True):
         print(f"{i['page']}: {i['part']}")
     print("请以冒号前面的数字为准选择视频.")
     while True:
-        page = input("选择视频: ")
+        page = safe_input("选择视频: ")
         if page == "exit":
             break
         if not page:
@@ -495,7 +503,7 @@ def recommend():
                 item.pubdate).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_long(item.duration), " 观看量: ",
                   item.stat.view)
         while flag1:
-            command = input("推荐选项: ")
+            command = safe_input("推荐选项: ")
             if command == "exit":
                 flag = False
                 break
@@ -529,7 +537,7 @@ def recommend():
             elif command == "view_collection":
                 view_collection(bvid, True)
             elif command == 'coin':
-                coin_count = int(input("请输入投币量(1-2): "))
+                coin_count = int(safe_input("请输入投币量(1-2): "))
                 if coin_count != 1 and coin_count != 2:
                     print("输入错误!")
                 coin(bvid, coin_count, bvid=True)
@@ -539,7 +547,7 @@ def recommend():
 
 def add_user():
     print("添加用户")
-    choose = input("添加方式(cookie/login): ")
+    choose = safe_input("添加方式(cookie/login): ")
     if choose == "cookie":
         add_cookie()
     elif choose == "login":
@@ -555,7 +563,7 @@ def user_manager():
     print("1.添加用户")
     print("2.登出当前用户")
     print("3.切换用户")
-    choose = input("选项: ")
+    choose = safe_input("选项: ")
     if choose == "1":
         add_user()
     elif choose == '2':
@@ -634,7 +642,7 @@ def comment_viewer(avid):
             print(f"{i + 1}: ")
             print(f"作者: {j['member']['uname']} 点赞: {j['like']} 回复量: {j['rcount']}")
             print(f"内容: {j['content']['message']}")
-        choose = input("评论选项: ")
+        choose = safe_input("评论选项: ")
         choose = choose.lstrip()
         choose = choose.rstrip()
         if choose == 'exit':
@@ -676,7 +684,7 @@ def comment_like(avid, rpid, unlike=False, comment_type=1):
 def search():
     search_url = "http://api.bilibili.com/x/web-interface/search/type?keyword={}&search_type=video&page={}"
     try:
-        search_thing = input("请输入搜索的东西: ")
+        search_thing = safe_input("请输入搜索的东西: ")
     except KeyboardInterrupt:
         print("\n取消搜索.")
         return
@@ -695,7 +703,7 @@ def search():
             print("作者: ", item['author'], " bvid: ", item['bvid'], " 日期: ", datetime.datetime.fromtimestamp(
                 item['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 观看量: ", item['play'])
         while flag1:
-            command = input("搜索选项: ")
+            command = safe_input("搜索选项: ")
             if command == "exit":
                 return
             if not command:
@@ -732,7 +740,7 @@ def search():
             elif command == "view_comment":
                 comment_viewer(avid)
             elif command == 'coin':
-                coin_count = int(input("请输入投币量(1-2): "))
+                coin_count = int(safe_input("请输入投币量(1-2): "))
                 if coin_count != 1 and coin_count != 2:
                     print("输入错误!")
                 coin(bvid, coin_count, bvid=True)
@@ -818,7 +826,7 @@ def address(video: str):
     get_video_info(video_processed, is_bvid, easy=True)
 
     while True:
-        command = input("链接选项: ")
+        command = safe_input("链接选项: ")
         if command == "exit":
             break
         if not command:
@@ -845,7 +853,7 @@ def address(video: str):
         elif command == "view_comment":
             comment_viewer(avid)
         elif command == 'coin':
-            coin_count = int(input("请输入投币量(1-2): "))
+            coin_count = int(safe_input("请输入投币量(1-2): "))
             if coin_count != 1 and coin_count != 2:
                 print("输入错误!")
             coin(bvid, coin_count, bvid=True)
@@ -862,7 +870,7 @@ def list_fav(return_info=False):
     for i, j in enumerate(fav_list):
         print(f"{i + 1}: {j.title}")
     while True:
-        choose = input("选择收藏夹: ")
+        choose = safe_input("选择收藏夹: ")
         if choose == "exit":
             break
         if not choose:
@@ -905,7 +913,7 @@ def list_collection(media_id):
                 item.pubtime).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_long(item.duration), " 观看量: ",
                   item.cnt_info.play)
         while flag1:
-            command = input("收藏选项: ")
+            command = safe_input("收藏选项: ")
             if command == "exit":
                 return
             if not command:
@@ -938,7 +946,7 @@ def list_collection(media_id):
             elif command == "view_comment":
                 comment_viewer(avid)
             elif command == 'coin':
-                coin_count = int(input("请输入投币量(1-2): "))
+                coin_count = int(safe_input("请输入投币量(1-2): "))
                 if coin_count != 1 and coin_count != 2:
                     print("输入错误!")
                 coin(bvid, coin_count, bvid=True)
@@ -947,9 +955,9 @@ def list_collection(media_id):
 
 def bangumi():
     while True:
-        choose_bangumi = input("番剧选项: ")
+        choose_bangumi = safe_input("番剧选项: ")
         if choose_bangumi == "address":
-            url = input("输入地址: ")
+            url = safe_input("输入地址: ")
             ssid_or_epid = url.split("/")[-1]
             ssid_or_epid = ssid_or_epid.split("?")[0]
             if ssid_or_epid.startswith("ss"):
@@ -964,7 +972,7 @@ def bangumi():
                 print(f"{i + 1}: {j['share_copy']} ({j['badge']})")
             print("请以冒号前面的数字为准选择视频.")
             while True:
-                page = input("选择视频: ")
+                page = safe_input("选择视频: ")
                 if page == "exit":
                     break
                 if not page:
@@ -991,7 +999,7 @@ def precious():
         print(f"成就: {j['achievement']}")
         print(f"bvid: {j['bvid']} aid: {j['aid']}")
     while True:
-        command = input("入站必刷选项: ")
+        command = safe_input("入站必刷选项: ")
         if command == "exit":
             return
         if not command:
@@ -1024,7 +1032,7 @@ def precious():
         elif command == "view_comment":
             comment_viewer(avid)
         elif command == 'coin':
-            coin_count = int(input("请输入投币量(1-2): "))
+            coin_count = int(safe_input("请输入投币量(1-2): "))
             if coin_count != 1 and coin_count != 2:
                 print("输入错误!")
             coin(bvid, coin_count, bvid=True)
@@ -1065,7 +1073,7 @@ def view_collection(video_id, bvid=True):
         print(f"{i + 1}: {j['title']}")
     print("请以冒号前面的数字为准选择视频.")
     while True:
-        page = input("选择视频: ")
+        page = safe_input("选择视频: ")
         if page == "exit":
             break
         if page.startswith("view_info"):
@@ -1094,7 +1102,7 @@ def config():
     print("3.调整分辨率")
     print("4.退出")
     while True:
-        choose = int(input("设置: "))
+        choose = int(safe_input("设置: "))
         if choose == 1:
             clean_local_cache()
             return
@@ -1141,7 +1149,7 @@ def set_quality():
         print(f"{i}: {j[1][0]}x{j[1][1]} " + ("高码率" if j[1][2] else ""))
     while True:
         try:
-            quality_choose = int(input("选择分辨率: "))
+            quality_choose = int(safe_input("选择分辨率: "))
         except ValueError:
             print("请输入数字!")
             continue
@@ -1158,7 +1166,7 @@ def set_quality():
 
 def main():
     while True:
-        command = input("主选项: ")
+        command = safe_input("主选项: ")
         parse_command(command)
 
 
@@ -1188,7 +1196,4 @@ if __name__ == "__main__":
     register_all_command()
     cookie_mapping = cookie_to_dict(header["cookie"])
     csrf_token = cookie_mapping.get("bili_jct")
-    try:
-        main()
-    except KeyboardInterrupt:
-        sys.exit(0)
+    main()
