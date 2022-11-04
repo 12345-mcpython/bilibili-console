@@ -458,7 +458,7 @@ def get_danmaku(cid):
         "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                       "Chrome/72.0.3626.81 Safari/537.36 "
     }
-    resp = get(url, headers=headers, params=params)
+    resp = get(url, headers=headers, params=params, no_cache=True)
     return resp.content
 
 
