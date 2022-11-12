@@ -318,7 +318,7 @@ def collection(avid: str, media_id: str):
         print(r.json()['message'])
 
 
-def play(video_id: str, bvid=True):
+def play(video_id: str, bvid=True, title=""):
     print("\n")
     print("视频选集")
     if bvid:
@@ -343,12 +343,12 @@ def play(video_id: str, bvid=True):
             print("选视频超出范围!")
             continue
         cid = video[int(page) - 1]['cid']
-        play_with_dash(video_id, cid, bvid)
+        play_with_dash(video_id, cid, bvid, title)
         break
     return
 
 
-def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
+def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True, title="") -> None:
     if not bangumi:
         if bvid:
             url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={default_quality}&ty" \
@@ -373,7 +373,7 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
     width, height, is_higher = quality[higher]
     command = "mpv --sub-file=\"cached/{}.ass\" --user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) " \
               "Gecko/20100101 Firefox/51.0\" " \
-              "--referrer=\"https://www.bilibili.com\" \"{}\"".format(cid, flv_url)
+              "--referrer=\"https://www.bilibili.com\" \"{}\" --title=\"{}\"".format(cid, flv_url, title)
     a = Danmaku2ASS(
         get_danmaku(cid),
         width,
@@ -399,7 +399,7 @@ def play_with_cid(video_id: str, cid: int, bangumi=False, bvid=True) -> None:
 
 
 # --merge-files
-def play_with_dash(video_id: str, cid: int, bvid=True):
+def play_with_dash(video_id: str, cid: int, bvid=True, title=""):
     if bvid:
         url1 = f"https://api.bilibili.com/x/player/playurl?cid={cid}&bvid={video_id}&fnval=16&fourk=0"
     else:
@@ -448,7 +448,7 @@ def play_with_dash(video_id: str, cid: int, bvid=True):
         f.write(a)
     command = f"mpv --sub-file=\"cached/{cid}.ass\" --user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) " \
               f"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.53\" " \
-              f"--referrer=\"https://www.bilibili.com\" \"{video_url}\" --audio-file=\"{audio_url}\" "
+              f"--referrer=\"https://www.bilibili.com\" \"{video_url}\" --audio-file=\"{audio_url}\" --title=\"{title}\""
     time = r.json()['data']["timelength"] / 1000
     update_history(video_id, cid, round(time) + 1)
     a = threading.Thread(target=os.system, args=(command,))
@@ -521,7 +521,7 @@ def recommend():
             bvid = rcmd[int(argument[0]) - 1]['bvid']
             avid = rcmd[int(argument[0]) - 1]['id']
             if command == "play":
-                play(bvid)
+                play(bvid, title=rcmd[int(argument[0]) - 1]['title'])
             elif command == "like":
                 like(bvid)
             elif command == "triple":
@@ -720,7 +720,7 @@ def search():
             bvid = result[int(argument[0]) - 1]['bvid']
             avid = result[int(argument[0]) - 1]['aid']
             if command == "play":
-                play(bvid)
+                play(bvid, title=result[int(argument[0]) - 1]['title'])
             elif command == "exit":
                 return
             elif command == "like":
@@ -767,7 +767,7 @@ def get_video_info(video_id: str, bvid=True, easy=False):
         print("作者: ", video.owner.name, " bvid: ", video.bvid, " 日期: ", datetime.datetime.fromtimestamp(
             video.pubdate).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_long(video.duration), " 观看量: ",
               video.stat.view)
-        return
+        return video.title
     print('avid: ', avid)
     print("bvid: ", bvid)
     print("标题: ", title)
@@ -823,7 +823,7 @@ def address(video: str):
         avid = video
         bvid = get_bvid(avid)
     print()
-    get_video_info(video_processed, is_bvid, easy=True)
+    title = get_video_info(video_processed, is_bvid, easy=True)
 
     while True:
         command = safe_input("链接选项: ")
@@ -835,7 +835,7 @@ def address(video: str):
         if not command:
             continue
         if command == "play":
-            play(bvid)
+            play(bvid, title=title)
         elif command == "like":
             like(bvid)
         elif command == "triple":
@@ -930,7 +930,7 @@ def list_collection(media_id):
             bvid = ls[int(argument[0]) - 1]['bvid']
             avid = ls[int(argument[0]) - 1]['id']
             if command == "play":
-                play(bvid)
+                play(bvid, title=ls[int(argument[0]) - 1]['title'])
             elif command == "exit":
                 return
             elif command == "like":
@@ -1016,7 +1016,7 @@ def precious():
         bvid = precious_list[int(argument[0]) - 1]['bvid']
         avid = precious_list[int(argument[0]) - 1]['aid']
         if command == "play":
-            play(bvid)
+            play(bvid, title=precious_list[int(argument[0]) - 1]['title'])
         elif command == "exit":
             return
         elif command == "like":
