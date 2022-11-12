@@ -62,31 +62,7 @@ def get_available_user():
         return None
 
 
-def ask_cookie(first_use):
-    global local_cookie
-    if first_use:
-        print("第一次使用LBCC, 是否配置cookie? (y/n)")
-        choose = input()
-        if choose.lower() == "y":
-            cookie_or_file = input("请输入cookies或文件路径: ")
-            if os.path.exists(cookie_or_file):
-                with open(cookie_or_file) as f:
-                    local_cookie = f.read()
-            else:
-                local_cookie = cookie_or_file
-            username = check_login(local_cookie)
-            if username:
-                print("Cookie指定的用户为: ", username)
-            else:
-                print("Cookie未指定用户,取消配置.")
-                return
-            with open(f"users/{username}.txt", "w") as f:
-                f.write(local_cookie)
-            with open("cookie", "w"):
-                pass
-            print("Cookie配置成功! LBCC将会退出. ")
-            input()
-            sys.exit(0)
+
 
 
 def add_cookie():

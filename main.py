@@ -26,6 +26,7 @@ The old version also use the GPL-3.0 license, not MIT License.
 import datetime
 import json
 import os
+import platform
 import shutil
 import sys
 import threading
@@ -37,7 +38,7 @@ import qrcode
 from bilibili import init
 from bilibili.biliass import Danmaku2ASS
 from bilibili.command import parse_text_command, parse_command, register_command
-from bilibili.users import check_login, get_available_user, fake_search_cookie, ask_cookie, add_cookie, set_user
+from bilibili.users import check_login, get_available_user, fake_search_cookie, add_cookie, set_user
 from bilibili.util_classes import JSON
 from bilibili.utils import get, post, format_long, response_to_cookie, encrypt_password, cookie_to_dict
 
@@ -447,8 +448,8 @@ def play_with_dash(video_id: str, cid: int, bvid=True, title=""):
     with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
         f.write(a)
     command = f"mpv --sub-file=\"cached/{cid}.ass\" --user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) " \
-              f"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.53\" " \
-              f"--referrer=\"https://www.bilibili.com\" \"{video_url}\" --audio-file=\"{audio_url}\" --title=\"{title}\""
+              f"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.53\" -" \
+              f"-referrer=\"https://www.bilibili.com\" \"{video_url}\" --audio-file=\"{audio_url}\" --title=\"{title}\""
     time = r.json()['data']["timelength"] / 1000
     update_history(video_id, cid, round(time) + 1)
     a = threading.Thread(target=os.system, args=(command,))
@@ -1168,6 +1169,33 @@ def main():
     while True:
         command = safe_input("主选项: ")
         parse_command(command)
+
+
+def check_environment():
+    if platform.system() == "Windows" and not os.path.exists("mpv.exe"):
+        print("mpv正在配置...")
+        with open("mpv.exe", "wb") as f:
+            f.write(get("https://programming-file.obs.cn-north-4.myhuaweicloud.com/mpv.exe").content)
+        print("mpv配置完成.")
+        return
+    elif platform.system() == "Linux" and os.path.exists("/etc/debian_version"):
+        print("mpv正在配置...")
+        prefix = "sudo " if shutil.which("sudo") else ""
+        os.system(f"{prefix}apt install mpv")
+        print("mpv配置完成.")
+        return
+    if os.path.exists("mpv.exe"):
+        return
+    print("所在平台可能并不支持mpv, 请到https://mpv.io/installation/下载.")
+
+
+def ask_cookie(first_use):
+    if first_use:
+        print("第一次使用LBCC, 是否配置用户? (y/n)")
+        choose = input()
+        if choose.lower() == "y":
+            add_user()
+    check_environment()
 
 
 print("LBCC v1.0.0-dev.")
