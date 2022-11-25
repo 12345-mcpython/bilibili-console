@@ -2,6 +2,8 @@
 
 ## 1.1 下载并安装
 
+这些内容仅限于[ec225094](https://github.com/12345-mcpython/bilibili-console/commit/ec22509402d7519d868c46ae52bdac70f423e747) 这个提交之前。
+
 首先安装 [python](http://www.python.org/downloads) 和 [mpv](https://laosun-image.obs.cn-north-4.myhuaweicloud.com/mpv.exe)
 
 然后 `git clone https://github.com/12345-mcpython/bilibili-console` 或
