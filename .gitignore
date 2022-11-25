@@ -65,7 +65,7 @@ coverage.xml
 .pytest_cache/
 cached/
 cached/*.jpg
-
+mpv.exe
 
 # Translations
 *.mo
