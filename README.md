@@ -26,8 +26,7 @@ Laosun Bilibili Console Client(LBCC) 是一个Bilibili命令行客户端.
    - [x] 点赞 & 投币 & 收藏
    - [ ] 评论.
    - [ ] 转发.
-   - [ ] *发送弹幕.
-   - [ ] -投稿视频.
+   - [ ] 投稿视频.
 
 - [ ] 排行榜
   - [ ] 入站必刷
@@ -43,7 +42,6 @@ Laosun Bilibili Console Client(LBCC) 是一个Bilibili命令行客户端.
 - [ ] 搜索
   - [x] 视频搜索
   - [ ] 热搜
-  - [ ] *搜索建议
   
    
 - [x] 收藏夹
@@ -53,10 +51,6 @@ Laosun Bilibili Console Client(LBCC) 是一个Bilibili命令行客户端.
    - [ ] 删除收藏内容
    
 - [ ] 专栏
-
-(带*的表示目前技术(播放器,控制台等)暂不可实现的功能)
-
-(带-的表示有风险的功能)
 
 ## 使用
 
