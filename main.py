@@ -47,19 +47,20 @@ else:
 
 
 class BiliBili:
-    def __init__(self):
+    def __init__(self, quality=32):
         self.cached_response = {}
         self.session = requests.Session()
         self.session.headers.update(headers)
         self.session.headers.update({"cookie": cookie})
-        self.quality = 80
+        self.quality = quality
         self.audio = 30280
         self.codecs = "avc"
+        self.login = False
 
     def recommend(self):
         print("推荐界面")
         while True:
-            recommend_request = self.session.get("https://api.bilibili.com/x/web-interface/index/top/feed/rcmd?ps=5")
+            recommend_request = self.get("https://api.bilibili.com/x/web-interface/index/top/feed/rcmd?ps=5")
             for num, item in enumerate(recommend_request.json()['data']['item']):
                 print(num + 1, ":")
                 print("封面: ", item['pic'])
@@ -158,6 +159,16 @@ class BiliBili:
                   f"--audio-file=\"{audio_url}\" " \
                   f"--title=\"{title}\""
         os.system(command)
+
+    def is_login(self):
+        r = self.get('https://api.bilibili.com/x/member/web/account')
+        if r.json()['code'] == -101:
+            return False
+        elif r.json()['code'] == 0:
+            self.quality = 80
+            return True
+        else:
+            return None
 
     def get(self, url: str, params=None, no_cache=True, **kwargs) -> requests.Response:
         if self.cached_response.get(url):
