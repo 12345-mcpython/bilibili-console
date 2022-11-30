@@ -27,20 +27,31 @@ import datetime
 import os
 
 import requests
+from requests.utils import dict_from_cookiejar
 
 from bilibili.utils import format_time
 
-cookie = ""
+headers = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                         "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
+           "referer": "https://www.bilibili.com"}
+
+if os.path.exists("cookie.txt"):
+    with open("cookie.txt") as f:
+        cookie = f.read()
+else:
+    b = requests.get("https://www.bilibili.com", headers=headers)
+    cookie = ''
+    for i, j in dict_from_cookiejar(b.cookies):
+        cookie += "{}={};".format(i, j)
+    cookie = cookie[:-1]
 
 
 class BiliBili:
     def __init__(self):
         self.cached_response = {}
         self.session = requests.Session()
-        self.session.headers.update(
-            {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                           "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
-             "referer": "https://www.bilibili.com", "cookie": cookie})
+        self.session.headers.update(headers)
+        self.session.headers.update({"cookie": cookie})
         self.quality = 80
         self.audio = 30280
         self.codecs = "avc"
