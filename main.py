@@ -41,7 +41,7 @@ if os.path.exists("cookie.txt"):
 else:
     b = requests.get("https://www.bilibili.com", headers=headers)
     cookie = ''
-    for i, j in dict_from_cookiejar(b.cookies):
+    for i, j in dict_from_cookiejar(b.cookies).items():
         cookie += "{}={};".format(i, j)
     cookie = cookie[:-1]
 
