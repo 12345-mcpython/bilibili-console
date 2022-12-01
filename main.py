@@ -119,10 +119,51 @@ class BiliBili:
                 self.recommend()
             elif command == "address":
                 self.address()
+            elif command == "bangumi":
+                self.bangumi()
             elif command == "exit":
                 sys.exit(0)
             else:
                 print("未知命令!")
+
+    def bangumi(self):
+        while True:
+            choose_bangumi = input("番剧选项: ")
+            if choose_bangumi == "address":
+                url = input("输入地址: ")
+                ssid_or_epid = url.split("/")[-1]
+                ssid_or_epid = ssid_or_epid.split("?")[0]
+                if ssid_or_epid.startswith("ss"):
+                    url = "http://api.bilibili.com/pgc/view/web/season?season_id=" + \
+                          ssid_or_epid.strip("ss")
+                else:
+                    url = "http://api.bilibili.com/pgc/view/web/season?ep_id=" + \
+                          ssid_or_epid.strip('ep')
+                bangumi_url = self.get(url)
+                bangumi_page = bangumi_url.json()['result']['episodes']
+                for i, j in enumerate(bangumi_page):
+                    print(f"{i + 1}: {j['share_copy']} ({j['badge']})")
+                print("请以冒号前面的数字为准选择视频.")
+                while True:
+                    page = input("选择视频: ")
+                    if page == "exit":
+                        break
+                    if not page:
+                        continue
+                    if not page.isdigit():
+                        continue
+                    if int(page) > len(bangumi_page) or int(page) <= 0:
+                        print("选视频错误!")
+                        continue
+                    cid = bangumi_page[int(page) - 1]['cid']
+                    bvid = bangumi_page[int(page) - 1]['bvid']
+                    height = bangumi_page[int(page) - 1]['dimension']['height']
+                    width = bangumi_page[int(page) - 1]['dimension']['width']
+                    epid = bangumi_page[int(page) - 1]['id']
+                    title = bangumi_page[int(page) - 1]['share_copy']
+                    self.play(video_id=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, width=width, height=height, title=title)
+            elif choose_bangumi == "exit":
+                return
 
     def get_danmaku(self, cid):
         # cache
@@ -130,7 +171,6 @@ class BiliBili:
         return resp.content
 
     def choose_video(self, video_id, bvid=True):
-
         if bvid:
             url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + video_id
         else:
@@ -164,9 +204,10 @@ class BiliBili:
             break
         return
 
-    def play(self, video_id, cid, bvid=True, title="", danmaku=False, width=0, height=0):
+    def play(self, video_id, cid, bvid=True, title="", bangumi=False, width=0, height=0, bangumi_bvid=""):
         # width height 参数用于bangumi
-        if danmaku:
+        dash = True
+        if bangumi:
             # danmaku 不需video_id, bvid
             url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
         else:
@@ -176,7 +217,8 @@ class BiliBili:
                 url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&avid={video_id}&fnval=16"
         # cache
         play_url_request = self.get(url, cache=True)
-        if not danmaku:
+
+        if not bangumi:
             videos = play_url_request.json()['data']['dash']["video"]
             audios = play_url_request.json()['data']['dash']["audio"]
 
@@ -207,8 +249,40 @@ class BiliBili:
                 width = video_mapping[default_video]['width']
                 height = video_mapping[default_video]['height']
         else:
-            video_url = play_url_request.json()['result']['durl'][0]['url']
-            audio_url = video_url
+            if not play_url_request.json()['result'].get("dash"):
+                dash = False
+            if not dash:
+                video_url = play_url_request.json()['result']['durl'][0]['url']
+            else:
+                videos = play_url_request.json()['result']['dash']["video"]
+                audios = play_url_request.json()['result']['dash']["audio"]
+
+                video_mapping = {}
+                audio_mapping = {}
+
+                for i in videos:
+                    if i['codecs'].startswith('avc'):
+                        video_mapping[i['id']] = {"id": i['id'], "url": i['base_url'], "width": i['width'],
+                                                  "height": i['height']}
+
+                for i in audios:
+                    audio_mapping[i['id']] = i['base_url']
+
+                default_audio = sorted(list(audio_mapping.keys()), reverse=True)[0]
+                default_video = sorted(list(video_mapping.keys()), reverse=True)[0]
+
+                try:
+                    audio_url = audio_mapping[self.audio]
+                except KeyError:
+                    audio_url = audio_mapping[default_audio]
+                try:
+                    video_url = video_mapping[self.quality]['url']
+                    width = video_mapping[self.quality]['width']
+                    height = video_mapping[self.quality]['height']
+                except KeyError:
+                    video_url = video_mapping[default_video]['url']
+                    width = video_mapping[default_video]['width']
+                    height = video_mapping[default_video]['height']
         a = Danmaku2ASS(
             self.get_danmaku(cid),
             width,
@@ -226,20 +300,35 @@ class BiliBili:
         )
         with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
             f.write(a)
-        command = f"mpv " \
-                  f"--sub-file=\"cached/{cid}.ass\" " \
-                  f"--user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) " \
-                  f"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.53\" " \
-                  f"--referrer=\"https://www.bilibili.com\" \"{video_url}\" " \
-                  f"--audio-file=\"{audio_url}\" " \
-                  f"--title=\"{title}\""
+        if not dash:
+            command = "mpv " \
+                      "--sub-file=\"cached/{}.ass\"" \
+                      "--user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0\" " \
+                      "--referrer=\"https://www.bilibili.com\" -" \
+                      "-title=\"{}\" " \
+                      "\"{}\" "
+        else:
+            command = f"mpv " \
+                      f"--sub-file=\"cached/{cid}.ass\" " \
+                      f"--user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) " \
+                      f"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.53\" " \
+                      f"--referrer=\"https://www.bilibili.com\"  " \
+                      f"--audio-file=\"{audio_url}\" " \
+                      f"--title=\"{title}\" " \
+                      f"\"{video_url}\""
         p = subprocess.Popen(command, shell=True)
         try:
             while p.poll() is None:
-                if bvid:
-                    people_watching = self.get(f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={video_id}")
+                if bangumi:
+                    people_watching = self.get(
+                        f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={bangumi_bvid}")
                 else:
-                    people_watching = self.get(f"https://api.bilibili.com/x/player/online/total?cid={cid}&aid={video_id}")
+                    if bvid:
+                        people_watching = self.get(
+                            f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={video_id}")
+                    else:
+                        people_watching = self.get(
+                            f"https://api.bilibili.com/x/player/online/total?cid={cid}&aid={video_id}")
                 people = f"\r{people_watching.json()['data']['total']} 人正在看"
                 print(people, end="", flush=True)
                 time.sleep(2)
@@ -247,6 +336,9 @@ class BiliBili:
             print("获取观看人数时发生错误!")
             sys.exc_info()
         print("\n")
+
+    def download(self, video_id, bvid=True):
+        pass
 
     def is_login(self):
         # no cache
