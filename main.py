@@ -31,9 +31,10 @@ import time
 
 import requests
 from requests.utils import dict_from_cookiejar
+from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
-from bilibili.utils import format_time
+from bilibili.utils import format_time, validateTitle
 
 headers = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                          "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
@@ -108,6 +109,9 @@ class BiliBili:
                 return
             elif command == "play":
                 self.choose_video(bvid, bvid=True)
+            elif command == "download":
+                cid, title = self.choose_video(bvid, bvid=True, cid_mode=True)
+                self.download(bvid, cid, title=title)
             else:
                 print("未知命令!")
 
@@ -161,7 +165,8 @@ class BiliBili:
                     width = bangumi_page[int(page) - 1]['dimension']['width']
                     epid = bangumi_page[int(page) - 1]['id']
                     title = bangumi_page[int(page) - 1]['share_copy']
-                    self.play(video_id=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, width=width, height=height, title=title)
+                    self.play(video_id=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, width=width, height=height,
+                              title=title)
             elif choose_bangumi == "exit":
                 return
 
@@ -170,7 +175,7 @@ class BiliBili:
         resp = self.get("https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(cid))
         return resp.content
 
-    def choose_video(self, video_id, bvid=True):
+    def choose_video(self, video_id, bvid=True, cid_mode=False):
         if bvid:
             url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + video_id
         else:
@@ -200,7 +205,10 @@ class BiliBili:
             elif int(page) > len(video) or int(page) <= 0:
                 print("选视频超出范围!")
                 continue
-            self.play(video_id, video[int(page) - 1]['cid'], bvid, title)
+            if not cid_mode:
+                self.play(video_id, video[int(page) - 1]['cid'], bvid, title)
+            else:
+                return video[int(page) - 1]['cid'], title
             break
         return
 
@@ -298,6 +306,8 @@ class BiliBili:
             is_reduce_comments=False,
             progress_callback=None,
         )
+        if not os.path.exists("cached"):
+            os.mkdir("cached")
         with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
             f.write(a)
         if not dash:
@@ -337,8 +347,49 @@ class BiliBili:
             sys.exc_info()
         print("\n")
 
-    def download(self, video_id, bvid=True):
-        pass
+    def download(self, video_id, cid, bvid=True, bangumi=False, title=""):
+        if not bangumi:
+            if bvid:
+                url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&ty" \
+                       f"pe=&otype=json&bvid={video_id}"
+            else:
+                url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&type=&oty" \
+                       f"pe=json&avid={video_id}"
+        else:
+            url = f"https://api.bilibili.com/pgc/player/web/playurl?qn={self.quality}&cid={cid}&ep_id={video_id}"
+
+        req = self.get(url)
+        download_url = req.json()["data" if not bangumi else "result"]["durl"][0]["url"]
+
+        res = self.get(download_url, stream=True)
+        length = float(res.headers['content-length'])
+        if not os.path.exists("download"):
+            os.mkdir("download")
+        dts = "download/" + validateTitle(title) + ".mp4"
+        f = open(dts, 'wb')
+        pbar = tqdm(total=length, initial=os.path.getsize(dts), unit_scale=True, desc=dts, ncols=120)
+        for chuck in res.iter_content(chunk_size=512):
+            f.write(chuck)
+            pbar.update(512)
+        f.close()
+
+        # a = Danmaku2ASS(
+        #     self.get_danmaku(cid),
+        #     width,
+        #     height,
+        #     input_format="protobuf",
+        #     reserve_blank=0,
+        #     font_face="SimHei",
+        #     font_size=25,
+        #     text_opacity=0.8,
+        #     duration_marquee=15.0,
+        #     duration_still=10.0,
+        #     comment_filter=None,
+        #     is_reduce_comments=False,
+        #     progress_callback=None,
+        # )
+        # with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
+        #     f.write(a)
 
     def is_login(self):
         # no cache

@@ -1,3 +1,6 @@
+import re
+
+
 def format_time(time):
     if time > 60 * 60:
         fmt = "{}:{}:{}"
@@ -24,3 +27,9 @@ def format_time(time):
         if sec < 10 and minute < 10:
             fmt = "0{}:0{}"
         return fmt.format(minute, sec)
+
+
+def validateTitle(title):
+    rstr = r"[\/\\\:\*\?\"\<\>\|]"  # '/ \ : * ? " < > |'
+    new_title = re.sub(rstr, "_", title)  # 替换为下划线
+    return new_title
