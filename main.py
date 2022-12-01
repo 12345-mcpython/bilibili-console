@@ -87,43 +87,64 @@ class BiliBili:
                     continue
                 bvid = recommend_request.json()['data']['item'][int(command) - 1]['bvid']
                 avid = recommend_request.json()['data']['item'][int(command) - 1]['id']
-                title = recommend_request.json()['data']['item'][int(command) - 1]['title']
-                self.view_video(avid, bvid, title)
+                # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
+                self.view_video(avid, bvid)
 
-    def view_video(self, avid, bvid, title):
+    def address(self):
+        video_address = input("输入地址: ")
+        if "b23.tv" in video_address:
+            video_address = requests.get(video_address, headers=headers).url
+        url_split = video_address.split("/")
+        if url_split[-1].startswith("?"):
+            video_id = url_split[-2]
+        else:
+            video_id = url_split[-1].split("?")[0]
+        self.choose_video(video_id=video_id, bvid=video_id.startswith("BV"))
+
+    def view_video(self, avid, bvid):
         while True:
             command = input("视频选项: ")
             if not command:
                 return
             elif command == "play":
-                self.choose_video(bvid, title=title, bvid=True)
+                self.choose_video(bvid, bvid=True)
             else:
                 print("未知命令!")
 
     def main(self):
         self.is_login()
-        self.recommend()
+        while True:
+            command = input("主选项: ")
+            if command == "recommend":
+                self.recommend()
+            elif command == "address":
+                self.address()
+            elif command == "exit":
+                sys.exit(0)
+            else:
+                print("未知命令!")
 
     def get_danmaku(self, cid):
-        params = {
-            'type': '1',
-            'oid': cid,
-            'segment_index': '1'
-        }
         # cache
-        resp = self.get("https://api.bilibili.com/x/v2/dm/web/seg.so", params=params, cache=True)
+        resp = self.get("https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(cid))
         return resp.content
 
-    def choose_video(self, video_id, bvid=True, title=""):
-        print("\n")
-        print("视频选集")
+    def choose_video(self, video_id, bvid=True):
+
         if bvid:
             url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + video_id
         else:
             url = "https://api.bilibili.com/x/web-interface/view/detail?aid=" + video_id
         # cache
         r = self.get(url, cache=True)
+        if r.json()['code'] != 0:
+            print("获取视频信息错误!")
+            print(r.json()['message'])
+            return
+        print("\n")
+        print("视频选集")
         video = r.json()['data']["View"]["pages"]
+        title = r.json()['data']["View"]['title']
         for i in video:
             print(f"{i['page']}: {i['part']}")
         print("请以冒号前面的数字为准选择视频.")
@@ -213,14 +234,18 @@ class BiliBili:
                   f"--audio-file=\"{audio_url}\" " \
                   f"--title=\"{title}\""
         p = subprocess.Popen(command, shell=True)
-        while p.poll() is None:
-            if bvid:
-                people_watching = self.get(f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={video_id}")
-            else:
-                people_watching = self.get(f"https://api.bilibili.com/x/player/online/total?cid={cid}&aid={video_id}")
-            people = f"\r{people_watching.json()['data']['total']} 人正在看"
-            print(people, end="", flush=True)
-            time.sleep(2)
+        try:
+            while p.poll() is None:
+                if bvid:
+                    people_watching = self.get(f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={video_id}")
+                else:
+                    people_watching = self.get(f"https://api.bilibili.com/x/player/online/total?cid={cid}&aid={video_id}")
+                people = f"\r{people_watching.json()['data']['total']} 人正在看"
+                print(people, end="", flush=True)
+                time.sleep(2)
+        except TypeError:
+            print("获取观看人数时发生错误!")
+            sys.exc_info()
         print("\n")
 
     def is_login(self):
