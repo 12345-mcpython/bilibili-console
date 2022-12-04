@@ -34,7 +34,7 @@ from requests.utils import dict_from_cookiejar
 from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
-from bilibili.utils import format_time, validateTitle
+from bilibili.utils import format_time, validateTitle, enc
 
 headers = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                          "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
@@ -87,9 +87,8 @@ class BiliBili:
                     print("选视频超出范围!")
                     continue
                 bvid = recommend_request.json()['data']['item'][int(command) - 1]['bvid']
-                avid = recommend_request.json()['data']['item'][int(command) - 1]['id']
                 # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
-                self.view_video(avid, bvid)
+                self.view_video(bvid)
 
     def address(self):
         video_address = input("输入地址: ")
@@ -100,9 +99,12 @@ class BiliBili:
             video_id = url_split[-2]
         else:
             video_id = url_split[-1].split("?")[0]
-        self.choose_video(video_id=video_id, bvid=video_id.startswith("BV"))
+        if video_id.startswith("BV"):
+            self.view_video(bvid=video_id)
+        else:
+            self.view_video(bvid=enc(int(video_id.strip("av"))))
 
-    def view_video(self, avid, bvid):
+    def view_video(self, bvid):
         while True:
             command = input("视频选项: ")
             if not command:
@@ -110,8 +112,8 @@ class BiliBili:
             elif command == "play":
                 self.choose_video(bvid, bvid=True)
             elif command == "download":
-                cid, title = self.choose_video(bvid, bvid=True, cid_mode=True)
-                self.download(bvid, cid, title=title)
+                cid, title, part_title = self.choose_video(bvid, bvid=True, cid_mode=True)
+                self.download(bvid, cid, title=title, part_title=part_title)
             else:
                 print("未知命令!")
 
@@ -208,13 +210,13 @@ class BiliBili:
             if not cid_mode:
                 self.play(video_id, video[int(page) - 1]['cid'], bvid, title)
             else:
-                return video[int(page) - 1]['cid'], title
+                return video[int(page) - 1]['cid'], title, video[int(page) - 1]['part']
             break
         return
 
     def play(self, video_id, cid, bvid=True, title="", bangumi=False, width=0, height=0, bangumi_bvid=""):
         # width height 参数用于bangumi
-        dash = True
+        # dash = True
         if bangumi:
             # danmaku 不需video_id, bvid
             url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
@@ -229,68 +231,42 @@ class BiliBili:
         if not bangumi:
             videos = play_url_request.json()['data']['dash']["video"]
             audios = play_url_request.json()['data']['dash']["audio"]
-
-            video_mapping = {}
-            audio_mapping = {}
-
-            for i in videos:
-                if i['codecs'].startswith('avc'):
-                    video_mapping[i['id']] = {"id": i['id'], "url": i['base_url'], "width": i['width'],
-                                              "height": i['height']}
-
-            for i in audios:
-                audio_mapping[i['id']] = i['base_url']
-
-            default_audio = sorted(list(audio_mapping.keys()), reverse=True)[0]
-            default_video = sorted(list(video_mapping.keys()), reverse=True)[0]
-
-            try:
-                audio_url = audio_mapping[self.audio]
-            except KeyError:
-                audio_url = audio_mapping[default_audio]
-            try:
-                video_url = video_mapping[self.quality]['url']
-                width = video_mapping[self.quality]['width']
-                height = video_mapping[self.quality]['height']
-            except KeyError:
-                video_url = video_mapping[default_video]['url']
-                width = video_mapping[default_video]['width']
-                height = video_mapping[default_video]['height']
         else:
-            if not play_url_request.json()['result'].get("dash"):
-                dash = False
-            if not dash:
-                video_url = play_url_request.json()['result']['durl'][0]['url']
-            else:
-                videos = play_url_request.json()['result']['dash']["video"]
-                audios = play_url_request.json()['result']['dash']["audio"]
+            # if not play_url_request.json()['result'].get("dash"):
+            #     dash = False
+            # if not dash:
+            #     video_url = play_url_request.json()['result']['durl'][0]['url']
+            # else:
+            videos = play_url_request.json()['result']['dash']["video"]
+            audios = play_url_request.json()['result']['dash']["audio"]
+        # if dash:
+        video_mapping = {}
+        audio_mapping = {}
 
-                video_mapping = {}
-                audio_mapping = {}
+        for i in videos:
+            if i['codecs'].startswith('avc'):
+                video_mapping[i['id']] = {"id": i['id'], "url": i['base_url'], "width": i['width'],
+                                          "height": i['height']}
 
-                for i in videos:
-                    if i['codecs'].startswith('avc'):
-                        video_mapping[i['id']] = {"id": i['id'], "url": i['base_url'], "width": i['width'],
-                                                  "height": i['height']}
+        for i in audios:
+            audio_mapping[i['id']] = i['base_url']
 
-                for i in audios:
-                    audio_mapping[i['id']] = i['base_url']
+        default_audio = sorted(list(audio_mapping.keys()), reverse=True)[0]
+        default_video = sorted(list(video_mapping.keys()), reverse=True)[0]
 
-                default_audio = sorted(list(audio_mapping.keys()), reverse=True)[0]
-                default_video = sorted(list(video_mapping.keys()), reverse=True)[0]
+        try:
+            audio_url = audio_mapping[self.audio]
+        except KeyError:
+            audio_url = audio_mapping[default_audio]
+        try:
+            video_url = video_mapping[self.quality]['url']
+            width = video_mapping[self.quality]['width']
+            height = video_mapping[self.quality]['height']
+        except KeyError:
+            video_url = video_mapping[default_video]['url']
+            width = video_mapping[default_video]['width']
+            height = video_mapping[default_video]['height']
 
-                try:
-                    audio_url = audio_mapping[self.audio]
-                except KeyError:
-                    audio_url = audio_mapping[default_audio]
-                try:
-                    video_url = video_mapping[self.quality]['url']
-                    width = video_mapping[self.quality]['width']
-                    height = video_mapping[self.quality]['height']
-                except KeyError:
-                    video_url = video_mapping[default_video]['url']
-                    width = video_mapping[default_video]['width']
-                    height = video_mapping[default_video]['height']
         a = Danmaku2ASS(
             self.get_danmaku(cid),
             width,
@@ -310,22 +286,23 @@ class BiliBili:
             os.mkdir("cached")
         with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
             f.write(a)
-        if not dash:
-            command = "mpv " \
-                      "--sub-file=\"cached/{}.ass\"" \
-                      "--user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0\" " \
-                      "--referrer=\"https://www.bilibili.com\" -" \
-                      "-title=\"{}\" " \
-                      "\"{}\" "
-        else:
-            command = f"mpv " \
-                      f"--sub-file=\"cached/{cid}.ass\" " \
-                      f"--user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) " \
-                      f"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.53\" " \
-                      f"--referrer=\"https://www.bilibili.com\"  " \
-                      f"--audio-file=\"{audio_url}\" " \
-                      f"--title=\"{title}\" " \
-                      f"\"{video_url}\""
+        # if not dash:
+        #     command = "mpv " \
+        #               "--sub-file=\"cached/{}.ass\"" \
+        #               "--user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0\" " \
+        #               "--referrer=\"https://www.bilibili.com\" -" \
+        #               "-title=\"{}\" " \
+        #               "\"{}\" "
+        # else:
+        command = f"mpv " \
+                  f"--sub-file=\"cached/{cid}.ass\" " \
+                  f"--user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) " \
+                  f"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.53\" " \
+                  f"--referrer=\"https://www.bilibili.com\"  " \
+                  f"--audio-file=\"{audio_url}\" " \
+                  f"--title=\"{title}\" " \
+                  f"--loop " \
+                  f"\"{video_url}\""
         p = subprocess.Popen(command, shell=True)
         try:
             while p.poll() is None:
@@ -341,20 +318,20 @@ class BiliBili:
                             f"https://api.bilibili.com/x/player/online/total?cid={cid}&aid={video_id}")
                 people = f"\r{people_watching.json()['data']['total']} 人正在看"
                 print(people, end="", flush=True)
-                time.sleep(2)
-        except TypeError:
+                time.sleep(3)
+        except (TypeError, requests.exceptions.RequestException):
             print("获取观看人数时发生错误!")
             sys.exc_info()
         print("\n")
 
-    def download(self, video_id, cid, bvid=True, bangumi=False, title=""):
+    def download(self, video_id, cid, bvid=True, bangumi=False, title="", part_title=""):
         if not bangumi:
             if bvid:
                 url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&ty" \
-                       f"pe=&otype=json&bvid={video_id}"
+                      f"pe=&otype=json&bvid={video_id}"
             else:
                 url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&type=&oty" \
-                       f"pe=json&avid={video_id}"
+                      f"pe=json&avid={video_id}"
         else:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?qn={self.quality}&cid={cid}&ep_id={video_id}"
 
@@ -365,14 +342,22 @@ class BiliBili:
         length = float(res.headers['content-length'])
         if not os.path.exists("download"):
             os.mkdir("download")
-        dts = "download/" + validateTitle(title) + ".mp4"
+        if not os.path.exists("download/" + validateTitle(title)):
+            os.mkdir("download/" + validateTitle(title))
+        dts = "download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".mp4"
         f = open(dts, 'wb')
-        pbar = tqdm(total=length, initial=os.path.getsize(dts), unit_scale=True, desc=dts, ncols=120)
-        for chuck in res.iter_content(chunk_size=512):
-            f.write(chuck)
-            pbar.update(512)
-        f.close()
-
+        pbar = tqdm(total=length, initial=os.path.getsize(dts), unit_scale=True,
+                    desc=validateTitle(part_title) + ".mp4", unit="B")
+        try:
+            for chuck in res.iter_content(chunk_size=1000):
+                f.write(chuck)
+                pbar.update(1000)
+        except KeyboardInterrupt:
+            f.close()
+            os.remove(dts)
+            os.rmdir("download/" + validateTitle(title))
+        if not f.closed:
+            f.close()
         # a = Danmaku2ASS(
         #     self.get_danmaku(cid),
         #     width,
@@ -407,12 +392,13 @@ class BiliBili:
         if self.cached_response.get(url):
             return self.cached_response.get(url)
         else:
-            count = 3
+            count = 5
             while True:
                 try:
                     r = self.session.get(url, params=params, timeout=5, **kwargs)
                     break
                 except requests.exceptions.RequestException as request_error:
+                    print("\n")
                     print(f"{url}请求错误! 将会重试{count}次! ")
                     count -= 1
                     if count <= 0:
