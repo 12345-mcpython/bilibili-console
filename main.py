@@ -112,8 +112,8 @@ class BiliBili:
             elif command == "play":
                 self.choose_video(bvid, bvid=True)
             elif command == "download":
-                cid, title, part_title = self.choose_video(bvid, bvid=True, cid_mode=True)
-                self.download(bvid, cid, title=title, part_title=part_title)
+                cid, title, part_title, pic = self.choose_video(bvid, bvid=True, cid_mode=True)
+                self.download(bvid, cid, pic_url=pic, title=title, part_title=part_title)
             else:
                 print("未知命令!")
 
@@ -192,6 +192,7 @@ class BiliBili:
         print("视频选集")
         video = r.json()['data']["View"]["pages"]
         title = r.json()['data']["View"]['title']
+        pic = r.json()['data']["View"]['pic']
         for i in video:
             print(f"{i['page']}: {i['part']}")
         print("请以冒号前面的数字为准选择视频.")
@@ -210,7 +211,7 @@ class BiliBili:
             if not cid_mode:
                 self.play(video_id, video[int(page) - 1]['cid'], bvid, title)
             else:
-                return video[int(page) - 1]['cid'], title, video[int(page) - 1]['part']
+                return video[int(page) - 1]['cid'], title, video[int(page) - 1]['part'], pic
             break
         return
 
@@ -324,7 +325,7 @@ class BiliBili:
             sys.exc_info()
         print("\n")
 
-    def download(self, video_id, cid, bvid=True, bangumi=False, title="", part_title=""):
+    def download(self, video_id, cid, pic_url, bvid=True, bangumi=False, title="", part_title=""):
         if not bangumi:
             if bvid:
                 url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&ty" \
@@ -345,6 +346,11 @@ class BiliBili:
         if not os.path.exists("download/" + validateTitle(title)):
             os.mkdir("download/" + validateTitle(title))
         dts = "download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".mp4"
+        if os.path.exists(dts):
+            c = input("文件已存在, 是否覆盖(y/n)? ")
+            if c != "y":
+                print("停止操作.")
+                return
         f = open(dts, 'wb')
         pbar = tqdm(total=length, initial=os.path.getsize(dts), unit_scale=True,
                     desc=validateTitle(part_title) + ".mp4", unit="B")
@@ -355,26 +361,15 @@ class BiliBili:
         except KeyboardInterrupt:
             f.close()
             os.remove(dts)
-            os.rmdir("download/" + validateTitle(title))
+            if len(os.listdir("download/" + validateTitle(title))) == 0:
+                os.rmdir("download/" + validateTitle(title))
+            return
         if not f.closed:
             f.close()
-        # a = Danmaku2ASS(
-        #     self.get_danmaku(cid),
-        #     width,
-        #     height,
-        #     input_format="protobuf",
-        #     reserve_blank=0,
-        #     font_face="SimHei",
-        #     font_size=25,
-        #     text_opacity=0.8,
-        #     duration_marquee=15.0,
-        #     duration_still=10.0,
-        #     comment_filter=None,
-        #     is_reduce_comments=False,
-        #     progress_callback=None,
-        # )
-        # with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
-        #     f.write(a)
+        with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".jpg", "wb") as f:
+            f.write(self.get(pic_url).content)
+        with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "wb") as f:
+            f.write(self.get(f"https://comment.bilibili.com/{cid}.xml").content)
 
     def is_login(self):
         # no cache
