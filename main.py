@@ -61,6 +61,7 @@ class BiliBili:
         self.audio = 30280
         self.codecs = "avc"
         self.login = False
+        self.view_online_watch = True
 
     def recommend(self):
         print("推荐界面")
@@ -113,7 +114,7 @@ class BiliBili:
                 self.choose_video(bvid, bvid=True)
             elif command == "download":
                 cid, title, part_title, pic = self.choose_video(bvid, bvid=True, cid_mode=True)
-                self.download(bvid, cid, pic_url=pic, title=title, part_title=part_title)
+                self.download_one(bvid, cid, pic_url=pic, title=title, part_title=part_title)
             else:
                 print("未知命令!")
 
@@ -121,6 +122,7 @@ class BiliBili:
         self.is_login()
         while True:
             command = input("主选项: ")
+            command = command.lower().strip()
             if command == "recommend":
                 self.recommend()
             elif command == "address":
@@ -129,6 +131,10 @@ class BiliBili:
                 self.bangumi()
             elif command == "exit":
                 sys.exit(0)
+            elif command == "enable_online_watching":
+                self.view_online_watch = True
+            elif command == "disable_online_watching":
+                self.view_online_watch = False
             else:
                 print("未知命令!")
 
@@ -163,18 +169,15 @@ class BiliBili:
                         continue
                     cid = bangumi_page[int(page) - 1]['cid']
                     bvid = bangumi_page[int(page) - 1]['bvid']
-                    height = bangumi_page[int(page) - 1]['dimension']['height']
-                    width = bangumi_page[int(page) - 1]['dimension']['width']
                     epid = bangumi_page[int(page) - 1]['id']
                     title = bangumi_page[int(page) - 1]['share_copy']
-                    self.play(video_id=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, width=width, height=height,
-                              title=title)
+                    self.play(video_id=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, title=title)
             elif choose_bangumi == "exit":
                 return
 
     def get_danmaku(self, cid):
-        # cache
-        resp = self.get("https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(cid))
+        resp = self.get("https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(cid),
+                        cache=True)
         return resp.content
 
     def choose_video(self, video_id, bvid=True, cid_mode=False):
@@ -186,6 +189,7 @@ class BiliBili:
         r = self.get(url, cache=True)
         if r.json()['code'] != 0:
             print("获取视频信息错误!")
+            print(r.json()['code'])
             print(r.json()['message'])
             return
         print("\n")
@@ -215,7 +219,7 @@ class BiliBili:
             break
         return
 
-    def play(self, video_id, cid, bvid=True, title="", bangumi=False, width=0, height=0, bangumi_bvid=""):
+    def play(self, video_id, cid, bvid=True, title="", bangumi=False, bangumi_bvid=""):
         # width height 参数用于bangumi
         # dash = True
         if bangumi:
@@ -267,34 +271,26 @@ class BiliBili:
             video_url = video_mapping[default_video]['url']
             width = video_mapping[default_video]['width']
             height = video_mapping[default_video]['height']
-
-        a = Danmaku2ASS(
-            self.get_danmaku(cid),
-            width,
-            height,
-            input_format="protobuf",
-            reserve_blank=0,
-            font_face="SimHei",
-            font_size=25,
-            text_opacity=0.8,
-            duration_marquee=15.0,
-            duration_still=10.0,
-            comment_filter=None,
-            is_reduce_comments=False,
-            progress_callback=None,
-        )
         if not os.path.exists("cached"):
             os.mkdir("cached")
-        with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
-            f.write(a)
-        # if not dash:
-        #     command = "mpv " \
-        #               "--sub-file=\"cached/{}.ass\"" \
-        #               "--user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:51.0) Gecko/20100101 Firefox/51.0\" " \
-        #               "--referrer=\"https://www.bilibili.com\" -" \
-        #               "-title=\"{}\" " \
-        #               "\"{}\" "
-        # else:
+        if not os.path.exists(f"cached/{cid}.ass"):
+            a = Danmaku2ASS(
+                self.get_danmaku(cid),
+                width,
+                height,
+                input_format="protobuf",
+                reserve_blank=0,
+                font_face="SimHei",
+                font_size=25,
+                text_opacity=0.8,
+                duration_marquee=15.0,
+                duration_still=10.0,
+                comment_filter=None,
+                is_reduce_comments=False,
+                progress_callback=None,
+            )
+            with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
+                f.write(a)
         command = f"mpv " \
                   f"--sub-file=\"cached/{cid}.ass\" " \
                   f"--user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) " \
@@ -305,27 +301,27 @@ class BiliBili:
                   f"--loop " \
                   f"\"{video_url}\""
         p = subprocess.Popen(command, shell=True)
-        try:
-            while p.poll() is None:
-                if bangumi:
-                    people_watching = self.get(
-                        f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={bangumi_bvid}")
-                else:
-                    if bvid:
+        if self.view_online_watch:
+            try:
+                while p.poll() is None:
+                    if bangumi:
                         people_watching = self.get(
-                            f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={video_id}")
+                            f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={bangumi_bvid}")
                     else:
-                        people_watching = self.get(
-                            f"https://api.bilibili.com/x/player/online/total?cid={cid}&aid={video_id}")
-                people = f"\r{people_watching.json()['data']['total']} 人正在看"
-                print(people, end="", flush=True)
-                time.sleep(3)
-        except (TypeError, requests.exceptions.RequestException):
-            print("获取观看人数时发生错误!")
-            sys.exc_info()
+                        if bvid:
+                            people_watching = self.get(
+                                f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={video_id}")
+                        else:
+                            people_watching = self.get(
+                                f"https://api.bilibili.com/x/player/online/total?cid={cid}&aid={video_id}")
+                    people = f"\r{people_watching.json()['data']['total']} 人正在看"
+                    print(people, end="", flush=True)
+                    time.sleep(3)
+            except (TypeError, requests.exceptions.RequestException):
+                print("获取观看人数时发生错误!")
         print("\n")
 
-    def download(self, video_id, cid, pic_url, bvid=True, bangumi=False, title="", part_title=""):
+    def download_one(self, video_id, cid, pic_url, bvid=True, bangumi=False, title="", part_title=""):
         if not bangumi:
             if bvid:
                 url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&ty" \
@@ -363,6 +359,7 @@ class BiliBili:
             os.remove(dts)
             if len(os.listdir("download/" + validateTitle(title))) == 0:
                 os.rmdir("download/" + validateTitle(title))
+            print("取消下载.")
             return
         if not f.closed:
             f.close()
