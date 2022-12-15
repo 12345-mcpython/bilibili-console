@@ -28,6 +28,7 @@ import os
 import subprocess
 import sys
 import time
+import traceback
 
 import requests
 from requests.utils import dict_from_cookiejar
@@ -220,10 +221,7 @@ class BiliBili:
         return
 
     def play(self, video_id, cid, bvid=True, title="", bangumi=False, bangumi_bvid=""):
-        # width height 参数用于bangumi
-        # dash = True
         if bangumi:
-            # danmaku 不需video_id, bvid
             url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
         else:
             if bvid:
@@ -237,14 +235,9 @@ class BiliBili:
             videos = play_url_request.json()['data']['dash']["video"]
             audios = play_url_request.json()['data']['dash']["audio"]
         else:
-            # if not play_url_request.json()['result'].get("dash"):
-            #     dash = False
-            # if not dash:
-            #     video_url = play_url_request.json()['result']['durl'][0]['url']
-            # else:
             videos = play_url_request.json()['result']['dash']["video"]
             audios = play_url_request.json()['result']['dash']["audio"]
-        # if dash:
+
         video_mapping = {}
         audio_mapping = {}
 
@@ -317,8 +310,9 @@ class BiliBili:
                     people = f"\r{people_watching.json()['data']['total']} 人正在看"
                     print(people, end="", flush=True)
                     time.sleep(3)
-            except (TypeError, requests.exceptions.RequestException):
+            except (TypeError, requests.exceptions.RequestException) as e:
                 print("获取观看人数时发生错误!")
+                print(traceback.print_exc())
         print("\n")
 
     def download_one(self, video_id, cid, pic_url, bvid=True, bangumi=False, title="", part_title=""):
@@ -347,33 +341,39 @@ class BiliBili:
             if c != "y":
                 print("停止操作.")
                 return
-        f = open(dts, 'wb')
-        pbar = tqdm(total=length, initial=os.path.getsize(dts), unit_scale=True,
-                    desc=validateTitle(part_title) + ".mp4", unit="B")
+        file = open(dts, 'wb')
+        progress = tqdm(total=length, initial=os.path.getsize(dts), unit_scale=True,
+                        desc=validateTitle(part_title) + ".mp4", unit="B")
         try:
             for chuck in res.iter_content(chunk_size=1000):
-                f.write(chuck)
-                pbar.update(1000)
+                file.write(chuck)
+                progress.update(1000)
         except KeyboardInterrupt:
-            f.close()
+            file.close()
             os.remove(dts)
             if len(os.listdir("download/" + validateTitle(title))) == 0:
                 os.rmdir("download/" + validateTitle(title))
             print("取消下载.")
             return
-        if not f.closed:
-            f.close()
-        with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".jpg", "wb") as f:
-            f.write(self.get(pic_url).content)
-        with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "wb") as f:
-            f.write(self.get(f"https://comment.bilibili.com/{cid}.xml").content)
+        if not file.closed:
+            file.close()
+        print("下载封面中...")
+        with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".jpg", "wb") as file:
+            file.write(self.get(pic_url).content)
+        print("下载弹幕中...")
+        with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "w") as file:
+            file.write(self.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
 
     def is_login(self):
         # no cache
         r = self.get('https://api.bilibili.com/x/member/web/account')
         if r.json()['code'] == -101:
+            print("账号尚未登录.")
+            print("")
             return False
         elif r.json()['code'] == 0:
+            print("账号已登录.")
+            print("")
             # 登录才可使用32 80分辨率 大会员分辨率暂不支持
             self.quality = 80
             return True
