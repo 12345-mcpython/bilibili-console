@@ -96,15 +96,44 @@ class BiliBili:
         video_address = input("输入地址: ")
         if "b23.tv" in video_address:
             video_address = requests.get(video_address, headers=headers).url
+
         url_split = video_address.split("/")
         if url_split[-1].startswith("?"):
             video_id = url_split[-2]
         else:
             video_id = url_split[-1].split("?")[0]
         if video_id.startswith("BV"):
+            video = self.get(
+                "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + str(video_id.strip("av")))
+            video_info = video.json()['data']['View']
+            print("封面: ", video_info['pic'])
+            print("标题: ", video_info['title'])
+            print("作者: ", video_info['owner']['name'], " bvid: ", video_info['bvid'], " 日期: ",
+                  datetime.datetime.fromtimestamp(
+                      video_info['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:",
+                  format_time(video_info['duration']), " 观看量: ",
+                  video_info['stat']['view'])
             self.view_video(bvid=video_id)
         else:
+            video = self.get(
+                "https://api.bilibili.com/x/web-interface/view/detail?aid=" + str(enc(int(video_id.strip("av")))))
+            video_info = video.json()['data']['View']
+            print("封面: ", video_info['pic'])
+            print("标题: ", video_info['title'])
+            print("作者: ", video_info['owner']['name'], " bvid: ", video_info['bvid'], " 日期: ", datetime.datetime.fromtimestamp(
+                video_info['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_time(video_info['duration']), " 观看量: ",
+                  video_info['stat']['view'])
+            print()
             self.view_video(bvid=enc(int(video_id.strip("av"))))
+
+    def view_short_video_info(self, bvid):
+        video = self.get("https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid)
+        item = video.json()['data']['View']
+        print("封面: ", item['pic'])
+        print("标题: ", item['title'])
+        print("作者: ", item['owner']['name'], " bvid: ", item['bvid'], " 日期: ", datetime.datetime.fromtimestamp(
+            item['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_time(item['duration']), " 观看量: ",
+              item['stat']['view'])
 
     def view_video(self, bvid):
         while True:
@@ -112,9 +141,9 @@ class BiliBili:
             if not command:
                 return
             elif command == "play":
-                self.choose_video(bvid, bvid=True)
+                self.choose_video(bvid)
             elif command == "download":
-                cid, title, part_title, pic = self.choose_video(bvid, bvid=True, cid_mode=True)
+                cid, title, part_title, pic = self.choose_video(bvid, cid_mode=True)
                 self.download_one(bvid, cid, pic_url=pic, title=title, part_title=part_title)
             else:
                 print("未知命令!")
@@ -172,7 +201,7 @@ class BiliBili:
                     bvid = bangumi_page[int(page) - 1]['bvid']
                     epid = bangumi_page[int(page) - 1]['id']
                     title = bangumi_page[int(page) - 1]['share_copy']
-                    self.play(video_id=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, title=title)
+                    self.play(bvid=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, title=title)
             elif choose_bangumi == "exit":
                 return
 
@@ -181,11 +210,8 @@ class BiliBili:
                         cache=True)
         return resp.content
 
-    def choose_video(self, video_id, bvid=True, cid_mode=False):
-        if bvid:
-            url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + video_id
-        else:
-            url = "https://api.bilibili.com/x/web-interface/view/detail?aid=" + video_id
+    def choose_video(self, bvid, cid_mode=False):
+        url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid
         # cache
         r = self.get(url, cache=True)
         if r.json()['code'] != 0:
@@ -214,20 +240,17 @@ class BiliBili:
                 print("选视频超出范围!")
                 continue
             if not cid_mode:
-                self.play(video_id, video[int(page) - 1]['cid'], bvid, title)
+                self.play(bvid, video[int(page) - 1]['cid'], title)
             else:
                 return video[int(page) - 1]['cid'], title, video[int(page) - 1]['part'], pic
             break
         return
 
-    def play(self, video_id, cid, bvid=True, title="", bangumi=False, bangumi_bvid=""):
+    def play(self, bvid, cid, title="", bangumi=False, bangumi_bvid=""):
         if bangumi:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
         else:
-            if bvid:
-                url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&bvid={video_id}&fnval=16"
-            else:
-                url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&avid={video_id}&fnval=16"
+            url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&bvid={bvid}&fnval=16"
         # cache
         play_url_request = self.get(url, cache=True)
 
@@ -301,12 +324,8 @@ class BiliBili:
                         people_watching = self.get(
                             f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={bangumi_bvid}")
                     else:
-                        if bvid:
-                            people_watching = self.get(
-                                f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={video_id}")
-                        else:
-                            people_watching = self.get(
-                                f"https://api.bilibili.com/x/player/online/total?cid={cid}&aid={video_id}")
+                        people_watching = self.get(
+                            f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={bvid}")
                     people = f"\r{people_watching.json()['data']['total']} 人正在看"
                     print(people, end="", flush=True)
                     time.sleep(3)
@@ -315,16 +334,12 @@ class BiliBili:
                 print(traceback.print_exc())
         print("\n")
 
-    def download_one(self, video_id, cid, pic_url, bvid=True, bangumi=False, title="", part_title=""):
+    def download_one(self, bvid, cid, pic_url, bangumi=False, title="", part_title=""):
         if not bangumi:
-            if bvid:
-                url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&ty" \
-                      f"pe=&otype=json&bvid={video_id}"
-            else:
-                url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&type=&oty" \
-                      f"pe=json&avid={video_id}"
+            url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&ty" \
+                  f"pe=&otype=json&bvid={bvid}"
         else:
-            url = f"https://api.bilibili.com/pgc/player/web/playurl?qn={self.quality}&cid={cid}&ep_id={video_id}"
+            url = f"https://api.bilibili.com/pgc/player/web/playurl?qn={self.quality}&cid={cid}&ep_id={bvid}"
 
         req = self.get(url)
         download_url = req.json()["data" if not bangumi else "result"]["durl"][0]["url"]
