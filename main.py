@@ -359,21 +359,21 @@ class BiliBili:
             c = input("文件已存在, 是否覆盖(y/n)? ")
             if c != "y":
                 print("停止操作.")
-                return
+                return 114514
         file = open(dts, 'wb')
         progress = tqdm(total=length, initial=os.path.getsize(dts), unit_scale=True,
                         desc=validateTitle(part_title) + ".mp4", unit="B")
         try:
-            for chuck in res.iter_content(chunk_size=1000):
+            for chuck in res.iter_content(chunk_size=1024):
                 file.write(chuck)
-                progress.update(1000)
+                progress.update(1024)
         except KeyboardInterrupt:
             file.close()
             os.remove(dts)
             if len(os.listdir("download/" + validateTitle(title))) == 0:
                 os.rmdir("download/" + validateTitle(title))
             print("取消下载.")
-            return
+            return False
         if not file.closed:
             file.close()
         if not os.path.exists("download/" + validateTitle(title) + "/" + validateTitle(title) + ".jpg"):
@@ -382,8 +382,9 @@ class BiliBili:
                 file.write(self.get(pic_url).content)
         if not os.path.exists("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml"):
             print("下载弹幕中...")
-            with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "w") as file:
+            with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "w", encoding="utf-8") as file:
                 file.write(self.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
+        return True
 
     def download_video_list(self, bvid):
         url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid
@@ -398,7 +399,8 @@ class BiliBili:
             print(f"{count}/{total}")
             cid = i['cid']
             part_title = i['part']
-            self.download_one(bvid, cid, pic, title=title, part_title=part_title)
+            if not self.download_one(bvid, cid, pic, title=title, part_title=part_title):
+                break
 
     def is_login(self):
         # no cache
