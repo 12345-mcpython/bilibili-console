@@ -145,6 +145,8 @@ class BiliBili:
             elif command == "download":
                 cid, title, part_title, pic = self.choose_video(bvid, cid_mode=True)
                 self.download_one(bvid, cid, pic_url=pic, title=title, part_title=part_title)
+            elif command == "download_video_list":
+                self.download_video_list(bvid)
             else:
                 print("未知命令!")
 
@@ -374,12 +376,29 @@ class BiliBili:
             return
         if not file.closed:
             file.close()
-        print("下载封面中...")
-        with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".jpg", "wb") as file:
-            file.write(self.get(pic_url).content)
-        print("下载弹幕中...")
-        with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "w") as file:
-            file.write(self.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
+        if not os.path.exists("download/" + validateTitle(title) + "/" + validateTitle(title) + ".jpg"):
+            print("下载封面中...")
+            with open("download/" + validateTitle(title) + "/" + validateTitle(title) + ".jpg", "wb") as file:
+                file.write(self.get(pic_url).content)
+        if not os.path.exists("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml"):
+            print("下载弹幕中...")
+            with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "w") as file:
+                file.write(self.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
+
+    def download_video_list(self, bvid):
+        url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid
+        r = self.get(url, cache=True)
+        video = r.json()['data']["View"]["pages"]
+        title = r.json()['data']["View"]['title']
+        pic = r.json()['data']["View"]['pic']
+        total = len(video)
+        count = 0
+        for i in video:
+            count += 1
+            print(f"{count}/{total}")
+            cid = i['cid']
+            part_title = i['part']
+            self.download_one(bvid, cid, pic, title=title, part_title=part_title)
 
     def is_login(self):
         # no cache
