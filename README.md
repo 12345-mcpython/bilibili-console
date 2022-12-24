@@ -54,7 +54,7 @@ Laosun Bilibili Console Client(LBCC) 是一个Bilibili命令行客户端.
 
 ## 使用
 
-[教程](USAGE.md) (暂时失效)
+[教程](USAGE.md)
 
 ## 致谢
 
