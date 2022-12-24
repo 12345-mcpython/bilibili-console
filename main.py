@@ -329,9 +329,11 @@ class BiliBili:
                     people = f"\r{people_watching.json()['data']['total']} 人正在看"
                     print(people, end="", flush=True)
                     time.sleep(3)
-            except (TypeError, requests.exceptions.RequestException) as e:
+            except (TypeError, requests.exceptions.RequestException):
                 print("获取观看人数时发生错误!")
                 print(traceback.print_exc())
+            except KeyboardInterrupt:
+                return
         print("\n")
 
     def download_one(self, bvid, cid, pic_url, bangumi=False, title="", part_title=""):
