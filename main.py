@@ -103,27 +103,10 @@ class BiliBili:
         else:
             video_id = url_split[-1].split("?")[0]
         if video_id.startswith("BV"):
-            video = self.get(
-                "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + str(video_id.strip("av")))
-            video_info = video.json()['data']['View']
-            print("封面: ", video_info['pic'])
-            print("标题: ", video_info['title'])
-            print("作者: ", video_info['owner']['name'], " bvid: ", video_info['bvid'], " 日期: ",
-                  datetime.datetime.fromtimestamp(
-                      video_info['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:",
-                  format_time(video_info['duration']), " 观看量: ",
-                  video_info['stat']['view'])
+            self.view_short_video_info(video_id)
             self.view_video(bvid=video_id)
         else:
-            video = self.get(
-                "https://api.bilibili.com/x/web-interface/view/detail?aid=" + str(enc(int(video_id.strip("av")))))
-            video_info = video.json()['data']['View']
-            print("封面: ", video_info['pic'])
-            print("标题: ", video_info['title'])
-            print("作者: ", video_info['owner']['name'], " bvid: ", video_info['bvid'], " 日期: ", datetime.datetime.fromtimestamp(
-                video_info['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_time(video_info['duration']), " 观看量: ",
-                  video_info['stat']['view'])
-            print()
+            self.view_short_video_info(enc(int(video_id.strip("av"))))
             self.view_video(bvid=enc(int(video_id.strip("av"))))
 
     def view_short_video_info(self, bvid):
@@ -407,11 +390,9 @@ class BiliBili:
         r = self.get('https://api.bilibili.com/x/member/web/account')
         if r.json()['code'] == -101:
             print("账号尚未登录.")
-            print("")
             return False
         elif r.json()['code'] == 0:
             print("账号已登录.")
-            print("")
             # 登录才可使用32 80分辨率 大会员分辨率暂不支持
             self.quality = 80
             return True
