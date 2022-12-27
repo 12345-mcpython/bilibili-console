@@ -35,7 +35,7 @@ from requests.utils import dict_from_cookiejar
 from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
-from bilibili.utils import format_time, validateTitle, enc
+from bilibili.utils import enc, format_time, validateTitle
 
 headers = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                          "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
