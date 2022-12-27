@@ -18,9 +18,9 @@
 
 ~~根据情况配置cookie.~~
 
-到b站网页端, 手动拷贝cookie(按F12, 到Network 网络 标签页, 按F12, 翻到最上面找到第一个www.bilibili.com点击, 找到Response Header 请求标头 找到cookie选择并复杂这堆cookie)并新建文件cookie.txt, 把拷贝内容复制到这个文件.
+到b站网页端, 手动拷贝cookie一次(按F12, 到Network 网络 标签页, 按F12, 翻到最上面找到第一个www.bilibili.com点击, 找到Response Header 请求标头 找到cookie选择并复杂这堆cookie)并新建文件cookie.txt, 把拷贝内容复制到这个文件.
 
-每次使用LBCC都需要这么做.(似乎b站网页版cookie时长减小很多)
+使用LBCC就尽量不要使用b站网页端了.(似乎b站网页版会自动刷新并废弃cookie)
 
 输入 `python main.py`
 
@@ -57,7 +57,7 @@
 
 ![](https://laosun-image.obs.cn-north-4.myhuaweicloud.com/20221015195209.png)
 
-~~操作命令与 `address` 命令相同.~~
+操作命令与 `address` 命令相同.
 
 (以下全为失效内容, 仅供存档)
 
