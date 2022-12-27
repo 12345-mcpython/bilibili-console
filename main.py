@@ -379,21 +379,20 @@ class BiliBili:
         count = 0
         for i in video:
             count += 1
-            print(f"{count}/{total}")
+            print(f"{count} / {total}")
             cid = i['cid']
             part_title = i['part']
             if not self.download_one(bvid, cid, pic, title=title, part_title=part_title):
                 break
 
     def is_login(self):
-        # no cache
         r = self.get('https://api.bilibili.com/x/member/web/account')
         if r.json()['code'] == -101:
             print("账号尚未登录.")
             return False
         elif r.json()['code'] == 0:
             print("账号已登录.")
-            # 登录才可使用32 80分辨率 大会员分辨率暂不支持
+            print(f"欢迎{r.json()['data']['uname']}.")
             self.quality = 80
             return True
         else:
