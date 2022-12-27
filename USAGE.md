@@ -36,13 +36,21 @@
 
 1. `play` 播放视频
 2. `download` 下载视频
+
 ~~2. 输入 `like` 点赞视频~~
+
 ~~3. 输入 `unlike` 取消点赞~~
+
 ~~4. 输入 `coin <投币数 1-2>` 投币视频~~
+
 ~~5. 输入 `triple` 三连~~
+
 ~~6. 输入 `collection` 收藏视频~~
+
 ~~7. 输入 `view_collection` 查看视频合集~~
+
 ~~8. 输入 `video_info` 查看视频详细信息~~
+
 ~~9. 输入 `view_comment` 查看视频评论~~
 
 ### 1.2.2 recommend 推荐界面
