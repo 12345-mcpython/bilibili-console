@@ -58,6 +58,7 @@ class BiliBili:
         self.session = requests.Session()
         self.session.headers.update(headers)
         self.session.headers.update({"cookie": cookie})
+        self.csrf_token = ""
         self.quality = quality
         self.audio = 30280
         self.codecs = "avc"
@@ -73,8 +74,10 @@ class BiliBili:
                 print(num + 1, ":")
                 print("封面: ", item['pic'])
                 print("标题: ", item['title'])
-                print("作者: ", item['owner']['name'], " bvid: ", item['bvid'], " 日期: ", datetime.datetime.fromtimestamp(
-                    item['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_time(item['duration']), " 观看量: ",
+                print("作者: ", item['owner']['name'], " bvid: ", item['bvid'], " 日期: ",
+                      datetime.datetime.fromtimestamp(
+                          item['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_time(item['duration']),
+                      " 观看量: ",
                       item['stat']['view'])
             while True:
                 command = input("选择视频: ")
@@ -130,6 +133,10 @@ class BiliBili:
                 self.download_one(bvid, cid, pic_url=pic, title=title, part_title=part_title)
             elif command == "download_video_list":
                 self.download_video_list(bvid)
+            elif command == "like":
+                self.like(bvid)
+            elif command == "unlike":
+                self.like(bvid, unlike=True)
             else:
                 print("未知命令!")
 
@@ -161,10 +168,10 @@ class BiliBili:
                 ssid_or_epid = url.split("/")[-1]
                 ssid_or_epid = ssid_or_epid.split("?")[0]
                 if ssid_or_epid.startswith("ss"):
-                    url = "http://api.bilibili.com/pgc/view/web/season?season_id=" + \
+                    url = "https://api.bilibili.com/pgc/view/web/season?season_id=" + \
                           ssid_or_epid.strip("ss")
                 else:
-                    url = "http://api.bilibili.com/pgc/view/web/season?ep_id=" + \
+                    url = "https://api.bilibili.com/pgc/view/web/season?ep_id=" + \
                           ssid_or_epid.strip('ep')
                 bangumi_url = self.get(url)
                 bangumi_page = bangumi_url.json()['result']['episodes']
@@ -230,6 +237,18 @@ class BiliBili:
                 return video[int(page) - 1]['cid'], title, video[int(page) - 1]['part'], pic
             break
         return
+
+    def like(self, bvid, unlike=False):
+        r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like",
+                              data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf_token})
+        if r.json()['code'] != 0:
+            print("点赞或取消点赞失败!")
+            print(f"错误信息: {r.json()['message']}")
+        else:
+            if unlike:
+                print("取消点赞成功!")
+            else:
+                print("点赞成功!")
 
     def play(self, bvid, cid, title="", bangumi=False, bangumi_bvid=""):
         if bangumi:
@@ -365,7 +384,8 @@ class BiliBili:
                 file.write(self.get(pic_url).content)
         if not os.path.exists("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml"):
             print("下载弹幕中...")
-            with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "w", encoding="utf-8") as file:
+            with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "w",
+                      encoding="utf-8") as file:
                 file.write(self.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
         return True
 
@@ -393,7 +413,13 @@ class BiliBili:
         elif r.json()['code'] == 0:
             print("账号已登录.")
             print(f"欢迎{r.json()['data']['uname']}.")
+            print()
             self.quality = 80
+            self.login = True
+            for i in cookie.strip().split(";"):
+                if i.strip().split("=")[0] == "bili_jct":
+                    self.csrf_token = i.split("=")[1]
+                    break
             return True
         else:
             return None
