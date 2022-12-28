@@ -69,7 +69,7 @@ class BiliBili:
         print("推荐界面")
         while True:
             # no cache
-            recommend_request = self.get("https://api.bilibili.com/x/web-interface/index/top/feed/rcmd?ps=5")
+            recommend_request = self.get("https://api.bilibili.com/x/web-interface/wbi/index/top/feed/rcmd?ps=5")
             for num, item in enumerate(recommend_request.json()['data']['item']):
                 print(num + 1, ":")
                 print("封面: ", item['pic'])
