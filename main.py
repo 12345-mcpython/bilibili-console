@@ -137,6 +137,8 @@ class BiliBili:
                 self.like(bvid)
             elif command == "unlike":
                 self.like(bvid, unlike=True)
+            elif command == "coin":
+                self.coin(bvid)
             else:
                 print("未知命令!")
 
@@ -164,38 +166,41 @@ class BiliBili:
         while True:
             choose_bangumi = input("番剧选项: ")
             if choose_bangumi == "address":
-                url = input("输入地址: ")
-                ssid_or_epid = url.split("/")[-1]
-                ssid_or_epid = ssid_or_epid.split("?")[0]
-                if ssid_or_epid.startswith("ss"):
-                    url = "https://api.bilibili.com/pgc/view/web/season?season_id=" + \
-                          ssid_or_epid.strip("ss")
-                else:
-                    url = "https://api.bilibili.com/pgc/view/web/season?ep_id=" + \
-                          ssid_or_epid.strip('ep')
-                bangumi_url = self.get(url)
-                bangumi_page = bangumi_url.json()['result']['episodes']
-                for i, j in enumerate(bangumi_page):
-                    print(f"{i + 1}: {j['share_copy']} ({j['badge']})")
-                print("请以冒号前面的数字为准选择视频.")
-                while True:
-                    page = input("选择视频: ")
-                    if page == "exit":
-                        break
-                    if not page:
-                        continue
-                    if not page.isdigit():
-                        continue
-                    if int(page) > len(bangumi_page) or int(page) <= 0:
-                        print("选视频错误!")
-                        continue
-                    cid = bangumi_page[int(page) - 1]['cid']
-                    bvid = bangumi_page[int(page) - 1]['bvid']
-                    epid = bangumi_page[int(page) - 1]['id']
-                    title = bangumi_page[int(page) - 1]['share_copy']
-                    self.play(bvid=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, title=title)
+                self.play_bangumi_by_address()
             elif choose_bangumi == "exit":
                 return
+
+    def play_bangumi_by_address(self):
+        url = input("输入地址: ")
+        ssid_or_epid = url.split("/")[-1]
+        ssid_or_epid = ssid_or_epid.split("?")[0]
+        if ssid_or_epid.startswith("ss"):
+            url = "https://api.bilibili.com/pgc/view/web/season?season_id=" + \
+                  ssid_or_epid.strip("ss")
+        else:
+            url = "https://api.bilibili.com/pgc/view/web/season?ep_id=" + \
+                  ssid_or_epid.strip('ep')
+        bangumi_url = self.get(url)
+        bangumi_page = bangumi_url.json()['result']['episodes']
+        for i, j in enumerate(bangumi_page):
+            print(f"{i + 1}: {j['share_copy']} ({j['badge']})")
+        print("请以冒号前面的数字为准选择视频.")
+        while True:
+            page = input("选择视频: ")
+            if page == "exit":
+                break
+            if not page:
+                continue
+            if not page.isdigit():
+                continue
+            if int(page) > len(bangumi_page) or int(page) <= 0:
+                print("选视频错误!")
+                continue
+            cid = bangumi_page[int(page) - 1]['cid']
+            bvid = bangumi_page[int(page) - 1]['bvid']
+            epid = bangumi_page[int(page) - 1]['id']
+            title = bangumi_page[int(page) - 1]['share_copy']
+            self.play(bvid=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, title=title)
 
     def get_danmaku(self, cid):
         resp = self.get("https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(cid),
@@ -239,6 +244,9 @@ class BiliBili:
         return
 
     def like(self, bvid, unlike=False):
+        if not self.login:
+            print("请先登录!")
+            return
         r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like",
                               data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf_token})
         if r.json()['code'] != 0:
@@ -249,6 +257,22 @@ class BiliBili:
                 print("取消点赞成功!")
             else:
                 print("点赞成功!")
+
+    def coin(self, bvid):
+        coin_count = input("输入币数(1-2): ")
+        if coin_count != 1 and coin_count != 2:
+            print("币数错误!")
+            return
+        if not self.login:
+            print("请先登录!")
+            return
+        r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like",
+                              data={"bvid": bvid, 'csrf': self.csrf_token, 'multiply': coin_count})
+        if r.json()['code'] == 0:
+            print("投币成功!")
+        else:
+            print("投币失败!")
+            print(r.json()['message'])
 
     def play(self, bvid, cid, title="", bangumi=False, bangumi_bvid=""):
         if bangumi:
@@ -409,6 +433,7 @@ class BiliBili:
         r = self.get('https://api.bilibili.com/x/member/web/account')
         if r.json()['code'] == -101:
             print("账号尚未登录.")
+            print()
             return False
         elif r.json()['code'] == 0:
             print("账号已登录.")
