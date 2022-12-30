@@ -266,7 +266,7 @@ class BiliBili:
         if not self.login:
             print("请先登录!")
             return
-        r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like",
+        r = self.session.post("http://api.bilibili.com/x/web-interface/coin/add",
                               data={"bvid": bvid, 'csrf': self.csrf_token, 'multiply': coin_count})
         if r.json()['code'] == 0:
             print("投币成功!")
