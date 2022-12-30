@@ -260,7 +260,7 @@ class BiliBili:
 
     def coin(self, bvid):
         coin_count = input("输入币数(1-2): ")
-        if coin_count != 1 and coin_count != 2:
+        if coin_count != "1" and coin_count != "2":
             print("币数错误!")
             return
         if not self.login:
