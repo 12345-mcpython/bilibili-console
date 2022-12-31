@@ -169,6 +169,8 @@ class BiliBili:
                 self.play_bangumi_by_address()
             elif choose_bangumi == "exit":
                 return
+            else:
+                print("未知选项!")
 
     def play_bangumi_by_address(self):
         url = input("输入地址: ")
