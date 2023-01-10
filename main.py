@@ -31,34 +31,20 @@ import time
 import traceback
 
 import requests
-from requests.utils import dict_from_cookiejar
 from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
-from bilibili.utils import enc, format_time, validateTitle
-
-headers = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                         "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
-           "referer": "https://www.bilibili.com"}
-
-if os.path.exists("cookie.txt"):
-    with open("cookie.txt") as f:
-        cookie = f.read()
-else:
-    b = requests.get("https://www.bilibili.com", headers=headers)
-    cookie = ''
-    for i, j in dict_from_cookiejar(b.cookies).items():
-        cookie += "{}={};".format(i, j)
-    cookie = cookie[:-1]
+from bilibili.utils import enc, format_time, validateTitle, read_cookie
 
 
 class BilibiliInteraction:
-    def __init__(self, session: requests.Session):
+    def __init__(self, session: requests.Session, csrf: str):
         self.session = session
+        self.csrf = csrf
 
-    def like(self, bvid, csrf, unlike=False):
+    def like(self, bvid, unlike=False):
         r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like",
-                              data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": csrf})
+                              data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf})
         if r.json()['code'] != 0:
             print("点赞或取消点赞失败!")
             print(f"错误信息: {r.json()['message']}")
@@ -68,14 +54,23 @@ class BilibiliInteraction:
             else:
                 print("点赞成功!")
 
-    def coin(self, bvid, count, csrf):
+    def coin(self, bvid, count):
         r = self.session.post("https://api.bilibili.com/x/web-interface/coin/add",
-                              data={"bvid": bvid, 'csrf': csrf, 'multiply': count})
+                              data={"bvid": bvid, 'csrf': self.csrf, 'multiply': count})
         if r.json()['code'] == 0:
             print("投币成功!")
         else:
             print("投币失败!")
-            print(r.json()['message'])
+            print(f"错误信息: {r.json()['message']}")
+
+    def triple(self, bvid):
+        r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like/triple",
+                              data={"bvid": bvid, "csrf": self.csrf})
+        if r.json()['code'] == 0:
+            print("三联成功!")
+        else:
+            print("三联失败!")
+            print(f"错误信息: {r.json()['message']}")
 
     def favorite(self, avid):
         pass
@@ -86,10 +81,13 @@ class BiliBili:
     def __init__(self, quality=32):
         self.cached_response = {}
         self.session = requests.Session()
-        self.session.headers.update(headers)
-        self.session.headers.update({"cookie": cookie})
-        self.interaction = BilibiliInteraction(self.session)
+        self.session.headers.update(
+            {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                           "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
+             "referer": "https://www.bilibili.com"})
+        self.session.headers.update({"cookie": read_cookie()})
         self.csrf_token = ""
+        self.interaction: BilibiliInteraction = BilibiliInteraction(self.session, self.csrf_token)
         self.quality = quality
         self.audio = 30280
         self.codecs = "avc"
@@ -126,10 +124,18 @@ class BiliBili:
                 # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
                 self.view_video(bvid)
 
+    def refresh_login_stage(self):
+        if os.path.exists("cookie.txt"):
+            with open("cookie.txt") as f:
+                cookie = f.read()
+        self.session.headers['cookie'] = cookie
+        self.is_login()
+        print("刷新登录状态成功.")
+
     def address(self):
         video_address = input("输入地址: ")
         if "b23.tv" in video_address:
-            video_address = requests.get(video_address, headers=headers).url
+            video_address = self.get(video_address).url
 
         url_split = video_address.split("/")
         if url_split[-1].startswith("?"):
@@ -151,47 +157,6 @@ class BiliBili:
         print("作者: ", item['owner']['name'], " bvid: ", item['bvid'], " 日期: ", datetime.datetime.fromtimestamp(
             item['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_time(item['duration']), " 观看量: ",
               item['stat']['view'])
-
-    def view_video(self, bvid):
-        while True:
-            command = input("视频选项: ")
-            if not command:
-                return
-            elif command == "play":
-                self.choose_video(bvid)
-            elif command == "download":
-                cid, title, part_title, pic = self.choose_video(bvid, cid_mode=True)
-                self.download_one(bvid, cid, pic_url=pic, title=title, part_title=part_title)
-            elif command == "download_video_list":
-                self.download_video_list(bvid)
-            elif command == "like":
-                self.like(bvid)
-            elif command == "unlike":
-                self.like(bvid, unlike=True)
-            elif command == "coin":
-                self.coin(bvid)
-            else:
-                print("未知命令!")
-
-    def main(self):
-        self.is_login()
-        while True:
-            command = input("主选项: ")
-            command = command.lower().strip()
-            if command == "recommend":
-                self.recommend()
-            elif command == "address":
-                self.address()
-            elif command == "bangumi":
-                self.bangumi()
-            elif command == "exit":
-                sys.exit(0)
-            elif command == "enable_online_watching":
-                self.view_online_watch = True
-            elif command == "disable_online_watching":
-                self.view_online_watch = False
-            else:
-                print("未知命令!")
 
     def bangumi(self):
         while True:
@@ -280,7 +245,7 @@ class BiliBili:
         if not self.login:
             print("请先登录!")
             return
-        self.interaction.like(bvid, csrf=self.csrf_token, unlike=unlike)
+        self.interaction.like(bvid, unlike=unlike)
 
     def coin(self, bvid):
         if not self.login:
@@ -290,7 +255,13 @@ class BiliBili:
         if coin_count != "1" and coin_count != "2":
             print("币数错误!")
             return
-        self.interaction.coin(bvid, coin_count, self.csrf_token)
+        self.interaction.coin(bvid, coin_count)
+
+    def triple(self, bvid):
+        if not self.login:
+            print("请先登录!")
+            return
+        self.interaction.triple(bvid)
 
     def play(self, bvid, cid, title="", bangumi=False, bangumi_bvid=""):
         if bangumi:
@@ -455,14 +426,15 @@ class BiliBili:
             return False
         elif r.json()['code'] == 0:
             print("账号已登录.")
-            print(f"欢迎{r.json()['data']['uname']}.")
+            print(f"欢迎{r.json()['data']['uname']}登录.")
             print()
             self.quality = 80
             self.login = True
-            for i in cookie.strip().split(";"):
+            for i in self.session.headers['cookie'].strip().split(";"):
                 if i.strip().split("=")[0] == "bili_jct":
                     self.csrf_token = i.split("=")[1]
                     break
+            self.interaction = BilibiliInteraction(self.session, self.csrf_token)
             return True
         else:
             return None
@@ -485,6 +457,51 @@ class BiliBili:
             if cache:
                 self.cached_response[url] = r
             return r
+
+    def view_video(self, bvid):
+        while True:
+            command = input("视频选项: ")
+            if not command:
+                return
+            elif command == "play":
+                self.choose_video(bvid)
+            elif command == "download":
+                cid, title, part_title, pic = self.choose_video(bvid, cid_mode=True)
+                self.download_one(bvid, cid, pic_url=pic, title=title, part_title=part_title)
+            elif command == "download_video_list":
+                self.download_video_list(bvid)
+            elif command == "like":
+                self.like(bvid)
+            elif command == "unlike":
+                self.like(bvid, unlike=True)
+            elif command == "coin":
+                self.coin(bvid)
+            elif command == 'triple':
+                self.triple(bvid)
+            else:
+                print("未知命令!")
+
+    def main(self):
+        self.is_login()
+        while True:
+            command = input("主选项: ")
+            command = command.lower().strip()
+            if command == "recommend":
+                self.recommend()
+            elif command == "address":
+                self.address()
+            elif command == "bangumi":
+                self.bangumi()
+            elif command == "exit":
+                sys.exit(0)
+            elif command == "enable_online_watching":
+                self.view_online_watch = True
+            elif command == "disable_online_watching":
+                self.view_online_watch = False
+            elif command == "refresh_login_stage":
+                self.refresh_login_stage()
+            else:
+                print("未知命令!")
 
 
 print("LBCC v1.0.0-dev.")
