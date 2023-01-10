@@ -52,12 +52,43 @@ else:
     cookie = cookie[:-1]
 
 
+class BilibiliInteraction:
+    def __init__(self, session: requests.Session):
+        self.session = session
+
+    def like(self, bvid, csrf, unlike=False):
+        r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like",
+                              data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": csrf})
+        if r.json()['code'] != 0:
+            print("点赞或取消点赞失败!")
+            print(f"错误信息: {r.json()['message']}")
+        else:
+            if unlike:
+                print("取消点赞成功!")
+            else:
+                print("点赞成功!")
+
+    def coin(self, bvid, count, csrf):
+        r = self.session.post("https://api.bilibili.com/x/web-interface/coin/add",
+                              data={"bvid": bvid, 'csrf': csrf, 'multiply': count})
+        if r.json()['code'] == 0:
+            print("投币成功!")
+        else:
+            print("投币失败!")
+            print(r.json()['message'])
+
+    def favorite(self, avid):
+        pass
+        # https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid=691183515&up_mid=450196722&jsonp=jsonp&callback=jsonCallback_bili_185514247489901420
+
+
 class BiliBili:
     def __init__(self, quality=32):
         self.cached_response = {}
         self.session = requests.Session()
         self.session.headers.update(headers)
         self.session.headers.update({"cookie": cookie})
+        self.interaction = BilibiliInteraction(self.session)
         self.csrf_token = ""
         self.quality = quality
         self.audio = 30280
@@ -166,14 +197,14 @@ class BiliBili:
         while True:
             choose_bangumi = input("番剧选项: ")
             if choose_bangumi == "address":
-                self.play_bangumi_by_address()
+                url = input("输入地址: ")
+                self.play_bangumi_by_address(url)
             elif choose_bangumi == "exit":
                 return
             else:
                 print("未知选项!")
 
-    def play_bangumi_by_address(self):
-        url = input("输入地址: ")
+    def play_bangumi_by_address(self, url):
         ssid_or_epid = url.split("/")[-1]
         ssid_or_epid = ssid_or_epid.split("?")[0]
         if ssid_or_epid.startswith("ss"):
@@ -249,32 +280,17 @@ class BiliBili:
         if not self.login:
             print("请先登录!")
             return
-        r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like",
-                              data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf_token})
-        if r.json()['code'] != 0:
-            print("点赞或取消点赞失败!")
-            print(f"错误信息: {r.json()['message']}")
-        else:
-            if unlike:
-                print("取消点赞成功!")
-            else:
-                print("点赞成功!")
+        self.interaction.like(bvid, csrf=self.csrf_token, unlike=unlike)
 
     def coin(self, bvid):
+        if not self.login:
+            print("请先登录!")
+            return
         coin_count = input("输入币数(1-2): ")
         if coin_count != "1" and coin_count != "2":
             print("币数错误!")
             return
-        if not self.login:
-            print("请先登录!")
-            return
-        r = self.session.post("http://api.bilibili.com/x/web-interface/coin/add",
-                              data={"bvid": bvid, 'csrf': self.csrf_token, 'multiply': coin_count})
-        if r.json()['code'] == 0:
-            print("投币成功!")
-        else:
-            print("投币失败!")
-            print(r.json()['message'])
+        self.interaction.coin(bvid, coin_count, self.csrf_token)
 
     def play(self, bvid, cid, title="", bangumi=False, bangumi_bvid=""):
         if bangumi:
