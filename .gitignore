@@ -5,18 +5,9 @@ __pycache__/
 
 # C extensions
 *.so
-1.py
-old/old.py
-init
-cached/*.ass
-cached/*.xml
-temp_cookie.txt
-users/
-users/*.txt
 # Distribution / packaging
 .Python
 build/
-old/
 develop-eggs/
 dist/
 downloads/
@@ -38,6 +29,8 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+cookie.txt
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -46,8 +39,6 @@ MANIFEST
 
 # Installer logs
 pip-log.txt
-old/cookie.txt
-old/collection.txt
 pip-delete-this-directory.txt
 
 # Unit test / coverage reports
@@ -64,8 +55,6 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cached/
-cached/*.jpg
-mpv.exe
 
 # Translations
 *.mo
@@ -145,8 +134,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-/old/old_cookie.py
-/test.py
-/old/
-/cookie.txt
-/main1.py
+/old
