@@ -34,15 +34,97 @@ import requests
 from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
-from bilibili.utils import enc, format_time, validateTitle, read_cookie
+from bilibili.utils import enc, dec, format_time, validateTitle, read_cookie, convert_cookies_to_dict, clean_cookie
+
+
+class RequestManager:
+    def __init__(self, cookie):
+        self.cached_response = {}
+        # self.cookie = cookie
+        self.session = requests.session()
+        self.session.headers.update(
+            {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                           "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
+             "referer": "https://www.bilibili.com"})
+        self.session.headers.update({"cookie": cookie})
+
+    def get(self, url: str, params=None, cache=False, **kwargs) -> requests.Response:
+        if self.cached_response.get(url):
+            return self.cached_response.get(url)
+        else:
+            count = 5
+            while True:
+                try:
+                    r = self.session.get(url, params=params, timeout=5, **kwargs)
+                    break
+                except requests.exceptions.RequestException as request_error:
+                    print("\n")
+                    print(f"{url}请求错误! 将会重试{count}次! ")
+                    count -= 1
+                    if count <= 0:
+                        raise request_error
+            if cache:
+                self.cached_response[url] = r
+            return r
+
+    def post(self, url: str, params=None, *kwargs) -> requests.Response:
+        count = 5
+        while True:
+            try:
+                r = self.session.post(url, params=params, timeout=5, **kwargs)
+                break
+            except requests.exceptions.RequestException as request_error:
+                print("\n")
+                print(f"{url}请求错误! 将会重试{count}次! ")
+                count -= 1
+                if count <= 0:
+                    raise request_error
+        return r
+
+    def refresh_login_stage(self):
+        if os.path.exists("cookie.txt"):
+            with open("cookie.txt") as f:
+                cookie = f.read()
+        self.session.headers['cookie'] = cookie
+        self.is_login()
+        print("刷新登录状态成功.")
+
+    def is_login(self):
+        r = self.session.get('https://api.bilibili.com/x/member/web/account')
+        if r.json()['code'] == -101:
+            print("账号尚未登录.")
+            print()
+            return False
+        elif r.json()['code'] == 0:
+            print("账号已登录.")
+            print(f"欢迎{r.json()['data']['uname']}登录.")
+            print()
+            return True
+        else:
+            raise Exception("Invaild code: " + str(r.json()['code']))
+
+
+class BilibiliVideo:
+    def __init__(self, avid: int = 0, bvid: str = ""):
+        self.avid = avid if avid else dec(bvid)
+        self.bvid = bvid if bvid else enc(avid)
+
+    # TODO: Write play outside
+    def play(self, page):
+        pass
+
+    # TODO: Write choose video outside
+    def choose_video(self):
+        pass
 
 
 class BilibiliInteraction:
-    def __init__(self, session: requests.Session, csrf: str):
+    def __init__(self, session: requests.Session):
         self.session = session
-        self.csrf = csrf
+        self.csrf = clean_cookie(convert_cookies_to_dict(session.headers.get("cookie")).get("bili_jct"))
 
     def like(self, bvid, unlike=False):
+        print(self.csrf)
         r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like",
                               data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf})
         if r.json()['code'] != 0:
@@ -72,6 +154,7 @@ class BilibiliInteraction:
             print("三联失败!")
             print(f"错误信息: {r.json()['message']}")
 
+    # TODO: Write favorite to video.
     def favorite(self, avid):
         pass
         # https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid=691183515&up_mid=450196722&jsonp=jsonp&callback=jsonCallback_bili_185514247489901420
@@ -79,15 +162,8 @@ class BilibiliInteraction:
 
 class BiliBili:
     def __init__(self, quality=32):
-        self.cached_response = {}
-        self.session = requests.Session()
-        self.session.headers.update(
-            {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                           "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
-             "referer": "https://www.bilibili.com"})
-        self.session.headers.update({"cookie": read_cookie()})
-        self.csrf_token = ""
-        self.interaction: BilibiliInteraction = BilibiliInteraction(self.session, self.csrf_token)
+        self.request_manager = RequestManager(read_cookie())
+        self.interaction: BilibiliInteraction = BilibiliInteraction(self.request_manager.session)
         self.quality = quality
         self.audio = 30280
         self.codecs = "avc"
@@ -98,7 +174,8 @@ class BiliBili:
         print("推荐界面")
         while True:
             # no cache
-            recommend_request = self.get("https://api.bilibili.com/x/web-interface/wbi/index/top/feed/rcmd?ps=5")
+            recommend_request = self.request_manager.get(
+                "https://api.bilibili.com/x/web-interface/wbi/index/top/feed/rcmd?ps=5")
             for num, item in enumerate(recommend_request.json()['data']['item']):
                 print(num + 1, ":")
                 print("封面: ", item['pic'])
@@ -124,18 +201,10 @@ class BiliBili:
                 # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
                 self.view_video(bvid)
 
-    def refresh_login_stage(self):
-        if os.path.exists("cookie.txt"):
-            with open("cookie.txt") as f:
-                cookie = f.read()
-        self.session.headers['cookie'] = cookie
-        self.is_login()
-        print("刷新登录状态成功.")
-
     def address(self):
         video_address = input("输入地址: ")
         if "b23.tv" in video_address:
-            video_address = self.get(video_address).url
+            video_address = self.request_manager.get(video_address).url
 
         url_split = video_address.split("/")
         if url_split[-1].startswith("?"):
@@ -150,7 +219,7 @@ class BiliBili:
             self.view_video(bvid=enc(int(video_id.strip("av"))))
 
     def view_short_video_info(self, bvid):
-        video = self.get("https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid)
+        video = self.request_manager.get("https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid)
         item = video.json()['data']['View']
         print("封面: ", item['pic'])
         print("标题: ", item['title'])
@@ -178,7 +247,7 @@ class BiliBili:
         else:
             url = "https://api.bilibili.com/pgc/view/web/season?ep_id=" + \
                   ssid_or_epid.strip('ep')
-        bangumi_url = self.get(url)
+        bangumi_url = self.request_manager.get(url)
         bangumi_page = bangumi_url.json()['result']['episodes']
         for i, j in enumerate(bangumi_page):
             print(f"{i + 1}: {j['share_copy']} ({j['badge']})")
@@ -201,14 +270,15 @@ class BiliBili:
             self.play(bvid=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, title=title)
 
     def get_danmaku(self, cid):
-        resp = self.get("https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(cid),
-                        cache=True)
+        resp = self.request_manager.get(
+            "https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(cid),
+            cache=True)
         return resp.content
 
     def choose_video(self, bvid, cid_mode=False):
         url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid
         # cache
-        r = self.get(url, cache=True)
+        r = self.request_manager.get(url, cache=True)
         if r.json()['code'] != 0:
             print("获取视频信息错误!")
             print(r.json()['code'])
@@ -269,7 +339,7 @@ class BiliBili:
         else:
             url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&bvid={bvid}&fnval=16"
         # cache
-        play_url_request = self.get(url, cache=True)
+        play_url_request = self.request_manager.get(url, cache=True)
 
         if not bangumi:
             videos = play_url_request.json()['data']['dash']["video"]
@@ -338,10 +408,10 @@ class BiliBili:
             try:
                 while p.poll() is None:
                     if bangumi:
-                        people_watching = self.get(
+                        people_watching = self.request_manager.get(
                             f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={bangumi_bvid}")
                     else:
-                        people_watching = self.get(
+                        people_watching = self.request_manager.get(
                             f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={bvid}")
                     people = f"\r{people_watching.json()['data']['total']} 人正在看"
                     print(people, end="", flush=True)
@@ -355,15 +425,14 @@ class BiliBili:
 
     def download_one(self, bvid, cid, pic_url, bangumi=False, title="", part_title=""):
         if not bangumi:
-            url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&ty" \
-                  f"pe=&otype=json&bvid={bvid}"
+            url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&bvid={bvid}"
         else:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?qn={self.quality}&cid={cid}&ep_id={bvid}"
 
-        req = self.get(url)
+        req = self.request_manager.get(url)
         download_url = req.json()["data" if not bangumi else "result"]["durl"][0]["url"]
 
-        res = self.get(download_url, stream=True)
+        res = self.request_manager.get(download_url, stream=True)
         length = float(res.headers['content-length'])
         if not os.path.exists("download"):
             os.mkdir("download")
@@ -394,17 +463,17 @@ class BiliBili:
         if not os.path.exists("download/" + validateTitle(title) + "/" + validateTitle(title) + ".jpg"):
             print("下载封面中...")
             with open("download/" + validateTitle(title) + "/" + validateTitle(title) + ".jpg", "wb") as file:
-                file.write(self.get(pic_url).content)
+                file.write(self.request_manager.get(pic_url).content)
         if not os.path.exists("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml"):
             print("下载弹幕中...")
             with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "w",
                       encoding="utf-8") as file:
-                file.write(self.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
+                file.write(self.request_manager.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
         return True
 
     def download_video_list(self, bvid):
         url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid
-        r = self.get(url, cache=True)
+        r = self.request_manager.get(url, cache=True)
         video = r.json()['data']["View"]["pages"]
         title = r.json()['data']["View"]['title']
         pic = r.json()['data']["View"]['pic']
@@ -417,46 +486,6 @@ class BiliBili:
             part_title = i['part']
             if not self.download_one(bvid, cid, pic, title=title, part_title=part_title):
                 break
-
-    def is_login(self):
-        r = self.get('https://api.bilibili.com/x/member/web/account')
-        if r.json()['code'] == -101:
-            print("账号尚未登录.")
-            print()
-            return False
-        elif r.json()['code'] == 0:
-            print("账号已登录.")
-            print(f"欢迎{r.json()['data']['uname']}登录.")
-            print()
-            self.quality = 80
-            self.login = True
-            for i in self.session.headers['cookie'].strip().split(";"):
-                if i.strip().split("=")[0] == "bili_jct":
-                    self.csrf_token = i.split("=")[1]
-                    break
-            self.interaction = BilibiliInteraction(self.session, self.csrf_token)
-            return True
-        else:
-            return None
-
-    def get(self, url: str, params=None, cache=False, **kwargs) -> requests.Response:
-        if self.cached_response.get(url):
-            return self.cached_response.get(url)
-        else:
-            count = 5
-            while True:
-                try:
-                    r = self.session.get(url, params=params, timeout=5, **kwargs)
-                    break
-                except requests.exceptions.RequestException as request_error:
-                    print("\n")
-                    print(f"{url}请求错误! 将会重试{count}次! ")
-                    count -= 1
-                    if count <= 0:
-                        raise request_error
-            if cache:
-                self.cached_response[url] = r
-            return r
 
     def view_video(self, bvid):
         while True:
@@ -482,7 +511,10 @@ class BiliBili:
                 print("未知命令!")
 
     def main(self):
-        self.is_login()
+        if self.request_manager.is_login():
+            self.quality = 80
+            self.login = True
+            self.interaction = BilibiliInteraction(self.request_manager.session)
         while True:
             command = input("主选项: ")
             command = command.lower().strip()
@@ -499,7 +531,7 @@ class BiliBili:
             elif command == "disable_online_watching":
                 self.view_online_watch = False
             elif command == "refresh_login_stage":
-                self.refresh_login_stage()
+                self.request_manager.refresh_login_stage()
             else:
                 print("未知命令!")
 

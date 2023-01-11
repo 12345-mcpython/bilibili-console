@@ -2,7 +2,19 @@ import os
 import re
 
 import requests
-from requests.utils import dict_from_cookiejar
+
+cached_response = {}
+
+
+def convert_cookies_to_dict(cookies):
+    return dict([l.split("=", 1) for l in cookies.split(";")])
+
+
+def clean_cookie(dict_cookie: dict):
+    cleaned = {}
+    for i, j in dict_cookie.items():
+        cleaned[i.strip()] = j.strip()
+    return cleaned
 
 
 def format_time(time):
@@ -42,7 +54,7 @@ def validateTitle(title):
 # av bv互转算法
 # https://www.zhihu.com/question/381784377/answer/1099438784
 
-def dec(x):
+def dec(x: str):
     table = 'fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF'
     tr = {}
     for i in range(58):
@@ -56,7 +68,7 @@ def dec(x):
     return (r - add) ^ xor
 
 
-def enc(x):
+def enc(x: int):
     table = 'fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF'
     tr = {}
     for i in range(58):
@@ -81,6 +93,6 @@ def read_cookie():
                           "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
             "referer": "https://www.bilibili.com"})
         cookie = ''
-        for i, j in dict_from_cookiejar(b.cookies).items():
+        for i, j in b.cookies.get_dict().items():
             cookie += "{}={};".format(i, j)
         return cookie[:-1]
