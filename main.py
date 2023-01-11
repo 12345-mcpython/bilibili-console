@@ -121,10 +121,9 @@ class BilibiliVideo:
 class BilibiliInteraction:
     def __init__(self, session: requests.Session):
         self.session = session
-        self.csrf = clean_cookie(convert_cookies_to_dict(session.headers.get("cookie")).get("bili_jct"))
+        self.csrf = clean_cookie(convert_cookies_to_dict(session.headers.get("cookie"))).get("bili_jct")
 
     def like(self, bvid, unlike=False):
-        print(self.csrf)
         r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like",
                               data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf})
         if r.json()['code'] != 0:
