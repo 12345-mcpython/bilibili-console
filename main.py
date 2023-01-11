@@ -455,7 +455,7 @@ class BiliBili:
             c = input("文件已存在, 是否覆盖(y/n)? ")
             if c != "y":
                 print("停止操作.")
-                return 114514
+                return -100
         file = open(dts, 'wb')
         progress = tqdm(total=length, initial=os.path.getsize(dts), unit_scale=True,
                         desc=validateTitle(part_title) + ".mp4", unit="B")
