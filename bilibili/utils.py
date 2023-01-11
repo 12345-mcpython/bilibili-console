@@ -3,21 +3,21 @@ import re
 
 import requests
 
-cached_response = {}
+cached_response: dict[str, str] = {}
 
 
-def convert_cookies_to_dict(cookies):
+def convert_cookies_to_dict(cookies) -> dict[str, str]:
     return dict([l.split("=", 1) for l in cookies.split(";")])
 
 
-def clean_cookie(dict_cookie: dict):
+def clean_cookie(dict_cookie: dict[str, str]) -> dict[str, str]:
     cleaned = {}
     for i, j in dict_cookie.items():
         cleaned[i.strip()] = j.strip()
     return cleaned
 
 
-def format_time(time):
+def format_time(time: int) -> str:
     if time > 60 * 60:
         fmt = "{}:{}:{}"
         hour = time // (60 * 60)
@@ -45,7 +45,7 @@ def format_time(time):
         return fmt.format(minute, sec)
 
 
-def validateTitle(title):
+def validateTitle(title) -> str:
     rstr = r"[\/\\\:\*\?\"\<\>\|]"  # '/ \ : * ? " < > |'
     new_title = re.sub(rstr, "_", title)  # 替换为下划线
     return new_title
@@ -54,7 +54,7 @@ def validateTitle(title):
 # av bv互转算法
 # https://www.zhihu.com/question/381784377/answer/1099438784
 
-def dec(x: str):
+def dec(x: str) -> int:
     table = 'fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF'
     tr = {}
     for i in range(58):
@@ -68,7 +68,7 @@ def dec(x: str):
     return (r - add) ^ xor
 
 
-def enc(x: int):
+def enc(x: int) -> str:
     table = 'fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF'
     tr = {}
     for i in range(58):

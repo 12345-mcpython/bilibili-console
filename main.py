@@ -39,7 +39,7 @@ from bilibili.utils import enc, dec, format_time, validateTitle, read_cookie, co
 
 class RequestManager:
     def __init__(self, cookie):
-        self.cached_response = {}
+        self.cached_response: dict[str, requests.Response] = {}
         # self.cookie = cookie
         self.session = requests.session()
         self.session.headers.update(
@@ -50,7 +50,7 @@ class RequestManager:
 
     def get(self, url: str, params=None, cache=False, **kwargs) -> requests.Response:
         if self.cached_response.get(url):
-            return self.cached_response.get(url)
+            return self.cached_response.get(url)  # type: ignore
         else:
             count = 5
             while True:
@@ -67,7 +67,7 @@ class RequestManager:
                 self.cached_response[url] = r
             return r
 
-    def post(self, url: str, params=None, *kwargs) -> requests.Response:
+    def post(self, url: str, params=None, **kwargs) -> requests.Response:
         count = 5
         while True:
             try:
@@ -89,7 +89,7 @@ class RequestManager:
         self.is_login()
         print("刷新登录状态成功.")
 
-    def is_login(self):
+    def is_login(self) -> bool:
         r = self.session.get('https://api.bilibili.com/x/member/web/account')
         if r.json()['code'] == -101:
             print("账号尚未登录.")
@@ -102,6 +102,18 @@ class RequestManager:
             return True
         else:
             raise Exception("Invaild code: " + str(r.json()['code']))
+
+    def get_local_user_mid(self) -> int:
+        r = self.session.get('https://api.bilibili.com/x/member/web/account')
+        return r.json()['data']['mid']
+
+
+class BilibiliFavorite:
+    def __init__(self, session: requests.Session):
+        self.session = session
+
+    def favorite(self, avid):
+        pass
 
 
 class BilibiliVideo:
@@ -120,10 +132,10 @@ class BilibiliVideo:
 
 class BilibiliInteraction:
     def __init__(self, session: requests.Session):
-        self.session = session
-        self.csrf = clean_cookie(convert_cookies_to_dict(session.headers.get("cookie"))).get("bili_jct")
+        self.session: requests.Session = session
+        self.csrf: str = clean_cookie(convert_cookies_to_dict(session.headers.get("cookie"))).get("bili_jct", "")
 
-    def like(self, bvid, unlike=False):
+    def like(self, bvid: str, unlike=False):
         r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like",
                               data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf})
         if r.json()['code'] != 0:
@@ -135,7 +147,7 @@ class BilibiliInteraction:
             else:
                 print("点赞成功!")
 
-    def coin(self, bvid, count):
+    def coin(self, bvid: str, count: int):
         r = self.session.post("https://api.bilibili.com/x/web-interface/coin/add",
                               data={"bvid": bvid, 'csrf': self.csrf, 'multiply': count})
         if r.json()['code'] == 0:
@@ -144,7 +156,7 @@ class BilibiliInteraction:
             print("投币失败!")
             print(f"错误信息: {r.json()['message']}")
 
-    def triple(self, bvid):
+    def triple(self, bvid: str):
         r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like/triple",
                               data={"bvid": bvid, "csrf": self.csrf})
         if r.json()['code'] == 0:
@@ -166,7 +178,8 @@ class BiliBili:
         self.quality = quality
         self.audio = 30280
         self.codecs = "avc"
-        self.login = False
+        self.login: bool = False
+        self.mid: int = 0
         self.view_online_watch = True
 
     def recommend(self):
@@ -324,7 +337,7 @@ class BiliBili:
         if coin_count != "1" and coin_count != "2":
             print("币数错误!")
             return
-        self.interaction.coin(bvid, coin_count)
+        self.interaction.coin(bvid, int(coin_count))
 
     def triple(self, bvid):
         if not self.login:
@@ -417,7 +430,7 @@ class BiliBili:
                     time.sleep(3)
             except (TypeError, requests.exceptions.RequestException):
                 print("获取观看人数时发生错误!")
-                print(traceback.print_exc())
+                traceback.print_exc()
             except KeyboardInterrupt:
                 return
         print("\n")
@@ -466,8 +479,8 @@ class BiliBili:
         if not os.path.exists("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml"):
             print("下载弹幕中...")
             with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "w",
-                      encoding="utf-8") as file:
-                file.write(self.request_manager.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
+                      encoding="utf-8") as danmaku:
+                danmaku.write(self.request_manager.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
         return True
 
     def download_video_list(self, bvid):
