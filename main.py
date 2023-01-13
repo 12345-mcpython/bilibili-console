@@ -25,6 +25,7 @@ The old version also use the GPL-3.0 license, not MIT License.
 """
 import datetime
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -81,13 +82,13 @@ class RequestManager:
                     raise request_error
         return r
 
-    def refresh_login_stage(self):
+    def refresh_login_state(self):
         if os.path.exists("cookie.txt"):
             with open("cookie.txt") as f:
                 cookie = f.read()
         self.session.headers['cookie'] = cookie
-        self.is_login()
         print("刷新登录状态成功.")
+        return self.is_login()
 
     def is_login(self) -> bool:
         r = self.session.get('https://api.bilibili.com/x/member/web/account')
@@ -101,7 +102,7 @@ class RequestManager:
             print()
             return True
         else:
-            raise Exception("Invaild code: " + str(r.json()['code']))
+            raise Exception("Invalid login code: " + str(r.json()['code']))
 
     def get_local_user_mid(self) -> int:
         r = self.session.get('https://api.bilibili.com/x/member/web/account')
@@ -480,7 +481,8 @@ class BiliBili:
             print("下载弹幕中...")
             with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "w",
                       encoding="utf-8") as danmaku:
-                danmaku.write(self.request_manager.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
+                danmaku.write(
+                    self.request_manager.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
         return True
 
     def download_video_list(self, bvid):
@@ -498,6 +500,11 @@ class BiliBili:
             part_title = i['part']
             if not self.download_one(bvid, cid, pic, title=title, part_title=part_title):
                 break
+
+    def login_init(self):
+        self.quality = 80
+        self.login = True
+        self.interaction = BilibiliInteraction(self.request_manager.session)
 
     def view_video(self, bvid):
         while True:
@@ -524,9 +531,7 @@ class BiliBili:
 
     def main(self):
         if self.request_manager.is_login():
-            self.quality = 80
-            self.login = True
-            self.interaction = BilibiliInteraction(self.request_manager.session)
+            self.login_init()
         while True:
             command = input("主选项: ")
             command = command.lower().strip()
@@ -542,8 +547,12 @@ class BiliBili:
                 self.view_online_watch = True
             elif command == "disable_online_watching":
                 self.view_online_watch = False
-            elif command == "refresh_login_stage":
-                self.request_manager.refresh_login_stage()
+            elif command == "refresh_login_state":
+                if self.request_manager.refresh_login_state():
+                    self.login_init()
+            elif command == "clean_cache":
+                shutil.rmtree("cached")
+                os.mkdir("cached")
             else:
                 print("未知命令!")
 

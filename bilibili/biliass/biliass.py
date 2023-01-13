@@ -18,7 +18,6 @@ from typing import Callable, Optional, Union, List, Generator, Tuple
 
 from bilibili.biliass.protobuf.danmaku_pb2 import DanmakuEvent
 
-
 #
 # ReadComments**** protocol
 #
