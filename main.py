@@ -110,8 +110,12 @@ class RequestManager:
 
 
 class BilibiliFavorite:
-    def __init__(self, session: requests.Session):
+    def __init__(self, session: requests.Session, mid: int):
         self.session = session
+        self.mid = mid
+
+    def choose_favorite(self, mid, avid: int = 0):
+        pass
 
     def favorite(self, avid):
         pass
@@ -170,6 +174,15 @@ class BilibiliInteraction:
     def favorite(self, avid):
         pass
         # https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid=691183515&up_mid=450196722&jsonp=jsonp&callback=jsonCallback_bili_185514247489901420
+
+    def mark_interact_video(self, bvid: str, score: int):
+        r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like/triple",
+                              data={"bvid": bvid, "csrf": self.csrf, "mark": score})
+        if r.json()['code'] == 0:
+            print("评分成功!")
+        else:
+            print("评分失败!")
+            print(f"错误信息: {r.json()['message']}")
 
 
 class BiliBili:
@@ -288,6 +301,42 @@ class BiliBili:
             cache=True)
         return resp.content
 
+    def play_interact_video(self, bvid, cid):
+        self.play(bvid, cid, view_online_watch=False)
+
+        graph_version = self.request_manager.get(f"https://api.bilibili.com/x/player/v2?bvid={bvid}&cid={cid}")
+        graph_version = graph_version.json()['data']['interaction']['graph_version']
+
+        edge_id = ""
+
+        while True:
+            edge_info = f"https://api.bilibili.com/x/stein/edgeinfo_v2" \
+                        f"?graph_version={graph_version}" \
+                        f"&bvid={bvid}" \
+                        f"&edge_id={edge_id}"
+            r = self.request_manager.get(edge_info)
+            if not r.json()['data']['edges'].get('questions'):
+                print("互动视频已到达末尾.")
+                score = input("是否评分? (y/n): ")
+                if score == "y":
+                    score = input("评几分? (1-5): ")
+                    if not score.isdecimal():
+                        print("输入错误! 将停止评分")
+                        return
+                    self.interaction.mark_interact_video(bvid, int(score))
+                break
+            for i, j in enumerate(r.json()['data']['edges']['questions'][0]['choices']):
+                print(f"{i + 1}: {j['option']}")
+            while True:
+                index = input("选择选项: ")
+                if index.isdecimal():
+                    break
+                else:
+                    print("请输入数字!")
+            edge_id = r.json()['data']['edges']['questions'][0]['choices'][int(index) + 1]['id']
+            cid = r.json()['data']['edges']['questions'][0]['choices'][int(index) + 1]['cid']
+            self.play(bvid, cid, view_online_watch=False)
+
     def choose_video(self, bvid, cid_mode=False):
         url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid
         # cache
@@ -298,6 +347,11 @@ class BiliBili:
             print(r.json()['message'])
             return
         print("\n")
+        if r.json()['data']["View"]['dynamic']:
+            print("你播放的视频是一个互动视频.")
+            base_cid = r.json()['data']["View"]['cid']
+            self.play_interact_video(bvid, base_cid)
+            return
         print("视频选集")
         video = r.json()['data']["View"]["pages"]
         title = r.json()['data']["View"]['title']
@@ -346,7 +400,7 @@ class BiliBili:
             return
         self.interaction.triple(bvid)
 
-    def play(self, bvid, cid, title="", bangumi=False, bangumi_bvid=""):
+    def play(self, bvid, cid, title="", bangumi=False, bangumi_bvid="", view_online_watch=True):
         if bangumi:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
         else:
@@ -417,7 +471,7 @@ class BiliBili:
                   f"--loop " \
                   f"\"{video_url}\""
         p = subprocess.Popen(command, shell=True)
-        if self.view_online_watch:
+        if self.view_online_watch and view_online_watch:
             try:
                 while p.poll() is None:
                     if bangumi:
