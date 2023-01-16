@@ -293,7 +293,7 @@ class BiliBili:
             bvid = bangumi_page[int(page) - 1]['bvid']
             epid = bangumi_page[int(page) - 1]['id']
             title = bangumi_page[int(page) - 1]['share_copy']
-            self.play(bvid=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, title=title)
+            self.play(video_id=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, title=title)
 
     def get_danmaku(self, cid):
         resp = self.request_manager.get(
@@ -346,7 +346,7 @@ class BiliBili:
             print(r.json()['code'])
             print(r.json()['message'])
             return
-        if r.json()['data']["View"]['dynamic']:
+        if r.json()['data']["View"]['stat']['evaluation']:
             print("你播放的视频是一个互动视频.")
             base_cid = r.json()['data']["View"]['cid']
             self.play_interact_video(bvid, base_cid)
@@ -409,11 +409,21 @@ class BiliBili:
             return
         self.interaction.triple(bvid)
 
-    def play(self, bvid, cid, title="", bangumi=False, bangumi_bvid="", view_online_watch=True):
+    def play(self, video_id, cid, title="", bangumi=False, bangumi_bvid="", view_online_watch=True):
+        """
+
+        :param video_id: bvid or epid or ssid
+        :param cid: cid
+        :param title: video title
+        :param bangumi: is bangumi
+        :param bangumi_bvid: bangumi's bvid
+        :param view_online_watch: is view online watch
+        :return: None
+        """
         if bangumi:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
         else:
-            url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&bvid={bvid}&fnval=16"
+            url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&bvid={video_id}&fnval=16"
         # cache
         play_url_request = self.request_manager.get(url, cache=True)
 
@@ -483,12 +493,8 @@ class BiliBili:
         if self.view_online_watch and view_online_watch:
             try:
                 while p.poll() is None:
-                    if bangumi:
-                        people_watching = self.request_manager.get(
-                            f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={bangumi_bvid}")
-                    else:
-                        people_watching = self.request_manager.get(
-                            f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={bvid}")
+                    people_watching = self.request_manager.get(
+                        f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={video_id if not bangumi else bangumi_bvid}")
                     people = f"\r{people_watching.json()['data']['total']} 人正在看"
                     print(people, end="", flush=True)
                     time.sleep(3)
@@ -577,7 +583,6 @@ class BiliBili:
             elif command == "play":
                 self.choose_video(bvid)
             elif command == "download":
-
                 cid, title, part_title, pic, is_dynamic = self.choose_video(bvid, cid_mode=True)
                 if is_dynamic:
                     print("互动视频无法下载! ")
