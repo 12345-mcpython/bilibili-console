@@ -346,16 +346,24 @@ class BiliBili:
             print(r.json()['code'])
             print(r.json()['message'])
             return
-        print("\n")
         if r.json()['data']["View"]['dynamic']:
             print("你播放的视频是一个互动视频.")
             base_cid = r.json()['data']["View"]['cid']
             self.play_interact_video(bvid, base_cid)
             return
-        print("视频选集")
         video = r.json()['data']["View"]["pages"]
         title = r.json()['data']["View"]['title']
         pic = r.json()['data']["View"]['pic']
+        if len(video) == 1:
+            if not cid_mode:
+                self.play(bvid, video[0]['cid'], title)
+                return
+            else:
+                return video[0]['cid'], title, video[0]['part'], pic, True if \
+                    r.json()['data']["View"]['dynamic'] \
+                    else False
+        print("\n")
+        print("视频选集")
         for i in video:
             print(f"{i['page']}: {i['part']}")
         print("请以冒号前面的数字为准选择视频.")
@@ -374,9 +382,10 @@ class BiliBili:
             if not cid_mode:
                 self.play(bvid, video[int(page) - 1]['cid'], title)
             else:
-                return video[int(page) - 1]['cid'], title, video[int(page) - 1]['part'], pic
+                return video[int(page) - 1]['cid'], title, video[int(page) - 1]['part'], pic, True if \
+                    r.json()['data']["View"]['dynamic'] \
+                    else False
             break
-        return
 
     def like(self, bvid, unlike=False):
         if not self.login:
@@ -568,7 +577,11 @@ class BiliBili:
             elif command == "play":
                 self.choose_video(bvid)
             elif command == "download":
-                cid, title, part_title, pic = self.choose_video(bvid, cid_mode=True)
+
+                cid, title, part_title, pic, is_dynamic = self.choose_video(bvid, cid_mode=True)
+                if is_dynamic:
+                    print("互动视频无法下载! ")
+                    return
                 self.download_one(bvid, cid, pic_url=pic, title=title, part_title=part_title)
             elif command == "download_video_list":
                 self.download_video_list(bvid)
