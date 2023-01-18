@@ -149,9 +149,25 @@ class BilibiliFavorite:
                 except IndexError:
                     print("Error: 索引超出收藏夹范围!")
 
-    # TODO: Add this function
-    def list_favorite(self, fav_id):
-        r = self.session.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + fav_id)
+    # TODO: not request so much.
+    def get_favorite(self, fav_id: int):
+        pre_page = 5
+        cursor = 1
+        r = self.session.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id))
+        total = r.json()['data']['info']['media_count'] // pre_page + 1
+        t = []
+        test = []
+        while True:
+            url = f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}"
+            ls = self.session.get(url)
+            if total < cursor:
+                break
+            ls = ls.json()['data']['medias']
+            t.append(ls)
+            for i in ls:
+                test.append(i)
+            cursor += 1
+        return t
 
 
 class BilibiliInteraction:
@@ -209,8 +225,38 @@ class BiliBili:
         self.login: bool = False
         self.mid: int = 0
         self.view_online_watch = True
-        self.favorite = BilibiliFavorite(self.request_manager.session, self.mid)
-        self.interaction: BilibiliInteraction = BilibiliInteraction(self.request_manager.session, self.favorite)
+        self.bilibili_favorite = BilibiliFavorite(self.request_manager.session, self.mid)
+        self.interaction: BilibiliInteraction = BilibiliInteraction(self.request_manager.session, self.bilibili_favorite)
+
+    def favorite(self):
+        if not self.login:
+            print("请先登录!")
+        fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
+        all = self.bilibili_favorite.get_favorite(fav_id)
+        for i in all:
+            for num, item in enumerate(i):
+                print(num + 1, ":")
+                print("封面: ", item['cover'])
+                print("标题: ", item['title'])
+                print("作者: ", item['upper']['name'], " bvid: ", item['bvid'], " 日期: ",
+                      datetime.datetime.fromtimestamp(
+                          item['pubtime']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_time(item['duration']),
+                      " 观看量: ",
+                      item['cnt_info']['play'])
+            while True:
+                command = input("选择视频: ")
+                if command == "exit":
+                    return
+                elif not command:
+                    break
+                elif not command.isdecimal():
+                    print("输入的不是整数!")
+                    continue
+                elif int(command) > len(i) or int(command) <= 0:
+                    print("选视频超出范围!")
+                    continue
+                bvid = i[int(command) - 1]['bvid']
+                self.view_video(bvid, no_favorite=True)
 
     def recommend(self):
         print("推荐界面")
@@ -429,7 +475,7 @@ class BiliBili:
         if not self.login:
             print("请先登录!")
             return
-        print(self.favorite.choose_favorite(self.favorite.mid, avid))
+        print(self.bilibili_favorite.choose_favorite(self.bilibili_favorite.mid, avid))
 
     def play(self, video_id, cid, title="", bangumi=False, bangumi_bvid="", view_online_watch=True):
         """
@@ -596,10 +642,10 @@ class BiliBili:
         self.quality = 80
         self.login = True
         self.mid = mid
-        self.favorite = BilibiliFavorite(self.request_manager.session, self.mid)
-        self.interaction: BilibiliInteraction = BilibiliInteraction(self.request_manager.session, self.favorite)
+        self.bilibili_favorite = BilibiliFavorite(self.request_manager.session, self.mid)
+        self.interaction: BilibiliInteraction = BilibiliInteraction(self.request_manager.session, self.bilibili_favorite)
 
-    def view_video(self, bvid):
+    def view_video(self, bvid, no_favorite=False):
         while True:
             command = input("视频选项: ")
             if not command:
@@ -622,7 +668,7 @@ class BiliBili:
                 self.coin(bvid)
             elif command == 'triple':
                 self.triple(bvid)
-            elif command == "favorite":
+            elif command == "favorite" and not no_favorite:
                 self.add_favorite(dec(bvid))
             else:
                 print("未知命令!")
@@ -640,18 +686,21 @@ class BiliBili:
                 self.address()
             elif command == "bangumi":
                 self.bangumi()
+            elif command == "favorite":
+                self.favorite()
             elif command == "exit":
                 sys.exit(0)
             elif command == "enable_online_watching":
                 self.view_online_watch = True
             elif command == "disable_online_watching":
                 self.view_online_watch = False
-                mid = self.request_manager.refresh_login_state()
-                if mid:
-                    self.login_init(mid)
             elif command == "clean_cache":
                 shutil.rmtree("cached")
                 os.mkdir("cached")
+            elif command == "refresh_login_state":
+                mid = self.request_manager.refresh_login_state()
+                if mid:
+                    self.login_init(mid)
             else:
                 print("未知命令!")
 
