@@ -20,7 +20,10 @@
 登录b站网页端, 手动拷贝cookie一次(按F12, 到Network 网络 标签页, 按F5, 翻到最上面找到第一个www.bilibili.com点击,
 找到Response Header 请求标头 找到cookie选择并复杂这堆cookie) 并新建文件cookie.txt, 把拷贝内容复制到这个文件.
 
-使用LBCC就尽量不要使用b站网页端了.(似乎b站网页版会自动刷新并废弃cookie)
+现在b站cookie时长变短, 需要每次都进行复制. (见 https://github.com/Nemo2011/bilibili-api/issues/121 )
+
+~~使用LBCC就尽量不要使用b站网页端了.(似乎b站网页版会自动刷新并废弃cookie)~~
+
 
 输入 `python main.py`
 
