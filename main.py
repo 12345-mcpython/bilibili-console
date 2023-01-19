@@ -24,6 +24,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 The old version also use the GPL-3.0 license, not MIT License.
 """
 import datetime
+import json
 import os
 import shutil
 import subprocess
@@ -39,15 +40,24 @@ from bilibili.utils import enc, format_time, validateTitle, read_cookie, convert
 
 
 class RequestManager:
-    def __init__(self, cookie):
-        self.cached_response: dict[str, requests.Response] = {}
-        # self.cookie = cookie
-        self.session = requests.session()
-        self.session.headers.update(
-            {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                           "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
-             "referer": "https://www.bilibili.com"})
-        self.session.headers.update({"cookie": cookie})
+    __instance = None
+    __first = True
+
+    def __new__(cls, *args, **kwargs):
+        if not cls.__instance:
+            cls.__instance = super().__new__(cls)
+        return cls.__instance
+
+    def __init__(self, cookie=""):
+        if self.__first:
+            self.cached_response: dict[str, requests.Response] = {}
+            self.session = requests.session()
+            self.session.headers.update(
+                {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                               "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
+                 "referer": "https://www.bilibili.com"})
+            self.session.headers.update({"cookie": cookie})
+            self.__class__.__first = False
 
     def get(self, url: str, params=None, cache=False, **kwargs) -> requests.Response:
         if self.cached_response.get(url):
@@ -110,13 +120,13 @@ class RequestManager:
 
 
 class BilibiliFavorite:
-    def __init__(self, session: requests.Session, mid: int):
-        self.session = session
+    def __init__(self, mid: int):
+        self.request_manager = RequestManager()
         self.mid = mid
 
     def choose_favorite(self, mid, avid: int = 0, one=False):
-        r = self.session.get(
-            f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid={avid}&up_mid={mid}")
+        r = self.request_manager.get(
+            f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid={avid}&up_mid={mid}", cache=True)
         print("\n")
         print("选择收藏夹")
         for index, item in enumerate(r.json()['data']['list']):
@@ -152,27 +162,57 @@ class BilibiliFavorite:
     def get_favorite(self, fav_id: int):
         pre_page = 5
         cursor = 1
-        r = self.session.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id))
+        r = self.request_manager.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id),
+                                     cache=True)
         total = r.json()['data']['info']['media_count'] // pre_page + 1
         while True:
-            url = f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}"
-            ls = self.session.get(url)
+            ls = self.request_manager.get(
+                f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}", cache=True)
             if total < cursor:
                 break
-            ls = ls.json()['data']['medias']
-            yield ls
+            yield ls.json()['data']['medias']
             cursor += 1
+
+    def export_favorite(self, fav_id: int):
+        pre_page = 5
+        cursor = 1
+        r = self.request_manager.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id))
+        total = r.json()['data']['info']['media_count'] // pre_page + 1
+        print("正在导出收藏夹" + r.json()['data']['info']['upper']['name'] + ".")
+        export = {
+            "id": r.json()['data']['info']['id'],
+            "media_count": r.json()['data']['info']['media_count'],
+            "title": r.json()['data']['info']['title'],
+            "cover": r.json()['data']['info']['cover'],
+            "create_user": {
+                "name": r.json()['data']['info']['upper']['name'],
+                "mid": r.json()['data']['info']['upper']['mid'],
+                "time": r.json()['data']['info']['mtime'],
+            },
+            "medias": []
+        }
+        while True:
+            if total < cursor:
+                break
+            export['medias'] += self.request_manager.get(
+                f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}").json()['data'][
+                'medias']
+            cursor += 1
+        with open(str(fav_id) + '.json', "w", encoding="utf-8") as f:
+            json.dump(export, f)
+        print(f"导出收藏夹{r.json()['data']['info']['upper']['name']}成功.")
 
 
 class BilibiliInteraction:
-    def __init__(self, session: requests.Session, favorite: BilibiliFavorite):
-        self.session = session
-        self.csrf: str = clean_cookie(convert_cookies_to_dict(session.headers.get("cookie"))).get("bili_jct", "")
+    def __init__(self, favorite: BilibiliFavorite):
+        self.request_manager = RequestManager()
+        self.csrf: str = clean_cookie(convert_cookies_to_dict(self.request_manager.session.headers.get("cookie"))).get(
+            "bili_jct", "")
         self.favorite = favorite
 
     def like(self, bvid: str, unlike=False):
-        r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like",
-                              data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf})
+        r = self.request_manager.post("https://api.bilibili.com/x/web-interface/archive/like",
+                                      data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf})
         if r.json()['code'] != 0:
             print("点赞或取消点赞失败!")
             print(f"错误信息: {r.json()['message']}")
@@ -183,8 +223,8 @@ class BilibiliInteraction:
                 print("点赞成功!")
 
     def coin(self, bvid: str, count: int):
-        r = self.session.post("https://api.bilibili.com/x/web-interface/coin/add",
-                              data={"bvid": bvid, 'csrf': self.csrf, 'multiply': count})
+        r = self.request_manager.post("https://api.bilibili.com/x/web-interface/coin/add",
+                                      data={"bvid": bvid, 'csrf': self.csrf, 'multiply': count})
         if r.json()['code'] == 0:
             print("投币成功!")
         else:
@@ -192,8 +232,8 @@ class BilibiliInteraction:
             print(f"错误信息: {r.json()['message']}")
 
     def triple(self, bvid: str):
-        r = self.session.post("https://api.bilibili.com/x/web-interface/archive/like/triple",
-                              data={"bvid": bvid, "csrf": self.csrf})
+        r = self.request_manager.post("https://api.bilibili.com/x/web-interface/archive/like/triple",
+                                      data={"bvid": bvid, "csrf": self.csrf})
         if r.json()['code'] == 0:
             print("三联成功!")
         else:
@@ -201,8 +241,8 @@ class BilibiliInteraction:
             print(f"错误信息: {r.json()['message']}")
 
     def mark_interact_video(self, bvid: str, score: int):
-        r = self.session.post("https://api.bilibili.com/x/stein/mark",
-                              data={"bvid": bvid, "csrf": self.csrf, "mark": score})
+        r = self.request_manager.post("https://api.bilibili.com/x/stein/mark",
+                                      data={"bvid": bvid, "csrf": self.csrf, "mark": score})
         if r.json()['code'] == 0:
             print("评分成功!")
         else:
@@ -219,15 +259,15 @@ class BiliBili:
         self.login: bool = False
         self.mid: int = 0
         self.view_online_watch = True
-        self.bilibili_favorite = BilibiliFavorite(self.request_manager.session, self.mid)
-        self.interaction: BilibiliInteraction = BilibiliInteraction(self.request_manager.session, self.bilibili_favorite)
+        self.bilibili_favorite = BilibiliFavorite(self.mid)
+        self.interaction: BilibiliInteraction = BilibiliInteraction(self.bilibili_favorite)
 
     def favorite(self):
         if not self.login:
             print("请先登录!")
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
-        all = self.bilibili_favorite.get_favorite(fav_id)
-        for i in all:
+        all_request = self.bilibili_favorite.get_favorite(fav_id)
+        for i in all_request:
             for num, item in enumerate(i):
                 print(num + 1, ":")
                 print("封面: ", item['cover'])
@@ -636,8 +676,8 @@ class BiliBili:
         self.quality = 80
         self.login = True
         self.mid = mid
-        self.bilibili_favorite = BilibiliFavorite(self.request_manager.session, self.mid)
-        self.interaction: BilibiliInteraction = BilibiliInteraction(self.request_manager.session, self.bilibili_favorite)
+        self.bilibili_favorite = BilibiliFavorite(self.mid)
+        self.interaction: BilibiliInteraction = BilibiliInteraction(self.bilibili_favorite)
 
     def view_video(self, bvid, no_favorite=False):
         while True:
@@ -664,6 +704,7 @@ class BiliBili:
                 self.triple(bvid)
             elif command == "favorite" and not no_favorite:
                 self.add_favorite(dec(bvid))
+                self.request_manager.cached_response = {}
             else:
                 print("未知命令!")
 
