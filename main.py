@@ -149,13 +149,11 @@ class BilibiliFavorite:
                 except IndexError:
                     print("Error: 索引超出收藏夹范围!")
 
-    # TODO: not request so much.
     def get_favorite(self, fav_id: int):
         pre_page = 5
         cursor = 1
         r = self.session.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id))
         total = r.json()['data']['info']['media_count'] // pre_page + 1
-        t = []
         test = []
         while True:
             url = f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}"
@@ -163,11 +161,8 @@ class BilibiliFavorite:
             if total < cursor:
                 break
             ls = ls.json()['data']['medias']
-            t.append(ls)
-            for i in ls:
-                test.append(i)
+            yield ls
             cursor += 1
-        return t
 
 
 class BilibiliInteraction:
