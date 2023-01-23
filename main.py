@@ -36,7 +36,7 @@ import requests
 from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
-from bilibili.utils import enc, format_time, validateTitle, read_cookie, convert_cookies_to_dict, clean_cookie, dec
+from bilibili.utils import enc, dec, format_time, validateTitle, read_cookie, convert_cookies_to_dict, clean_cookie
 
 
 class RequestManager:
@@ -743,7 +743,7 @@ class BiliBili:
 print("LBCC v1.0.0-dev.")
 print()
 
-print("""Copyright (C) 2022 Laosun Studios.
+print("""Copyright (C) 2023 Laosun Studios.
 
 This program comes with ABSOLUTELY NO WARRANTY; 
 This is free software, and you are welcome to redistribute it
