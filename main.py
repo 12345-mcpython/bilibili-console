@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Copyright (c) 2022 Laosun Studios.
+Copyright (c) 2023 Laosun Studios.
 
 Distributed under GPL-3.0 License.
 
