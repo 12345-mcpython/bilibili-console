@@ -177,30 +177,44 @@ class BilibiliFavorite:
         pre_page = 5
         cursor = 1
         r = self.request_manager.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id))
-        total = r.json()['data']['info']['media_count'] // pre_page + 1
-        print("正在导出收藏夹" + r.json()['data']['info']['upper']['name'] + ".")
+        total = r.json()['data']['info']['media_count'] // pre_page + (
+            1 if r.json()['data']['info']['media_count'] % pre_page != 0 else 0)
+        print(f"正在导出收藏夹{r.json()['data']['info']['title']}.")
         export = {
             "id": r.json()['data']['info']['id'],
-            "media_count": r.json()['data']['info']['media_count'],
             "title": r.json()['data']['info']['title'],
-            "cover": r.json()['data']['info']['cover'],
-            "create_user": {
+            "cover": r.json()['data']['info']['cover'].replace("http", "https"),
+            "media_count": r.json()['data']['info']['media_count'],
+            "view": r.json()['data']['info']['cnt_info']['play'],
+            "user": {
                 "name": r.json()['data']['info']['upper']['name'],
                 "mid": r.json()['data']['info']['upper']['mid'],
-                "time": r.json()['data']['info']['mtime'],
+                "create_time": r.json()['data']['info']['mtime'],
             },
             "medias": []
         }
         while True:
             if total < cursor:
                 break
-            export['medias'] += self.request_manager.get(
-                f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}").json()['data'][
-                'medias']
+            medias = self.request_manager.get(
+                f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}")
+            medias = medias.json()['data']['medias']
+            for i in medias:
+                del i["type"]
+                del i["bv_id"]
+                del i["ugc"]
+                del i["season"]
+                del i["ogv"]
+                del i["link"]
+                i["publish_time"] = i["pubtime"]
+                del i["pubtime"]
+                del i["ctime"]
+                i['cover'] = i['cover'].replace("http", "https")
+            export['medias'] += medias
             cursor += 1
         with open(str(fav_id) + '.json', "w", encoding="utf-8") as f:
-            json.dump(export, f)
-        print(f"导出收藏夹{r.json()['data']['info']['upper']['name']}成功.")
+            json.dump(export, f, ensure_ascii=False)
+        print(f"导出收藏夹\"{r.json()['data']['info']['title']}\"成功.")
 
 
 class BilibiliInteraction:
@@ -672,6 +686,10 @@ class BiliBili:
             if not self.download_one(bvid, cid, pic, title=title, part_title=part_title):
                 break
 
+    def export_favorite(self):
+        fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
+        self.bilibili_favorite.export_favorite(fav_id)
+
     def login_init(self, mid):
         self.quality = 80
         self.login = True
@@ -736,6 +754,8 @@ class BiliBili:
                 mid = self.request_manager.refresh_login_state()
                 if mid:
                     self.login_init(mid)
+            elif command == "export_favorite":
+                self.export_favorite()
             else:
                 print("未知命令!")
 
