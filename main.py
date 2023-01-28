@@ -173,6 +173,10 @@ class BilibiliFavorite:
             yield ls.json()['data']['medias']
             cursor += 1
 
+    def get_favorite_information(self, fav_id: int):
+        r = self.request_manager.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id))
+        return r.json()['data']['info']
+
     def export_favorite(self, fav_id: int):
         pre_page = 5
         cursor = 1
@@ -630,9 +634,9 @@ class BiliBili:
         req = self.request_manager.get(url)
         download_url = req.json()["data" if not bangumi else "result"]["durl"][0]["url"]
         if base_dir:
-            download_dir = "download/" + validateTitle(title) + "/"
-        else:
             download_dir = "download/" + base_dir + "/" + validateTitle(title) + "/"
+        else:
+            download_dir = "download/" + validateTitle(title) + "/"
         res = self.request_manager.get(download_url, stream=True)
         length = float(res.headers['content-length'])
         if not os.path.exists("download"):
@@ -673,7 +677,7 @@ class BiliBili:
                     self.request_manager.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
         return True
 
-    def download_video_list(self, bvid):
+    def download_video_list(self, bvid, base_dir=""):
         url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid
         r = self.request_manager.get(url, cache=True)
         video = r.json()['data']["View"]["pages"]
@@ -686,8 +690,19 @@ class BiliBili:
             print(f"{count} / {total}")
             cid = i['cid']
             part_title = i['part']
-            if not self.download_one(bvid, cid, pic, title=title, part_title=part_title):
+            if not self.download_one(bvid, cid, pic, title=title, part_title=part_title, base_dir=base_dir):
                 break
+
+    def download_favorite(self):
+        fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
+        info = self.bilibili_favorite.get_favorite_information(fav_id)
+        count = 0
+        total = info['media_count']
+        for i in self.bilibili_favorite.get_favorite(fav_id):
+            for j in i:
+                count += 1
+                print(f"收藏夹进度: {count} / {total}")
+                self.download_video_list(j['bvid'], base_dir=validateTitle(info['title']))
 
     def export_favorite(self):
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
@@ -759,6 +774,8 @@ class BiliBili:
                     self.login_init(mid)
             elif command == "export_favorite":
                 self.export_favorite()
+            elif command == "download_favorite":
+                self.download_favorite()
             else:
                 print("未知命令!")
 
