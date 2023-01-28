@@ -621,7 +621,7 @@ class BiliBili:
                 return
         print("\n")
 
-    def download_one(self, bvid, cid, pic_url, bangumi=False, title="", part_title=""):
+    def download_one(self, bvid, cid, pic_url, bangumi=False, title="", part_title="", base_dir=""):
         if not bangumi:
             url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&bvid={bvid}"
         else:
@@ -629,14 +629,17 @@ class BiliBili:
 
         req = self.request_manager.get(url)
         download_url = req.json()["data" if not bangumi else "result"]["durl"][0]["url"]
-
+        if base_dir:
+            download_dir = "download/" + validateTitle(title) + "/"
+        else:
+            download_dir = "download/" + base_dir + "/" + validateTitle(title) + "/"
         res = self.request_manager.get(download_url, stream=True)
         length = float(res.headers['content-length'])
         if not os.path.exists("download"):
             os.mkdir("download")
-        if not os.path.exists("download/" + validateTitle(title)):
-            os.mkdir("download/" + validateTitle(title))
-        dts = "download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".mp4"
+        if not os.path.exists(download_dir):
+            os.makedirs(download_dir)
+        dts = download_dir + validateTitle(part_title) + ".mp4"
         if os.path.exists(dts):
             c = input("文件已存在, 是否覆盖(y/n)? ")
             if c != "y":
@@ -652,19 +655,19 @@ class BiliBili:
         except KeyboardInterrupt:
             file.close()
             os.remove(dts)
-            if len(os.listdir("download/" + validateTitle(title))) == 0:
-                os.rmdir("download/" + validateTitle(title))
+            if len(os.listdir(download_dir)) == 0:
+                os.rmdir(download_dir)
             print("取消下载.")
             return False
         if not file.closed:
             file.close()
-        if not os.path.exists("download/" + validateTitle(title) + "/" + validateTitle(title) + ".jpg"):
+        if not os.path.exists(download_dir + validateTitle(title) + ".jpg"):
             print("下载封面中...")
-            with open("download/" + validateTitle(title) + "/" + validateTitle(title) + ".jpg", "wb") as file:
+            with open(download_dir + validateTitle(title) + ".jpg", "wb") as file:
                 file.write(self.request_manager.get(pic_url).content)
-        if not os.path.exists("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml"):
+        if not os.path.exists(download_dir + validateTitle(part_title) + ".xml"):
             print("下载弹幕中...")
-            with open("download/" + validateTitle(title) + "/" + validateTitle(part_title) + ".xml", "w",
+            with open(download_dir + validateTitle(part_title) + ".xml", "w",
                       encoding="utf-8") as danmaku:
                 danmaku.write(
                     self.request_manager.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
