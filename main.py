@@ -691,7 +691,8 @@ class BiliBili:
             cid = i['cid']
             part_title = i['part']
             if not self.download_one(bvid, cid, pic, title=title, part_title=part_title, base_dir=base_dir):
-                break
+                return False
+        return True
 
     def download_favorite(self):
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
@@ -702,7 +703,8 @@ class BiliBili:
             for j in i:
                 count += 1
                 print(f"收藏夹进度: {count} / {total}")
-                self.download_video_list(j['bvid'], base_dir=validateTitle(info['title']))
+                if not self.download_video_list(j['bvid'], base_dir=validateTitle(info['title'])):
+                    break
 
     def export_favorite(self):
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
