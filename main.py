@@ -704,7 +704,7 @@ class BiliBili:
                 count += 1
                 print(f"收藏夹进度: {count} / {total}")
                 if not self.download_video_list(j['bvid'], base_dir=validateTitle(info['title'])):
-                    break
+                    return
 
     def export_favorite(self):
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
