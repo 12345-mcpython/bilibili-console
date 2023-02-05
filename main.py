@@ -38,6 +38,12 @@ from tqdm import tqdm
 from bilibili.biliass import Danmaku2ASS
 from bilibili.utils import enc, dec, format_time, validateTitle, read_cookie, convert_cookies_to_dict, clean_cookie
 
+__version__ = '1.0.0-dev'
+
+__year__ = 2023
+
+__author__ = "Laosun Studios"
+
 
 class RequestManager:
     __instance = None
@@ -338,8 +344,9 @@ class BiliBili:
                     print("选视频超出范围!")
                     continue
                 bvid = recommend_request.json()['data']['item'][int(command) - 1]['bvid']
+                mid = recommend_request.json()['data']['item'][int(command) - 1]['owner']['mid']
                 # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
-                self.view_video(bvid)
+                self.view_video(bvid, mid=mid)
 
     def address(self):
         video_address = input("输入地址: ")
@@ -717,7 +724,7 @@ class BiliBili:
         self.bilibili_favorite = BilibiliFavorite(self.mid)
         self.interaction: BilibiliInteraction = BilibiliInteraction(self.bilibili_favorite)
 
-    def view_video(self, bvid, no_favorite=False):
+    def view_video(self, bvid, mid=0, no_favorite=False):
         while True:
             command = input("视频选项: ")
             if not command:
@@ -743,6 +750,8 @@ class BiliBili:
             elif command == "favorite" and not no_favorite:
                 self.add_favorite(dec(bvid))
                 self.request_manager.cached_response = {}
+            elif command == "view_author":
+                self.user_space(mid)
             else:
                 print("未知命令!")
 
@@ -778,14 +787,30 @@ class BiliBili:
                 self.export_favorite()
             elif command == "download_favorite":
                 self.download_favorite()
+            elif command == "view_self":
+                if self.login:
+                    self.user_space(mid)
+                else:
+                    print("未登录用户!")
             else:
                 print("未知命令!")
 
+    def user_space(self, mid: int):
+        user_info = self.request_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?mid=" + str(mid))
+        user_data = user_info.json()['data']
+        print("用户空间")
+        print("")
+        print("用户名: " + user_data['name'])
+        print("头像: " + user_data['face'])
+        print("Level: " + str(user_data['level']))
+        print("个性签名: " + user_data['sign'])
+        print("")
 
-print("LBCC v1.0.0-dev.")
+
+print(f"LBCC v{__version__}.")
 print()
 
-print("""Copyright (C) 2023 Laosun Studios.
+print(f"""Copyright (C) {__year__} {__author__}.
 
 This program comes with ABSOLUTELY NO WARRANTY; 
 This is free software, and you are welcome to redistribute it
