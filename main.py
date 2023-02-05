@@ -802,7 +802,7 @@ class BiliBili:
         print("")
         print("用户名: " + user_data['name'])
         print("头像: " + user_data['face'])
-        print("Level: " + str(user_data['level']))
+        print("Level: " + str(user_data['level']) + (" 硬核会员" if user_data['is_senior_member'] == 1 else ""))
         print("个性签名: " + user_data['sign'])
         print("")
 
