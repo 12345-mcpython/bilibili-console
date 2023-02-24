@@ -791,7 +791,9 @@ class BiliBili:
                 if self.login:
                     self.user_space(mid)
                 else:
-                    print("未登录用户!")
+                    print("用户未登录!")
+            elif command == "view_user":
+                self.user_space(int(input("请输入用户mid: ")))
             else:
                 print("未知命令!")
 
