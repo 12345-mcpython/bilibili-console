@@ -798,7 +798,7 @@ class BiliBili:
             elif command == "favorite" and not no_favorite:
                 self.add_favorite(dec(bvid))
                 self.request_manager.cached_response = {}
-            elif command == "view_author":
+            elif command == "view_user":
                 self.user_space(mid)
             elif command:
                 print("未知命令!")
