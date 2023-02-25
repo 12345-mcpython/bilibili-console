@@ -752,7 +752,7 @@ class BiliBili:
                 self.request_manager.cached_response = {}
             elif command == "view_author":
                 self.user_space(mid)
-            else:
+            elif command:
                 print("未知命令!")
 
     def main(self):
@@ -794,7 +794,7 @@ class BiliBili:
                     print("用户未登录!")
             elif command == "view_user":
                 self.user_space(int(input("请输入用户mid: ")))
-            else:
+            elif command:
                 print("未知命令!")
 
     def user_space(self, mid: int):
@@ -807,6 +807,54 @@ class BiliBili:
         print("Level: " + str(user_data['level']) + (" 硬核会员" if user_data['is_senior_member'] == 1 else ""))
         print("个性签名: " + user_data['sign'])
         print("")
+        while True:
+            command = input("用户空间选项: ")
+            if command == "list_video":
+                self.list_user_video(mid)
+            elif command == "exit":
+                return
+            elif command:
+                print("未知命令!")
+
+    def list_user_video(self, mid: int):
+        pre_page = 5
+        cursor = 1
+        user_info = self.request_manager.get(f"https://api.bilibili.com/x/space/wbi/arc/search?mid={mid}&ps=5")
+        total = user_info.json()['data']['page']['count'] // pre_page + 1
+        while True:
+            ls = self.request_manager.get(
+                f"https://api.bilibili.com/x/space/wbi/arc/search?mid={mid}&ps=5&pn={cursor}", cache=True)
+            if total < cursor:
+                break
+            if len(ls.json()['data']['list']['vlist']) == 0:
+                print("该用户未发送视频!")
+                return
+            for num, item in enumerate(ls.json()['data']['list']['vlist']):
+                print(num + 1, ":")
+                print("封面: ", item['pic'])
+                print("标题: ", item['title'])
+                print("作者: ", item['author'], " bvid: ", item['bvid'], " 日期: ",
+                      datetime.datetime.fromtimestamp(
+                          item['created']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", item['length'],
+                      " 观看量: ",
+                      item['play'])
+            while True:
+                command = input("选择视频: ")
+                if command == "exit":
+                    return
+                elif not command:
+                    break
+                elif not command.isdecimal():
+                    print("输入的不是整数!")
+                    continue
+                elif int(command) > len(ls.json()['data']['list']['vlist']) or int(command) <= 0:
+                    print("选视频超出范围!")
+                    continue
+                bvid = ls.json()['data']['list']['vlist'][int(command) - 1]['bvid']
+                mid = ls.json()['data']['list']['vlist'][int(command) - 1]['owner']['mid']
+                self.view_video(bvid, mid=mid)
+            cursor += 1
+
 
 
 print(f"LBCC v{__version__}.")
