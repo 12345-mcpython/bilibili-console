@@ -1,7 +1,7 @@
 # LBCC
 
 ## 介绍
-Laosun Bilibili Console Client (LBCC) 是一个跨平台B站命令行客户端, 基于Python3开发.
+Laosun Bilibili Console Client (LBCC) 是一个跨平台B站命令行客户端.
 
 ![](https://laosun-image.obs.cn-north-4.myhuaweicloud.com/20230118204820.png)
 
