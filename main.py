@@ -855,7 +855,6 @@ class BiliBili:
             cursor += 1
 
 
-
 print(f"LBCC v{__version__}.")
 print()
 
