@@ -223,7 +223,7 @@ class BilibiliFavorite:
             export['medias'] += medias
             cursor += 1
         with open(str(fav_id) + '.json', "w", encoding="utf-8") as f:
-            json.dump(export, f, ensure_ascii=False)
+            json.dump(export, f, ensure_ascii=False, sort_keys=True)
         print(f"导出收藏夹\"{r.json()['data']['info']['title']}\"成功.")
 
 
