@@ -125,6 +125,21 @@ class RequestManager:
         return r.json()['data']['mid']
 
 
+class BilibiliManga:
+    def __init__(self, mid):
+        self.request_manager = RequestManager()
+        self.mid = mid
+
+    def get_manga_detail(self, manga_id: int):
+        detail_request = self.request_manager.post("https://manga.bilibili.com/twirp/comic.v1.Comic/ComicDetail",
+                                                   data={"comic_id": manga_id})
+        # 1. get epid detail_request
+        # 2. post https://manga.bilibili.com/twirp/comic.v1.Comic/GetImageIndex?device=pc&platform=web {ep_id: 212024}
+        # 3. get token https://manga.bilibili.com/twirp/comic.v1.Comic/ImageToken?device=pc&platform=web {urls: "["/bfs/manga/94b1978854b6c6a582740cae861109cb0d1e1b46.jpg@680w.jpg"]"}
+        # 4. image url + ?token= https://manga.hdslb.com/bfs/manga/94b1978854b6c6a582740cae861109cb0d1e1b46.jpg@680w.jpg?token=217f9a36f4a7f71fa4f795c972dbef44&ts=63fa0cd5
+        print(detail_request.json())
+
+
 class BilibiliFavorite:
     def __init__(self, mid: int):
         assert type(mid) == int
