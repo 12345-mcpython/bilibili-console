@@ -851,7 +851,6 @@ class BiliBili:
                     print("选视频超出范围!")
                     continue
                 bvid = ls.json()['data']['list']['vlist'][int(command) - 1]['bvid']
-                mid = ls.json()['data']['list']['vlist'][int(command) - 1]['owner']['mid']
                 self.view_video(bvid, mid=mid)
             cursor += 1
 
