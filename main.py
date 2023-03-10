@@ -142,14 +142,10 @@ class BilibiliManga:
 
 class BilibiliFavorite:
     def __init__(self, mid: int):
-        assert type(mid) == int
         self.request_manager = RequestManager()
         self.mid = mid
 
     def choose_favorite(self, mid: int, avid: int = 0, one=False):
-        assert type(mid) == int
-        assert type(avid) == int
-        assert type(one) == bool
         r = self.request_manager.get(
             f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid={avid}&up_mid={mid}", cache=True)
         print("\n")
@@ -185,7 +181,6 @@ class BilibiliFavorite:
                     print("Error: 索引超出收藏夹范围!")
 
     def get_favorite(self, fav_id: int):
-        assert type(fav_id) == int
         pre_page = 5
         cursor = 1
         r = self.request_manager.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id),
@@ -200,12 +195,10 @@ class BilibiliFavorite:
             cursor += 1
 
     def get_favorite_information(self, fav_id: int):
-        assert type(fav_id) == int
         r = self.request_manager.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id))
         return r.json()['data']['info']
 
     def export_favorite(self, fav_id: int):
-        assert type(fav_id) == int
         pre_page = 5
         cursor = 1
         r = self.request_manager.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id))
@@ -257,8 +250,7 @@ class BilibiliInteraction:
         self.favorite = favorite
 
     def like(self, bvid: str, unlike=False):
-        assert type(bvid) == str
-        assert type(unlike) == bool
+
         r = self.request_manager.post("https://api.bilibili.com/x/web-interface/archive/like",
                                       data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf})
         if r.json()['code'] != 0:
@@ -271,8 +263,7 @@ class BilibiliInteraction:
                 print("点赞成功!")
 
     def coin(self, bvid: str, count: int):
-        assert type(bvid) == str
-        assert type(count) == int
+
         r = self.request_manager.post("https://api.bilibili.com/x/web-interface/coin/add",
                                       data={"bvid": bvid, 'csrf': self.csrf, 'multiply': count})
         if r.json()['code'] == 0:
@@ -282,7 +273,6 @@ class BilibiliInteraction:
             print(f"错误信息: {r.json()['message']}")
 
     def triple(self, bvid: str):
-        assert type(bvid) == str
         r = self.request_manager.post("https://api.bilibili.com/x/web-interface/archive/like/triple",
                                       data={"bvid": bvid, "csrf": self.csrf})
         if r.json()['code'] == 0:
@@ -292,8 +282,6 @@ class BilibiliInteraction:
             print(f"错误信息: {r.json()['message']}")
 
     def mark_interact_video(self, bvid: str, score: int):
-        assert type(bvid) == str
-        assert type(score) == int
         r = self.request_manager.post("https://api.bilibili.com/x/stein/mark",
                                       data={"bvid": bvid, "csrf": self.csrf, "mark": score})
         if r.json()['code'] == 0:
@@ -395,7 +383,6 @@ class BiliBili:
             self.view_video(bvid=enc(int(video_id.strip("av"))))
 
     def view_short_video_info(self, bvid):
-        assert type(bvid) == str
         video = self.request_manager.get("https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid)
         item = video.json()['data']['View']
         print("封面: ", item['pic'])
@@ -416,7 +403,6 @@ class BiliBili:
                 print("未知选项!")
 
     def play_bangumi_by_address(self, url):
-        assert type(url) == str
         ssid_or_epid = url.split("/")[-1]
         ssid_or_epid = ssid_or_epid.split("?")[0]
         if ssid_or_epid.startswith("ss"):
@@ -448,15 +434,12 @@ class BiliBili:
             self.play(video_id=epid, cid=cid, bangumi=True, bangumi_bvid=bvid, title=title)
 
     def get_danmaku(self, cid: int):
-        assert type(cid) == int
         resp = self.request_manager.get(
             "https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(cid),
             cache=True)
         return resp.content
 
     def play_interact_video(self, bvid: str, cid: int):
-        assert type(bvid) == str
-        assert type(cid) == int
         self.play(bvid, cid, view_online_watch=False)
 
         graph_version = self.request_manager.get(f"https://api.bilibili.com/x/player/v2?bvid={bvid}&cid={cid}")
@@ -493,8 +476,6 @@ class BiliBili:
             self.play(bvid, cid, view_online_watch=False)
 
     def choose_video(self, bvid, cid_mode=False):
-        assert type(bvid) == str
-        assert type(cid_mode) == bool
         url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid
         # cache
         r = self.request_manager.get(url, cache=True)
@@ -544,15 +525,12 @@ class BiliBili:
             break
 
     def like(self, bvid, unlike=False):
-        assert type(bvid) == str
-        assert type(unlike) == bool
         if not self.login:
             print("请先登录!")
             return
         self.interaction.like(bvid, unlike=unlike)
 
     def coin(self, bvid):
-        assert type(bvid) == str
         if not self.login:
             print("请先登录!")
             return
@@ -570,19 +548,12 @@ class BiliBili:
         self.interaction.triple(bvid)
 
     def add_favorite(self, avid):
-        assert type(avid) == int
         if not self.login:
             print("请先登录!")
             return
         print(self.bilibili_favorite.choose_favorite(self.bilibili_favorite.mid, avid))
 
     def play(self, video_id, cid, title="", bangumi=False, bangumi_bvid="", view_online_watch=True):
-        assert (type(video_id) == str or type(video_id) == int)
-        assert type(cid) == int
-        assert type(title) == str
-        assert type(bangumi) == bool
-        assert type(bangumi_bvid) == str
-        assert type(view_online_watch) == bool
         """
         播放视频
         :param video_id: bvid, epid or ssid
@@ -681,14 +652,6 @@ class BiliBili:
     def download_one(self, bvid: str, cid: int, pic_url: str, bangumi: bool = False, title: str = "",
                      part_title: str = "",
                      base_dir: str = ""):
-        assert type(bvid) == str
-        assert type(cid) == int
-        assert type(pic_url) == str
-        assert type(bangumi) == bool
-        assert type(title) == str
-        assert type(part_title) == str
-        assert type(base_dir) == str
-
         if not bangumi:
             url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&bvid={bvid}"
         else:
@@ -741,8 +704,6 @@ class BiliBili:
         return True
 
     def download_video_list(self, bvid, base_dir=""):
-        assert type(bvid) == str
-        assert type(base_dir) == str
         url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid
         r = self.request_manager.get(url, cache=True)
         video = r.json()['data']["View"]["pages"]
@@ -776,7 +737,6 @@ class BiliBili:
         self.bilibili_favorite.export_favorite(fav_id)
 
     def login_init(self, mid):
-        assert type(mid) == int
         self.quality = 80
         self.login = True
         self.mid = mid
@@ -784,9 +744,6 @@ class BiliBili:
         self.interaction: BilibiliInteraction = BilibiliInteraction(self.bilibili_favorite)
 
     def view_video(self, bvid, mid=0, no_favorite=False):
-        assert type(bvid) == str
-        assert type(mid) == int
-        assert type(no_favorite) == bool
         while True:
             command = input("视频选项: ")
             if not command:
@@ -861,7 +818,6 @@ class BiliBili:
                 print("未知命令!")
 
     def user_space(self, mid: int):
-        assert type(mid) == int
         user_info = self.request_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?mid=" + str(mid))
         user_data = user_info.json()['data']
         print("用户空间")
@@ -881,7 +837,6 @@ class BiliBili:
                 print("未知命令!")
 
     def list_user_video(self, mid: int):
-        assert type(mid) == int
         pre_page = 5
         cursor = 1
         user_info = self.request_manager.get(f"https://api.bilibili.com/x/space/wbi/arc/search?mid={mid}&ps=5")
