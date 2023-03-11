@@ -50,7 +50,7 @@ class RequestManager:
     __instance = None
     __first = True
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls):
         if not cls.__instance:
             cls.__instance = super().__new__(cls)
         return cls.__instance
@@ -153,12 +153,19 @@ class BilibiliFavorite:
         self.request_manager = RequestManager()
         self.mid = mid
 
-    def choose_favorite(self, mid: int, avid: int = 0, one=False):
-        r = self.request_manager.get(
+    def choose_favorite(self, mid: int, avid: int = 0, one=False) -> list[int] | int:
+        """
+        选择收藏夹
+        :param mid: 用户mid
+        :param avid: 视频avid
+        :param one: 是否为单选模式
+        :return: 收藏夹id list or int
+        """
+        request = self.request_manager.get(
             f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid={avid}&up_mid={mid}", cache=True)
         print("\n")
         print("选择收藏夹")
-        for index, item in enumerate(r.json()['data']['list']):
+        for index, item in enumerate(request.json()['data']['list']):
             print(f"{index + 1}: {item['title']} ({item['media_count']}) {'(已收藏)' if item['fav_state'] else ''}")
         while True:
             if not one:
@@ -171,29 +178,34 @@ class BilibiliFavorite:
                     if int(item) - 1 < 0:
                         print(f"索引{index + 1} Error: 输入的必须为正数!")
                         continue
-                    if r.json()['data']['list'][int(item) - 1]['fav_state']:
+                    if request.json()['data']['list'][int(item) - 1]['fav_state']:
                         print(f"索引{index + 1} Warning: 此收藏夹已收藏过该视频, 将不会重复收藏.")
                     try:
-                        ids.append(r.json()['data']['list'][int(item) - 1]['id'])
+                        ids.append(request.json()['data']['list'][int(item) - 1]['id'])
                     except IndexError:
                         print(f"索引{index + 1} Error: 索引超出收藏夹范围!")
                 return ids
             else:
                 choose = input("选择收藏夹: ")
                 if not choose.isdecimal():
-                    print(f"索引{index + 1} Error: 输入的必须为数字!")
+                    print(f"Error: 输入的必须为数字!")
                     continue
                 try:
-                    return r.json()['data']['list'][int(choose) - 1]['id']
+                    return request.json()['data']['list'][int(choose) - 1]['id']
                 except IndexError:
                     print("Error: 索引超出收藏夹范围!")
 
-    def get_favorite(self, fav_id: int):
+    def get_favorite(self, fav_id: int) -> list:
+        """
+        获取收藏夹
+        :param fav_id: 收藏夹id
+        :return: 收藏夹内容
+        """
         pre_page = 5
         cursor = 1
-        r = self.request_manager.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id),
-                                     cache=True)
-        total = r.json()['data']['info']['media_count'] // pre_page + 1
+        request = self.request_manager.get(f"https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=",
+                                           cache=True)
+        total = request.json()['data']['info']['media_count'] // pre_page + 1
         while True:
             ls = self.request_manager.get(
                 f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}", cache=True)
@@ -202,17 +214,28 @@ class BilibiliFavorite:
             yield ls.json()['data']['medias']
             cursor += 1
 
-    def get_favorite_information(self, fav_id: int):
-        r = self.request_manager.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id))
-        return r.json()['data']['info']
+    def get_favorite_information(self, fav_id: int) -> list:
+        """
+        获取收藏夹信息
+        :param fav_id:
+        :return:
+        """
+        request = self.request_manager.get(f"https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id={fav_id}")
+        return request.json()['data']['info']
 
     def export_favorite(self, fav_id: int):
+        """
+        导出收藏夹
+        :param fav_id: 收藏夹id
+        :return:
+        """
         pre_page = 5
         cursor = 1
         r = self.request_manager.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id))
         total = r.json()['data']['info']['media_count'] // pre_page + (
             1 if r.json()['data']['info']['media_count'] % pre_page != 0 else 0)
-        print(f"正在导出收藏夹{r.json()['data']['info']['title']}.")
+        print(f"正在导出收藏夹\"{r.json()['data']['info']['title']}\".")
+        # 导出格式
         export = {
             "id": r.json()['data']['info']['id'],
             "title": r.json()['data']['info']['title'],
@@ -233,6 +256,7 @@ class BilibiliFavorite:
                 f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}")
             medias = medias.json()['data']['medias']
             for i in medias:
+                # 清理数据
                 del i["type"]
                 del i["bv_id"]
                 del i["ugc"]
@@ -549,7 +573,6 @@ class BiliBili:
         self.interaction.coin(bvid, int(coin_count))
 
     def triple(self, bvid):
-        assert type(bvid) == str
         if not self.login:
             print("请先登录!")
             return
@@ -646,7 +669,8 @@ class BiliBili:
                 try:
                     while p.poll() is None:
                         people_watching = self.request_manager.get(
-                            f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid={video_id if not bangumi else bangumi_bvid}")
+                            f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid="
+                            f"{video_id if not bangumi else bangumi_bvid}")
                         people = f"\r{people_watching.json()['data']['total']} 人正在看"
                         print(people, end="", flush=True)
                         time.sleep(3)
