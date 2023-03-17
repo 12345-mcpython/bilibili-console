@@ -50,7 +50,7 @@ class RequestManager:
     __instance = None
     __first = True
 
-    def __new__(cls):
+    def __new__(cls, *args, **kwargs):
         if not cls.__instance:
             cls.__instance = super().__new__(cls)
         return cls.__instance
@@ -203,7 +203,7 @@ class BilibiliFavorite:
         """
         pre_page = 5
         cursor = 1
-        request = self.request_manager.get(f"https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=",
+        request = self.request_manager.get(f"https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id={fav_id}",
                                            cache=True)
         total = request.json()['data']['info']['media_count'] // pre_page + 1
         while True:
