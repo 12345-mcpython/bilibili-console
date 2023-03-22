@@ -1,5 +1,7 @@
+import hashlib
 import os
 import re
+import time
 
 import requests
 
@@ -96,3 +98,19 @@ def read_cookie():
         for i, j in b.cookies.get_dict().items():
             cookie += "{}={};".format(i, j)
         return cookie[:-1]
+
+
+def encrypt_wbi(request_argument: str):
+    wbi_img_url = "https://i0.hdslb.com/bfs/wbi/e056202f38ff49fe8d110c0ec0d36877.png"
+    wbi_sub_url = "https://i0.hdslb.com/bfs/wbi/ba5f93b9bf4b4c75b5c9f66257bcb593.png"
+    oe = [46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12,
+          38, 41, 13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62,
+          11, 36, 20, 34, 44, 52]
+
+    le = []
+    key = wbi_img_url.split("/")[-1].split(".")[0] + wbi_sub_url.split("/")[-1].split(".")[0]
+    for i in oe:
+        le.append(key[i])
+    key = "".join(le)[:32]
+    hashed = request_argument + "&wts=" + str(round(time.time()))
+    return hashed + "&w_rid=" + hashlib.md5(hashed.encode() + key.encode()).hexdigest()

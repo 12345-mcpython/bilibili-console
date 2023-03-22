@@ -37,7 +37,7 @@ from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
 from bilibili.utils import enc, dec, format_time, validateTitle, \
-    read_cookie, convert_cookies_to_dict, clean_cookie
+    read_cookie, convert_cookies_to_dict, clean_cookie, encrypt_wbi
 
 __version__ = '1.0.0-dev'
 
@@ -370,7 +370,8 @@ class BiliBili:
         while True:
             # no cache
             recommend_request = self.request_manager.get(
-                "https://api.bilibili.com/x/web-interface/wbi/index/top/feed/rcmd?ps=5")
+                "https://api.bilibili.com/x/web-interface/wbi/index/top/feed/rcmd?" + encrypt_wbi("ps=5"))
+            print(recommend_request.url)
             for num, item in enumerate(recommend_request.json()['data']['item']):
                 print(num + 1, ":")
                 print("封面: ", item['pic'])
