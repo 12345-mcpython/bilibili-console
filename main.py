@@ -249,29 +249,39 @@ class BilibiliFavorite:
             },
             "medias": []
         }
-        while True:
-            if total < cursor:
-                break
-            medias = self.request_manager.get(
-                f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}")
-            medias = medias.json()['data']['medias']
-            for i in medias:
-                # 清理数据
-                del i["type"]
-                del i["bv_id"]
-                del i["ugc"]
-                del i["season"]
-                del i["ogv"]
-                del i["link"]
-                i["publish_time"] = i["pubtime"]
-                del i["pubtime"]
-                del i["ctime"]
-                i['cover'] = i['cover'].replace("http", "https")
-            export['medias'] += medias
-            cursor += 1
+        with tqdm(total=total, desc=r.json()['data']['info']['title']) as progress_bar:
+            while True:
+                if total < cursor:
+                    break
+                medias = self.request_manager.get(
+                    f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}")
+                medias = medias.json()['data']['medias']
+                for i in medias:
+                    # 清理数据
+                    del i["type"]
+                    del i["bv_id"]
+                    del i["ugc"]
+                    del i["season"]
+                    del i["ogv"]
+                    del i["link"]
+                    i["publish_time"] = i["pubtime"]
+                    del i["pubtime"]
+                    del i["ctime"]
+                    i['cover'] = i['cover'].replace("http", "https")
+                export['medias'] += medias
+                cursor += 1
+                progress_bar.update(1)
         with open(str(fav_id) + '.json', "w", encoding="utf-8") as f:
             json.dump(export, f, ensure_ascii=False, sort_keys=True)
         print(f"导出收藏夹\"{r.json()['data']['info']['title']}\"成功.")
+
+    def list_favorite(self, mid):
+        ls = []
+        request = self.request_manager.get(
+            f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&up_mid={mid}", cache=True)
+        for i in request.json()['data']['list']:
+            ls.append(i['id'])
+        return ls
 
 
 class BilibiliInteraction:
@@ -769,6 +779,11 @@ class BiliBili:
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
         self.bilibili_favorite.export_favorite(fav_id)
 
+    def export_all_favorite(self):
+        fav_id = self.bilibili_favorite.list_favorite(self.mid)
+        for i in fav_id:
+            self.bilibili_favorite.export_favorite(i)
+
     def login_init(self, mid):
         self.quality = 80
         self.login = True
@@ -838,6 +853,8 @@ class BiliBili:
                     self.login_init(mid)
             elif command == "export_favorite":
                 self.export_favorite()
+            elif command == "export_all_favorite":
+                self.export_all_favorite()
             elif command == "download_favorite":
                 self.download_favorite()
             elif command == "view_self":
