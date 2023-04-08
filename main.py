@@ -26,6 +26,7 @@ The old version also use the GPL-3.0 license, not MIT License.
 import datetime
 import json
 import os
+import reprlib
 import shutil
 import subprocess
 import sys
@@ -482,6 +483,75 @@ class BiliBiliVideo:
             cache=True)
         return resp.content
 
+    def download_one(self, cid: int, pic_url: str, title: str = "", part_title: str = "", base_dir: str = ""):
+        if not self.bangumi:
+            url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&bvid={self.bvid}"
+        else:
+            url = f"https://api.bilibili.com/pgc/player/web/playurl?qn={self.quality}&cid={cid}&ep_id={self.bvid}"
+
+        req = self.request_manager.get(url)
+        download_url = req.json()["data" if not self.bangumi else "result"]["durl"][0]["url"]
+        if base_dir:
+            download_dir = "download/" + base_dir + "/" + validateTitle(title) + "/"
+        else:
+            download_dir = "download/" + validateTitle(title) + "/"
+        res = self.request_manager.get(download_url, stream=True)
+        length = float(res.headers['content-length'])
+        if not os.path.exists("download"):
+            os.mkdir("download")
+        if not os.path.exists(download_dir):
+            os.makedirs(download_dir)
+        dts = download_dir + validateTitle(part_title) + ".mp4"
+        if os.path.exists(dts):
+            c = input("文件已存在, 是否覆盖(y/n)? ")
+            if c != "y":
+                print("停止操作.")
+                return -100
+        file = open(dts, 'wb')
+        progress = tqdm(total=length, initial=os.path.getsize(dts), unit_scale=True,
+                        desc=reprlib.repr(validateTitle(part_title)).replace("'", "") + ".mp4", unit="B")
+        try:
+            for chuck in res.iter_content(chunk_size=1024):
+                file.write(chuck)
+                progress.update(1024)
+        except KeyboardInterrupt:
+            file.close()
+            os.remove(dts)
+            if len(os.listdir(download_dir)) == 0:
+                os.rmdir(download_dir)
+            print("取消下载.")
+            return False
+        if not file.closed:
+            file.close()
+        if not os.path.exists(download_dir + validateTitle(title) + ".jpg"):
+            print("下载封面中...")
+            with open(download_dir + validateTitle(title) + ".jpg", "wb") as file:
+                file.write(self.request_manager.get(pic_url).content)
+        if not os.path.exists(download_dir + validateTitle(part_title) + ".xml"):
+            print("下载弹幕中...")
+            with open(download_dir + validateTitle(part_title) + ".xml", "w",
+                      encoding="utf-8") as danmaku:
+                danmaku.write(
+                    self.request_manager.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
+        return True
+
+    def download_video_list(self, base_dir=""):
+        url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid
+        request = self.request_manager.get(url, cache=True)
+        video = request.json()['data']["View"]["pages"]
+        title = request.json()['data']["View"]['title']
+        pic = request.json()['data']["View"]['pic']
+        total = len(video)
+        count = 0
+        for i in video:
+            count += 1
+            print(f"{count} / {total}")
+            cid = i['cid']
+            part_title = i['part']
+            if not self.download_one(cid, pic, title=title, part_title=part_title, base_dir=base_dir):
+                return False
+        return True
+
 
 class BiliBili:
     def __init__(self, quality=32):
@@ -623,7 +693,8 @@ class BiliBili:
             bvid = bangumi_page[int(page) - 1]['bvid']
             epid = bangumi_page[int(page) - 1]['id']
             title = bangumi_page[int(page) - 1]['share_copy']
-            video = BiliBiliVideo(bvid=bvid, epid=epid, bangumi=True, quality=self.quality, view_online_watch=self.view_online_watch)
+            video = BiliBiliVideo(bvid=bvid, epid=epid, bangumi=True, quality=self.quality,
+                                  view_online_watch=self.view_online_watch)
             video.play(cid, title=title)
 
     def get_danmaku(self, cid: int):
@@ -696,77 +767,6 @@ class BiliBili:
             return
         print(self.bilibili_favorite.choose_favorite(self.bilibili_favorite.mid, avid))
 
-    def download_one(self, bvid: str, cid: int, pic_url: str, bangumi: bool = False, title: str = "",
-                     part_title: str = "",
-                     base_dir: str = ""):
-        if not bangumi:
-            url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&bvid={bvid}"
-        else:
-            url = f"https://api.bilibili.com/pgc/player/web/playurl?qn={self.quality}&cid={cid}&ep_id={bvid}"
-
-        req = self.request_manager.get(url)
-        download_url = req.json()["data" if not bangumi else "result"]["durl"][0]["url"]
-        if base_dir:
-            download_dir = "download/" + base_dir + "/" + validateTitle(title) + "/"
-        else:
-            download_dir = "download/" + validateTitle(title) + "/"
-        res = self.request_manager.get(download_url, stream=True)
-        length = float(res.headers['content-length'])
-        if not os.path.exists("download"):
-            os.mkdir("download")
-        if not os.path.exists(download_dir):
-            os.makedirs(download_dir)
-        dts = download_dir + validateTitle(part_title) + ".mp4"
-        if os.path.exists(dts):
-            c = input("文件已存在, 是否覆盖(y/n)? ")
-            if c != "y":
-                print("停止操作.")
-                return -100
-        file = open(dts, 'wb')
-        progress = tqdm(total=length, initial=os.path.getsize(dts), unit_scale=True,
-                        desc=validateTitle(part_title) + ".mp4", unit="B")
-        try:
-            for chuck in res.iter_content(chunk_size=1024):
-                file.write(chuck)
-                progress.update(1024)
-        except KeyboardInterrupt:
-            file.close()
-            os.remove(dts)
-            if len(os.listdir(download_dir)) == 0:
-                os.rmdir(download_dir)
-            print("取消下载.")
-            return False
-        if not file.closed:
-            file.close()
-        if not os.path.exists(download_dir + validateTitle(title) + ".jpg"):
-            print("下载封面中...")
-            with open(download_dir + validateTitle(title) + ".jpg", "wb") as file:
-                file.write(self.request_manager.get(pic_url).content)
-        if not os.path.exists(download_dir + validateTitle(part_title) + ".xml"):
-            print("下载弹幕中...")
-            with open(download_dir + validateTitle(part_title) + ".xml", "w",
-                      encoding="utf-8") as danmaku:
-                danmaku.write(
-                    self.request_manager.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
-        return True
-
-    def download_video_list(self, bvid, base_dir=""):
-        url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid
-        request = self.request_manager.get(url, cache=True)
-        video = request.json()['data']["View"]["pages"]
-        title = request.json()['data']["View"]['title']
-        pic = request.json()['data']["View"]['pic']
-        total = len(video)
-        count = 0
-        for i in video:
-            count += 1
-            print(f"{count} / {total}")
-            cid = i['cid']
-            part_title = i['part']
-            if not self.download_one(bvid, cid, pic, title=title, part_title=part_title, base_dir=base_dir):
-                return False
-        return True
-
     def download_favorite(self):
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
         info = self.bilibili_favorite.get_favorite_information(fav_id)
@@ -776,7 +776,8 @@ class BiliBili:
             for j in i:
                 count += 1
                 print(f"收藏夹进度: {count} / {total}")
-                if not self.download_video_list(j['bvid'], base_dir=validateTitle(info['title'])):
+                video = BiliBiliVideo(bvid=j['bvid'], quality=80)
+                if not video.download_video_list(base_dir=validateTitle(info['title'])):
                     return
 
     def export_favorite(self):
@@ -796,22 +797,22 @@ class BiliBili:
         self.interaction: BilibiliInteraction = BilibiliInteraction(self.bilibili_favorite)
 
     def view_video(self, bvid, mid=0, no_favorite=False):
+        video = BiliBiliVideo(bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch)
         while True:
             command = input("视频选项: ")
             if command == "exit":
                 return
             if command == "play":
-                video = BiliBiliVideo(bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch)
                 video.choose_video()
-            # elif command == "download":
-            #     cid, title, part_title, pic, is_dynamic = self.choose_video(bvid, cid_mode=True)
-            #     print(is_dynamic)
-            #     if is_dynamic:
-            #         print("互动视频无法下载! ")
-            #         return
-            #     self.download_one(bvid, cid, pic_url=pic, title=title, part_title=part_title)
+            elif command == "download":
+                cid, title, part_title, pic, is_dynamic = video.choose_video(return_information=True)
+                print(is_dynamic)
+                if is_dynamic:
+                    print("互动视频无法下载! ")
+                    return
+                video.download_one(cid, pic_url=pic, title=title, part_title=part_title)
             elif command == "download_video_list":
-                self.download_video_list(bvid)
+                video.download_video_list(bvid)
             elif command == "like":
                 self.like(bvid)
             elif command == "unlike":
