@@ -53,6 +53,9 @@
 7. `download_video_list` 下载全部视频.
 8. `view_user` 预览视频作者的用户空间.
 
+## 1.4 个人空间指令
+1. `list_video` 列出所有个人空间的视频.
+
 ## 附录 导出的收藏夹JSON格式
 
 <details>
