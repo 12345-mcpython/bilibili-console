@@ -55,7 +55,6 @@
 
 ## 附录 导出的收藏夹JSON格式
 
-<summary>格式</summary>
 <details>
 
 ```json
