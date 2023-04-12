@@ -338,6 +338,8 @@ class BiliBiliVideo:
     def __init__(self, bvid="", aid="",
                  epid="", season_id="", quality=80, view_online_watch=True,
                  audio_quality=30280, bangumi=False):
+        if not any([bvid, aid, epid, season_id]):
+            raise Exception("Video id can't be null.")
         self.bvid = bvid if bvid else enc(aid)
         self.aid = aid if aid else dec(bvid)
         self.epid = epid
@@ -347,8 +349,6 @@ class BiliBiliVideo:
         self.quality = quality
         self.audio_quality = audio_quality
         self.view_online_watch = view_online_watch
-        if not any([bvid, aid, epid, season_id]):
-            raise Exception("Video id can't be null.")
 
     def choose_video(self, return_information=False):
         url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid
@@ -395,6 +395,41 @@ class BiliBiliVideo:
                 return video[int(page) - 1]['cid'], title, video[int(page) - 1]['part'], pic, True if \
                     r.json()['data']["View"]['stat']['evaluation'] \
                     else False
+            break
+
+    def choose_video_collection(self):
+        url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid
+        r = self.request_manager.get(url, cache=True)
+        if r.json()['code'] != 0:
+            print("获取视频信息错误!")
+            print(r.json()['code'])
+            print(r.json()['message'])
+            return
+        if not r.json()['data']['View'].get("ugc_season"):
+            print("视频并没有合集!")
+            return
+        video = r.json()['data']['View']['ugc_season']['sections']
+        videos = []
+        for i in video:
+            videos += i['episodes']
+        print("\n")
+        print("视频合集选集")
+        for i, j in enumerate(videos):
+            print(f"{i + 1}: {j['title']}")
+        while True:
+            page = input("选择视频: ")
+            if page == "exit":
+                break
+            elif not page:
+                continue
+            elif not page.isdigit():
+                print("输入的并不是数字!")
+                continue
+            elif int(page) > len(video) or int(page) <= 0:
+                print("选视频超出范围!")
+                continue
+            choose_video = BiliBiliVideo(bvid=videos[int(page) - 1]['bvid'], quality=self.quality, view_online_watch=self.view_online_watch)
+            choose_video.choose_video()
             break
 
     def play(self, cid, title=""):
