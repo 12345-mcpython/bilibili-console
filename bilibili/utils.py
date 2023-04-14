@@ -8,6 +8,78 @@ import requests
 cached_response: dict[str, str] = {}
 
 
+class RequestManager:
+
+    def __init__(self, cookie=""):
+        self.cached_response: dict[str, requests.Response] = {}
+        self.session = requests.session()
+        self.session.headers.update(
+            {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                           "(KHTML, like Gecko) "
+                           "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
+             "referer": "https://www.bilibili.com"})
+        self.session.headers.update({"cookie": cookie})
+
+    def get(self, url: str, params=None, cache=False, **kwargs) -> requests.Response:
+        if self.cached_response.get(url):
+            return self.cached_response.get(url)
+        else:
+            count = 5
+            while True:
+                try:
+                    request = self.session.get(url, params=params, timeout=5, **kwargs)
+                    break
+                except requests.exceptions.RequestException as request_error:
+                    print("\n")
+                    print(f"{url}请求错误! 将会重试{count}次! ")
+                    count -= 1
+                    if count <= 0:
+                        raise request_error
+            if cache:
+                self.cached_response[url] = request
+            return request
+
+    def post(self, url: str, params=None, **kwargs) -> requests.Response:
+        count = 5
+        while True:
+            try:
+                request = self.session.post(url, params=params, timeout=5, **kwargs)
+                break
+            except requests.exceptions.RequestException as request_error:
+                print("\n")
+                print(f"{url}请求错误! 将会重试{count}次! ")
+                count -= 1
+                if count <= 0:
+                    raise request_error
+        return request
+
+    def refresh_login_state(self):
+        if os.path.exists("cookie.txt"):
+            with open("cookie.txt") as file:
+                cookie = file.read()
+        self.session.headers['cookie'] = cookie
+        print("刷新登录状态成功.")
+        return self.is_login()
+
+    def is_login(self) -> bool:
+        request = self.session.get('https://api.bilibili.com/x/member/web/account')
+        if request.json()['code'] == -101:
+            print("账号尚未登录.")
+            print()
+            return False
+        elif request.json()['code'] == 0:
+            print("账号已登录.")
+            print(f"欢迎{request.json()['data']['uname']}登录.")
+            print()
+            return request.json()['data']['mid']
+        else:
+            raise Exception("Invalid login code: " + str(request.json()['code']))
+
+    def get_local_user_mid(self) -> int:
+        request = self.session.get('https://api.bilibili.com/x/member/web/account')
+        return request.json()['data']['mid']
+
+
 def convert_cookies_to_dict(cookies) -> dict[str, str]:
     return dict([l.split("=", 1) for l in cookies.split(";")])
 
@@ -101,8 +173,9 @@ def read_cookie():
 
 
 def encrypt_wbi(request_argument: str):
-    wbi_img_url = "https://i0.hdslb.com/bfs/wbi/e056202f38ff49fe8d110c0ec0d36877.png"
-    wbi_sub_url = "https://i0.hdslb.com/bfs/wbi/ba5f93b9bf4b4c75b5c9f66257bcb593.png"
+    r = request_manager.get("https://api.bilibili.com/x/web-interface/nav", cache=True)
+    wbi_img_url = r.json()['data']['wbi_img']['img_url']
+    wbi_sub_url = r.json()['data']['wbi_img']['sub_url']
     oe = [46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12,
           38, 41, 13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62,
           11, 36, 20, 34, 44, 52]
@@ -114,3 +187,6 @@ def encrypt_wbi(request_argument: str):
     key = "".join(le)[:32]
     hashed = request_argument + "&wts=" + str(round(time.time()))
     return hashed + "&w_rid=" + hashlib.md5(hashed.encode() + key.encode()).hexdigest()
+
+
+request_manager = RequestManager(read_cookie())

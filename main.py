@@ -38,7 +38,7 @@ from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
 from bilibili.utils import enc, dec, format_time, validateTitle, \
-    read_cookie, convert_cookies_to_dict, clean_cookie, encrypt_wbi
+    convert_cookies_to_dict, clean_cookie, encrypt_wbi, request_manager
 
 __version__ = '1.0.0-dev'
 
@@ -47,95 +47,15 @@ __year__ = 2023
 __author__ = "Laosun Studios"
 
 
-class RequestManager:
-    __instance = None
-    __first = True
-
-    def __new__(cls, *args, **kwargs):
-        if not cls.__instance:
-            cls.__instance = super().__new__(cls)
-        return cls.__instance
-
-    def __init__(self, cookie=""):
-        if self.__first:
-            self.cached_response: dict[str, requests.Response] = {}
-            self.session = requests.session()
-            self.session.headers.update(
-                {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                               "(KHTML, like Gecko) "
-                               "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
-                 "referer": "https://www.bilibili.com"})
-            self.session.headers.update({"cookie": cookie})
-            self.__class__.__first = False
-
-    def get(self, url: str, params=None, cache=False, **kwargs) -> requests.Response:
-        if self.cached_response.get(url):
-            return self.cached_response.get(url)
-        else:
-            count = 5
-            while True:
-                try:
-                    request = self.session.get(url, params=params, timeout=5, **kwargs)
-                    break
-                except requests.exceptions.RequestException as request_error:
-                    print("\n")
-                    print(f"{url}请求错误! 将会重试{count}次! ")
-                    count -= 1
-                    if count <= 0:
-                        raise request_error
-            if cache:
-                self.cached_response[url] = request
-            return request
-
-    def post(self, url: str, params=None, **kwargs) -> requests.Response:
-        count = 5
-        while True:
-            try:
-                request = self.session.post(url, params=params, timeout=5, **kwargs)
-                break
-            except requests.exceptions.RequestException as request_error:
-                print("\n")
-                print(f"{url}请求错误! 将会重试{count}次! ")
-                count -= 1
-                if count <= 0:
-                    raise request_error
-        return request
-
-    def refresh_login_state(self):
-        if os.path.exists("cookie.txt"):
-            with open("cookie.txt") as file:
-                cookie = file.read()
-        self.session.headers['cookie'] = cookie
-        print("刷新登录状态成功.")
-        return self.is_login()
-
-    def is_login(self) -> bool:
-        request = self.session.get('https://api.bilibili.com/x/member/web/account')
-        if request.json()['code'] == -101:
-            print("账号尚未登录.")
-            print()
-            return False
-        elif request.json()['code'] == 0:
-            print("账号已登录.")
-            print(f"欢迎{request.json()['data']['uname']}登录.")
-            print()
-            return request.json()['data']['mid']
-        else:
-            raise Exception("Invalid login code: " + str(request.json()['code']))
-
-    def get_local_user_mid(self) -> int:
-        request = self.session.get('https://api.bilibili.com/x/member/web/account')
-        return request.json()['data']['mid']
-
-
 class BilibiliManga:
     def __init__(self, mid):
-        self.request_manager = RequestManager()
+        self.request_manager = request_manager
         self.mid = mid
 
-    def get_manga_detail(self, manga_id: int):
-        detail_request = self.request_manager.post("https://manga.bilibili.com/twirp/comic.v1.Comic/ComicDetail",
-                                                   data={"comic_id": manga_id})
+    def get_manga_detail(self, manga_id: int) -> dict:
+        detail_request = self.request_manager.post(
+            "https://manga.bilibili.com/twirp/comic.v1.Comic/ComicDetail?device=pc&platform=web",
+            data={"comic_id": manga_id})
         # 1. get epid detail_request
         # 2. post
         # https://manga.bilibili.com/twirp/comic.v1.Comic/GetImageIndex?device=pc&platform=web
@@ -146,12 +66,38 @@ class BilibiliManga:
         # 4. image url + ?token=
         # https://manga.hdslb.com/bfs/manga/94b1978854b6c6a582740cae861109cb0d1e1b46.jpg@680w.jpg
         # ?token=217f9a36f4a7f71fa4f795c972dbef44&ts=63fa0cd5
-        print(detail_request.json())
+        return detail_request.json()
+
+    def get_wallet(self) -> dict:
+        wallet = self.request_manager.post("https://manga.bilibili.com/twirp/user.v1.User/GetWallet?device=pc&platform"
+                                           "=web")
+        return wallet.json()
+
+    def list_history(self) -> dict:
+        history = self.request_manager.post(
+            "https://manga.bilibili.com/twirp/bookshelf.v1.Bookshelf/ListHistory?device=pc&platform=web",
+            data={"page_num": 1, "page_size": 50})
+        return history.json()
+
+    def get_image_list(self, epid) -> dict:
+        images = self.request_manager.post(
+            "https://manga.bilibili.com/twirp/comic.v1.Comic/GetImageIndex?device=pc&platform=web",
+            data={"ep_id": epid})
+        return images.json()
+
+    def get_token(self, image: str) -> dict:
+        token = self.request_manager.post(
+            "https://manga.bilibili.com/twirp/comic.v1.Comic/ImageToken?device=pc&platform=web",
+            data={"urls": "[\"{}\"]".format(image)})
+        return token.json()
+
+    def download_manga(self, manga_id: int, first: int, end: int) -> dict:
+        pass
 
 
 class BilibiliFavorite:
     def __init__(self, mid: int):
-        self.request_manager = RequestManager()
+        self.request_manager = request_manager
         self.mid = mid
 
     def choose_favorite(self, mid: int, avid: int = 0, one=False) -> list[int] | int:
@@ -287,7 +233,7 @@ class BilibiliFavorite:
 
 class BilibiliInteraction:
     def __init__(self, favorite: BilibiliFavorite):
-        self.request_manager = RequestManager()
+        self.request_manager = request_manager
         self.csrf: str = clean_cookie(convert_cookies_to_dict(self.request_manager.session.headers.get("cookie"))).get(
             "bili_jct", "")
         self.favorite = favorite
@@ -345,7 +291,7 @@ class BiliBiliVideo:
         self.epid = epid
         self.season_id = season_id
         self.bangumi = bangumi
-        self.request_manager = RequestManager()
+        self.request_manager = request_manager
         self.quality = quality
         self.audio_quality = audio_quality
         self.view_online_watch = view_online_watch
@@ -428,7 +374,9 @@ class BiliBiliVideo:
             elif int(page) > len(video) or int(page) <= 0:
                 print("选视频超出范围!")
                 continue
-            choose_video = BiliBiliVideo(bvid=videos[int(page) - 1]['bvid'], quality=self.quality, view_online_watch=self.view_online_watch)
+            choose_video = BiliBiliVideo(bvid=videos[int(page) - 1]['bvid'],
+                                         quality=self.quality,
+                                         view_online_watch=self.view_online_watch)
             choose_video.choose_video()
             break
 
@@ -590,7 +538,7 @@ class BiliBiliVideo:
 
 class BiliBili:
     def __init__(self, quality=32):
-        self.request_manager = RequestManager(read_cookie())
+        self.request_manager = request_manager
         self.quality = quality
         self.audio = 30280
         self.login: bool = False
