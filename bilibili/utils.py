@@ -81,7 +81,7 @@ class RequestManager:
 
 
 def convert_cookies_to_dict(cookies) -> dict[str, str]:
-    return dict([l.split("=", 1) for l in cookies.split(";")])
+    return dict([li.split("=", 1) for li in cookies.split(";")])
 
 
 def clean_cookie(dict_cookie: dict[str, str]) -> dict[str, str]:
@@ -91,12 +91,12 @@ def clean_cookie(dict_cookie: dict[str, str]) -> dict[str, str]:
     return cleaned
 
 
-def format_time(time: int) -> str:
-    if time > 60 * 60:
+def format_time(timestamp: int) -> str:
+    if timestamp > 60 * 60:
         fmt = "{}:{}:{}"
-        hour = time // (60 * 60)
-        minute = (time - (hour * 60 * 60)) // 60
-        sec = time - (hour * 60 * 60) - minute * 60
+        hour = timestamp // (60 * 60)
+        minute = (timestamp - (hour * 60 * 60)) // 60
+        sec = timestamp - (hour * 60 * 60) - minute * 60
         if minute < 10:
             fmt = "{}:0{}:{}"
         if sec < 10:
@@ -108,10 +108,10 @@ def format_time(time: int) -> str:
         return fmt.format(hour, minute, sec)
     else:
         fmt = "{}:{}"
-        minute = time // 60
+        minute = timestamp // 60
         if minute < 10:
             fmt = "0{}:{}"
-        sec = time - minute * 60
+        sec = timestamp - minute * 60
         if sec < 10:
             fmt = "{}:0{}"
         if sec < 10 and minute < 10:
@@ -119,9 +119,9 @@ def format_time(time: int) -> str:
         return fmt.format(minute, sec)
 
 
-def validateTitle(title) -> str:
-    rstr = r"[\/\\\:\*\?\"\<\>\|]"  # '/ \ : * ? " < > |'
-    new_title = re.sub(rstr, "_", title)  # 替换为下划线
+def validate_title(title) -> str:
+    rstr = r"[\/\\\:\*\?\"\<\>\|]"
+    new_title = re.sub(rstr, "_", title)
     return new_title
 
 

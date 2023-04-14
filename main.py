@@ -37,7 +37,7 @@ import requests
 from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
-from bilibili.utils import enc, dec, format_time, validateTitle, \
+from bilibili.utils import enc, dec, format_time, validate_title, \
     convert_cookies_to_dict, clean_cookie, encrypt_wbi, request_manager
 
 __version__ = '1.0.0-dev'
@@ -475,16 +475,16 @@ class BiliBiliVideo:
         req = self.request_manager.get(url)
         download_url = req.json()["data" if not self.bangumi else "result"]["durl"][0]["url"]
         if base_dir:
-            download_dir = "download/" + base_dir + "/" + validateTitle(title) + "/"
+            download_dir = "download/" + base_dir + "/" + validate_title(title) + "/"
         else:
-            download_dir = "download/" + validateTitle(title) + "/"
+            download_dir = "download/" + validate_title(title) + "/"
         res = self.request_manager.get(download_url, stream=True)
         length = float(res.headers['content-length'])
         if not os.path.exists("download"):
             os.mkdir("download")
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
-        dts = download_dir + validateTitle(part_title) + ".mp4"
+        dts = download_dir + validate_title(part_title) + ".mp4"
         if os.path.exists(dts):
             c = input("文件已存在, 是否覆盖(y/n)? ")
             if c != "y":
@@ -492,7 +492,7 @@ class BiliBiliVideo:
                 return -100
         file = open(dts, 'wb')
         progress = tqdm(total=length, initial=os.path.getsize(dts), unit_scale=True,
-                        desc=reprlib.repr(validateTitle(part_title)).replace("'", "") + ".mp4", unit="B")
+                        desc=reprlib.repr(validate_title(part_title)).replace("'", "") + ".mp4", unit="B")
         try:
             for chuck in res.iter_content(chunk_size=1024):
                 file.write(chuck)
@@ -506,13 +506,13 @@ class BiliBiliVideo:
             return False
         if not file.closed:
             file.close()
-        if not os.path.exists(download_dir + validateTitle(title) + ".jpg"):
+        if not os.path.exists(download_dir + validate_title(title) + ".jpg"):
             print("下载封面中...")
-            with open(download_dir + validateTitle(title) + ".jpg", "wb") as file:
+            with open(download_dir + validate_title(title) + ".jpg", "wb") as file:
                 file.write(self.request_manager.get(pic_url).content)
-        if not os.path.exists(download_dir + validateTitle(part_title) + ".xml"):
+        if not os.path.exists(download_dir + validate_title(part_title) + ".xml"):
             print("下载弹幕中...")
-            with open(download_dir + validateTitle(part_title) + ".xml", "w",
+            with open(download_dir + validate_title(part_title) + ".xml", "w",
                       encoding="utf-8") as danmaku:
                 danmaku.write(
                     self.request_manager.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
@@ -760,7 +760,7 @@ class BiliBili:
                 count += 1
                 print(f"收藏夹进度: {count} / {total}")
                 video = BiliBiliVideo(bvid=j['bvid'], quality=80)
-                if not video.download_video_list(base_dir=validateTitle(info['title'])):
+                if not video.download_video_list(base_dir=validate_title(info['title'])):
                     return
 
     def export_favorite(self):
