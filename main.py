@@ -38,13 +38,25 @@ from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
 from bilibili.utils import enc, dec, format_time, validate_title, \
-    convert_cookies_to_dict, clean_cookie, encrypt_wbi, request_manager
+    convert_cookies_to_dict, clean_cookie, encrypt_wbi, request_manager, hum_convert
 
 __version__ = '1.0.0-dev'
 
 __year__ = 2023
 
 __author__ = "Laosun Studios"
+
+
+# 1. get epid detail_request
+# 2. post
+# https://manga.bilibili.com/twirp/comic.v1.Comic/GetImageIndex?device=pc&platform=web
+# {ep_id: 212024}
+# 3. get token
+# https://manga.bilibili.com/twirp/comic.v1.Comic/ImageToken?device=pc&platform=web
+# {urls: "["/bfs/manga/94b1978854b6c6a582740cae861109cb0d1e1b46.jpg@680w.jpg"]"}
+# 4. image url + ?token=
+# https://manga.hdslb.com/bfs/manga/94b1978854b6c6a582740cae861109cb0d1e1b46.jpg@680w.jpg
+# ?token=217f9a36f4a7f71fa4f795c972dbef44&ts=63fa0cd5
 
 
 class BilibiliManga:
@@ -56,16 +68,6 @@ class BilibiliManga:
         detail_request = self.request_manager.post(
             "https://manga.bilibili.com/twirp/comic.v1.Comic/ComicDetail?device=pc&platform=web",
             data={"comic_id": manga_id})
-        # 1. get epid detail_request
-        # 2. post
-        # https://manga.bilibili.com/twirp/comic.v1.Comic/GetImageIndex?device=pc&platform=web
-        # {ep_id: 212024}
-        # 3. get token
-        # https://manga.bilibili.com/twirp/comic.v1.Comic/ImageToken?device=pc&platform=web
-        # {urls: "["/bfs/manga/94b1978854b6c6a582740cae861109cb0d1e1b46.jpg@680w.jpg"]"}
-        # 4. image url + ?token=
-        # https://manga.hdslb.com/bfs/manga/94b1978854b6c6a582740cae861109cb0d1e1b46.jpg@680w.jpg
-        # ?token=217f9a36f4a7f71fa4f795c972dbef44&ts=63fa0cd5
         return detail_request.json()
 
     def get_wallet(self) -> dict:
@@ -91,8 +93,67 @@ class BilibiliManga:
             data={"urls": "[\"{}\"]".format(image)})
         return token.json()
 
-    def download_manga(self, manga_id: int, first: int, end: int) -> dict:
-        pass
+    def download_manga(self, manga_id: int) -> dict:
+        manga_info = self.get_manga_detail(manga_id)
+        ep_info = manga_info['data']['ep_list']
+        name = manga_info['data']['title']
+        if not os.path.exists("download/manga"):
+            os.mkdir("download/manga")
+        if not os.path.exists("download/manga/" + validate_title(name)):
+            os.mkdir("download/manga/" + validate_title(name))
+        first, end = input("选择回目范围 (1-{}): ".format(len(ep_info))).split("-")
+        first = int(first)
+        end = int(end)
+        download_manga_epid = []
+        download_manga_name = []
+        locked = 0
+        for i in list(reversed(ep_info)):
+            if i["ord"] >= first and i['ord'] <= end:
+                if i['is_locked']:
+                    locked += 1
+                    continue
+                download_manga_epid.append(i['id'])
+                download_manga_name.append(i['title'])
+        print(f"有{locked}篇被上锁, 需要购买" if locked else '')
+        download_image = {}
+        cursor = 0
+        picture_count = 0
+        print("获取图片信息中.")
+        with tqdm(total=end) as progress_bar:
+            for i in download_manga_epid:
+                download_image_prefix = []
+                image_list = self.get_image_list(i)
+                for j in image_list['data']['images']:
+                    download_image_prefix.append(j['path'])
+                    picture_count += 1
+                download_image[download_manga_name[cursor]] = download_image_prefix
+                progress_bar.update(1)
+                cursor += 1
+        download_image_url = {}
+        print("获取图片token中.")
+        with tqdm(total=picture_count) as progress_bar:
+            for i, j in download_image.items():
+                download_image_url_local = []
+                for k in j:
+                    token = self.get_token(k)['data'][0]
+                    download_image_url_local.append("{}?token={}".format(token['url'], token['token']))
+                    progress_bar.update(1)
+                download_image_url[i] = download_image_url_local
+        print("下载图片中.")
+        byte = 0
+        with tqdm(total=picture_count) as progress_bar:
+            for i, j in download_image_url.items():
+                for k in j:
+                    filename = 0
+                    path = "download/manga/" + validate_title(name) + "/" + validate_title(i) + "/"
+                    file = path + f"{filename}.jpg"
+                    if not os.path.exists(path):
+                        os.mkdir(path)
+                    with open(file, "wb") as f:
+                        byte += f.write(request_manager.get(k).content)
+                        progress_bar.update(1)
+                        filename += 1
+        print("下载完成. 总计下载了 {} 字节 ({})".format(byte, hum_convert(byte)))
 
 
 class BilibiliFavorite:
@@ -546,6 +607,7 @@ class BiliBili:
         self.view_online_watch = True
         self.bilibili_favorite = BilibiliFavorite(self.mid)
         self.interaction: BilibiliInteraction = BilibiliInteraction(self.bilibili_favorite)
+        self.manga = BilibiliManga(self.mid)
 
     def favorite(self):
         if not self.login:
@@ -763,6 +825,16 @@ class BiliBili:
                 if not video.download_video_list(base_dir=validate_title(info['title'])):
                     return
 
+    def download_manga(self):
+        print("漫画id: 即 https://manga.bilibili.com/detail/mc29410 中的 29410")
+        try:
+            comic_id = input("请输入漫画id或url: ")
+            if comic_id.startswith("https"):
+                comic_id = comic_id.split("mc")[1]
+            self.manga.download_manga(comic_id)
+        except (ValueError, IndexError):
+            print("id输入错误.")
+
     def export_favorite(self):
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
         self.bilibili_favorite.export_favorite(fav_id)
@@ -778,6 +850,7 @@ class BiliBili:
         self.mid = mid
         self.bilibili_favorite = BilibiliFavorite(self.mid)
         self.interaction: BilibiliInteraction = BilibiliInteraction(self.bilibili_favorite)
+        self.manga = BilibiliManga(self.mid)
 
     def view_video(self, bvid, mid=0, no_favorite=False):
         video = BiliBiliVideo(bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch)
@@ -853,6 +926,8 @@ class BiliBili:
                     print("用户未登录!")
             elif command == "view_user":
                 self.user_space(int(input("请输入用户mid: ")))
+            elif command == "download_manga":
+                self.download_manga()
             elif command:
                 print("未知命令!")
 

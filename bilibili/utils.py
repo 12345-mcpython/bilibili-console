@@ -189,4 +189,15 @@ def encrypt_wbi(request_argument: str):
     return hashed + "&w_rid=" + hashlib.md5(hashed.encode() + key.encode()).hexdigest()
 
 
+# https://www.cnblogs.com/0506winds/p/13953600.html
+# python字节自适应转化单位KB、MB、GB
+def hum_convert(value):
+    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    size = 1024.0
+    for i in range(len(units)):
+        if (value / size) < 1:
+            return "%.2f%s" % (value, units[i])
+        value = value / size
+
+
 request_manager = RequestManager(read_cookie())
