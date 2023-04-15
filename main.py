@@ -834,6 +834,8 @@ class BiliBili:
             self.manga.download_manga(comic_id)
         except (ValueError, IndexError):
             print("id输入错误.")
+        except KeyboardInterrupt:
+            print("停止下载.")
 
     def export_favorite(self):
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
