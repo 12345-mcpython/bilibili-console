@@ -60,9 +60,8 @@ __author__ = "Laosun Studios"
 
 
 class BilibiliManga:
-    def __init__(self, mid):
+    def __init__(self):
         self.request_manager = request_manager
-        self.mid = mid
 
     def get_manga_detail(self, manga_id: int) -> dict:
         detail_request = self.request_manager.post(
@@ -607,7 +606,7 @@ class BiliBili:
         self.view_online_watch = True
         self.bilibili_favorite = BilibiliFavorite(self.mid)
         self.interaction: BilibiliInteraction = BilibiliInteraction(self.bilibili_favorite)
-        self.manga = BilibiliManga(self.mid)
+        self.manga = BilibiliManga()
 
     def favorite(self):
         if not self.login:
@@ -852,7 +851,7 @@ class BiliBili:
         self.mid = mid
         self.bilibili_favorite = BilibiliFavorite(self.mid)
         self.interaction: BilibiliInteraction = BilibiliInteraction(self.bilibili_favorite)
-        self.manga = BilibiliManga(self.mid)
+        self.manga = BilibiliManga()
 
     def view_video(self, bvid, mid=0, no_favorite=False):
         video = BiliBiliVideo(bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch)
