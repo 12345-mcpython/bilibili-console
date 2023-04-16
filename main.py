@@ -142,8 +142,8 @@ class BilibiliManga:
         byte = 0
         with tqdm(total=picture_count) as progress_bar:
             for i, j in download_image_url.items():
+                filename = 0
                 for k in j:
-                    filename = 0
                     path = "download/manga/" + validate_title(name) + "/" + validate_title(i) + "/"
                     file = path + f"{filename}.jpg"
                     if not os.path.exists(path):
