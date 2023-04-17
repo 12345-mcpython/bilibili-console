@@ -339,6 +339,17 @@ class BilibiliInteraction:
             print("评分失败!")
             print(f"错误信息: {r.json()['message']}")
 
+    def favorite_video(self, aid: int, favorite_list: list):
+        r = self.request_manager.post("https://api.bilibili.com/x/v3/fav/resource/deal",
+                                      data={"rid": aid, "type": 2,
+                                            "add_media_ids": ",".join('%s' % id for id in favorite_list),
+                                            "csrf": self.csrf})
+        if r.json()['code'] == 0:
+            print("收藏成功!")
+        else:
+            print("收藏失败!")
+            print(f"错误信息: {r.json()['message']}")
+
 
 class BiliBiliVideo:
     def __init__(self, bvid="", aid="",
@@ -601,8 +612,11 @@ class BiliBili:
         self.request_manager = request_manager
         self.quality = quality
         self.audio = 30280
-        self.login: bool = False
-        self.mid: int = 0
+        self.mid: int = self.request_manager.is_login()
+        if self.mid:
+            self.login_init(self.mid)
+        self.login: bool = False if not self.mid else True
+        self.login_init(self.mid)
         self.view_online_watch = True
         self.bilibili_favorite = BilibiliFavorite(self.mid)
         self.interaction: BilibiliInteraction = BilibiliInteraction(self.bilibili_favorite)
@@ -809,7 +823,7 @@ class BiliBili:
         if not self.login:
             print("请先登录!")
             return
-        print(self.bilibili_favorite.choose_favorite(self.bilibili_favorite.mid, avid))
+        self.interaction.favorite_video(avid, self.bilibili_favorite.choose_favorite(self.bilibili_favorite.mid, avid))
 
     def download_favorite(self):
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
@@ -887,9 +901,6 @@ class BiliBili:
                 print("未知命令!")
 
     def main(self):
-        mid = self.request_manager.is_login()
-        if mid:
-            self.login_init(mid)
         while True:
             command = input("主选项: ")
             command = command.lower().strip()
@@ -922,7 +933,7 @@ class BiliBili:
                 self.download_favorite()
             elif command == "view_self":
                 if self.login:
-                    self.user_space(mid)
+                    self.user_space(self.mid)
                 else:
                     print("用户未登录!")
             elif command == "view_user":
