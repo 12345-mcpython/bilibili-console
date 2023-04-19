@@ -1004,14 +1004,6 @@ class BiliBili:
 print(f"LBCC v{__version__}.")
 print()
 
-print(f"""Copyright (C) {__year__} {__author__}.
-
-This program comes with ABSOLUTELY NO WARRANTY; 
-This is free software, and you are welcome to redistribute it
-under certain conditions.""")
-
-print("")
-
 if __name__ == '__main__':
     bilibili = BiliBili()
     bilibili.main()
