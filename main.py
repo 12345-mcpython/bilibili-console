@@ -47,18 +47,6 @@ __year__ = 2023
 __author__ = "Laosun Studios"
 
 
-# 1. get epid detail_request
-# 2. post
-# https://manga.bilibili.com/twirp/comic.v1.Comic/GetImageIndex?device=pc&platform=web
-# {ep_id: 212024}
-# 3. get token
-# https://manga.bilibili.com/twirp/comic.v1.Comic/ImageToken?device=pc&platform=web
-# {urls: "["/bfs/manga/94b1978854b6c6a582740cae861109cb0d1e1b46.jpg@680w.jpg"]"}
-# 4. image url + ?token=
-# https://manga.hdslb.com/bfs/manga/94b1978854b6c6a582740cae861109cb0d1e1b46.jpg@680w.jpg
-# ?token=217f9a36f4a7f71fa4f795c972dbef44&ts=63fa0cd5
-
-
 class BilibiliManga:
     def __init__(self):
         self.request_manager = request_manager
@@ -342,7 +330,7 @@ class BilibiliInteraction:
     def favorite_video(self, aid: int, favorite_list: list):
         r = self.request_manager.post("https://api.bilibili.com/x/v3/fav/resource/deal",
                                       data={"rid": aid, "type": 2,
-                                            "add_media_ids": ",".join('%s' % id for id in favorite_list),
+                                            "add_media_ids": ",".join('%s' % fav_id for fav_id in favorite_list),
                                             "csrf": self.csrf})
         if r.json()['code'] == 0:
             print("收藏成功!")
