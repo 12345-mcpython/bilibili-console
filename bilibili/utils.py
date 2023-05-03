@@ -1,6 +1,7 @@
 import hashlib
 import os
 import re
+import sys
 import time
 
 import requests
@@ -160,16 +161,14 @@ def enc(x: int) -> str:
 def read_cookie():
     if os.path.exists("cookie.txt"):
         with open("cookie.txt") as f:
-            return f.read()
+            cookie = f.read().strip()
+            if not cookie:
+                print("cookie.txt 内没有内容!")
+                sys.exit(1)
+            return cookie
     else:
-        b = requests.get("https://www.bilibili.com", headers={
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                          "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
-            "referer": "https://www.bilibili.com"})
-        cookie = ''
-        for i, j in b.cookies.get_dict().items():
-            cookie += "{}={};".format(i, j)
-        return cookie[:-1]
+        print("cookie.txt 不存在! 请创建 cookie.txt 并写入 cookie!")
+        sys.exit(1)
 
 
 def encrypt_wbi(request_argument: str):
