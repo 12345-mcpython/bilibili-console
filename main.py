@@ -173,12 +173,13 @@ class BilibiliFavorite:
                     if int(item) - 1 < 0:
                         print(f"索引{index + 1} Error: 输入的必须为正数!")
                         continue
-                    if request.json()['data']['list'][int(item) - 1]['fav_state']:
-                        print(f"索引{index + 1} Warning: 此收藏夹已收藏过该视频, 将不会重复收藏.")
                     try:
+                        if request.json()['data']['list'][int(item) - 1]['fav_state']:
+                            print(f"索引{index + 1} Warning: 此收藏夹已收藏过该视频, 将不会重复收藏.")
                         ids.append(request.json()['data']['list'][int(item) - 1]['id'])
                     except IndexError:
                         print(f"索引{index + 1} Error: 索引超出收藏夹范围!")
+                        return []
                 return ids
             else:
                 choose = input("选择收藏夹: ")
@@ -328,6 +329,9 @@ class BilibiliInteraction:
             print(f"错误信息: {r.json()['message']}")
 
     def favorite_video(self, aid: int, favorite_list: list):
+        if not favorite_list:
+            print("收藏列表为空!")
+            return
         r = self.request_manager.post("https://api.bilibili.com/x/v3/fav/resource/deal",
                                       data={"rid": aid, "type": 2,
                                             "add_media_ids": ",".join('%s' % fav_id for fav_id in favorite_list),
