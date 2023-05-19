@@ -80,7 +80,7 @@ class BilibiliManga:
             data={"urls": "[\"{}\"]".format(image)})
         return token.json()
 
-    def download_manga(self, manga_id: int) -> dict:
+    def download_manga(self, manga_id: int) -> bool:
         manga_info = self.get_manga_detail(manga_id)
         ep_info = manga_info['data']['ep_list']
         name = manga_info['data']['title']
@@ -141,6 +141,7 @@ class BilibiliManga:
                         progress_bar.update(1)
                         filename += 1
         print("下载完成. 总计下载了 {} 字节 ({})".format(byte, hum_convert(byte)))
+        return True
 
 
 class BilibiliFavorite:
@@ -210,7 +211,7 @@ class BilibiliFavorite:
             yield ls.json()['data']['medias']
             cursor += 1
 
-    def get_favorite_information(self, fav_id: int) -> list:
+    def get_favorite_information(self, fav_id: int) -> dict:
         """
         获取收藏夹信息
         :param fav_id:
@@ -344,8 +345,8 @@ class BilibiliInteraction:
 
 
 class BiliBiliVideo:
-    def __init__(self, bvid="", aid="",
-                 epid="", season_id="", quality=80, view_online_watch=True,
+    def __init__(self, bvid: str = "", aid: int = 0,
+                 epid: str = "", season_id: str = "", quality=80, view_online_watch=True,
                  audio_quality=30280, bangumi=False):
         if not any([bvid, aid, epid, season_id]):
             raise Exception("Video id can't be null.")
@@ -360,8 +361,8 @@ class BiliBiliVideo:
         self.view_online_watch = view_online_watch
 
     def choose_video(self, return_information=False):
-        url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid
-        r = self.request_manager.get(url, cache=True)
+        r = self.request_manager.get("https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid,
+                                     cache=True)
         if r.json()['code'] != 0:
             print("获取视频信息错误!")
             print(r.json()['code'])
@@ -399,7 +400,7 @@ class BiliBiliVideo:
                 print("选视频超出范围!")
                 continue
             if not return_information:
-                self.play(self.bvid, video[int(page) - 1]['cid'], title)
+                self.play(self.bvid, video[int(page) - 1]['cid'])
             else:
                 return video[int(page) - 1]['cid'], title, video[int(page) - 1]['part'], pic, True if \
                     r.json()['data']["View"]['stat']['evaluation'] \
@@ -836,7 +837,7 @@ class BiliBili:
             comic_id = input("请输入漫画id或url: ")
             if comic_id.startswith("https"):
                 comic_id = comic_id.split("mc")[1]
-            self.manga.download_manga(comic_id)
+            self.manga.download_manga(int(comic_id))
         except (ValueError, IndexError):
             print("id输入错误.")
         except KeyboardInterrupt:
