@@ -600,7 +600,7 @@ class BiliBiliVideo:
         return True
 
 
-class BiliBili:
+class Bilibili:
     def __init__(self, quality=32):
         self.request_manager = request_manager
         self.quality = quality
@@ -998,5 +998,5 @@ print(f"LBCC v{__version__}.")
 print()
 
 if __name__ == '__main__':
-    bilibili = BiliBili()
+    bilibili = Bilibili()
     bilibili.main()
