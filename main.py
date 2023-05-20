@@ -951,7 +951,7 @@ class Bilibili:
             elif command == "refresh_login_state":
                 mid = self.request_manager.refresh_login_state()
                 if mid:
-                    self.login_init(mid)
+                    return "refresh_message"
             elif command == "export_favorite":
                 self.export_favorite()
             elif command == "export_all_favorite":
@@ -1033,4 +1033,6 @@ print()
 
 if __name__ == '__main__':
     bilibili = Bilibili()
-    bilibili.main()
+    while True:
+        if bilibili.main() != "refresh_message":
+            break

@@ -68,6 +68,7 @@ class RequestManager:
             print("账号尚未登录.")
             print()
             print("可能 cookie 已失效, 重新替换 cookie.txt 并执行 refresh_login_state.")
+            print()
             return False
         elif request.json()['code'] == 0:
             print("账号已登录.")
