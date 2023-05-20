@@ -144,6 +144,46 @@ class BilibiliManga:
         return True
 
 
+class BilibiliHistory:
+    def __init__(self, csrf):
+        self.csrf = csrf
+
+    @staticmethod
+    def get_history():
+        url = "https://api.bilibili.com/x/web-interface/history/cursor?max={}&view_at={}&business={}"
+        max_ = 0
+        view_at = 0
+        business = ''
+        history = request_manager.get(url.format(max_, view_at, business))
+        while history.json()['data']['cursor']['max'] != 0:
+            yield history.json()['data']['list']
+            max_ = history.json()['data']['max']
+            view_at = history.json()['data']['view_at']
+            business = history.json()['data']['business']
+            history = request_manager.get(url.format(max_, view_at, business))
+
+    def set_record_history(self, stop=True):
+        req = request_manager.post("https://api.bilibili.com/x/v2/history/shadow/set",
+                                   data={"jsonp": "jsonp", "csrf": self.csrf, "switch": stop})
+        if req.json()['code'] == 0:
+            print(("停止" if stop else "开启") + "记录历史成功.")
+        else:
+            print(("停止" if stop else "开启") + "记录历史失败!")
+            print("错误代码: ", req.json()['code'])
+            print("错误信息: ", req.json()['message'])
+
+    @staticmethod
+    def search_history(search=""):
+        url = "https://api.bilibili.com/x/web-goblin/history/search?pn={}&keyword={}&business=all"
+        cursor = 1
+        req = request_manager.get(url.format(cursor, search))
+        print("搜索数量: ", req.json()['data']['page']['total'])
+        while req.json()['data']['has_more']:
+            yield req.json()['data']['list']
+            cursor += 1
+            req = request_manager.get(url.format(cursor, search))
+
+
 class BilibiliFavorite:
     def __init__(self, mid: int):
         self.request_manager = request_manager
@@ -282,10 +322,9 @@ class BilibiliFavorite:
 
 
 class BilibiliInteraction:
-    def __init__(self, favorite: BilibiliFavorite):
+    def __init__(self, csrf: str, favorite: BilibiliFavorite):
         self.request_manager = request_manager
-        self.csrf: str = clean_cookie(convert_cookies_to_dict(self.request_manager.session.headers.get("cookie"))).get(
-            "bili_jct", "")
+        self.csrf: str = csrf
         self.favorite = favorite
 
     def like(self, bvid: str, unlike=False):
@@ -606,18 +645,21 @@ class Bilibili:
         self.quality = quality
         self.audio = 30280
         self.mid: int = self.request_manager.is_login()
-        if self.mid:
-            self.login_init(self.mid)
         self.login: bool = False if not self.mid else True
-        self.login_init(self.mid)
+        if not self.mid:
+            return
+        self.csrf = clean_cookie(convert_cookies_to_dict(self.request_manager.session.headers.get("cookie"))).get(
+            "bili_jct", "")
         self.view_online_watch = True
         self.bilibili_favorite = BilibiliFavorite(self.mid)
-        self.interaction: BilibiliInteraction = BilibiliInteraction(self.bilibili_favorite)
+        self.interaction: BilibiliInteraction = BilibiliInteraction(self.csrf, self.bilibili_favorite)
         self.manga = BilibiliManga()
+        self.history = BilibiliHistory(self.csrf)
 
     def favorite(self):
         if not self.login:
             print("请先登录!")
+            return
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
         all_request = self.bilibili_favorite.get_favorite(fav_id)
         for i in all_request:
@@ -851,14 +893,6 @@ class Bilibili:
         fav_id = self.bilibili_favorite.list_favorite(self.mid)
         for i in fav_id:
             self.bilibili_favorite.export_favorite(i)
-
-    def login_init(self, mid):
-        self.quality = 80
-        self.login = True
-        self.mid = mid
-        self.bilibili_favorite = BilibiliFavorite(self.mid)
-        self.interaction: BilibiliInteraction = BilibiliInteraction(self.bilibili_favorite)
-        self.manga = BilibiliManga()
 
     def view_video(self, bvid, mid=0, no_favorite=False):
         video = BiliBiliVideo(bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch)
