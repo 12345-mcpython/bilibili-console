@@ -59,7 +59,9 @@ class RequestManager:
             with open("cookie.txt") as file:
                 cookie = file.read()
         self.session.headers['cookie'] = cookie
+        print()
         print("刷新登录状态成功.")
+        print()
         return self.is_login()
 
     def is_login(self) -> bool:
