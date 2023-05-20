@@ -157,9 +157,9 @@ class BilibiliHistory:
         history = request_manager.get(url.format(max_, view_at, business))
         while history.json()['data']['cursor']['max'] != 0:
             yield history.json()['data']['list']
-            max_ = history.json()['data']['max']
-            view_at = history.json()['data']['view_at']
-            business = history.json()['data']['business']
+            max_ = history.json()['data']['cursor']['max']
+            view_at = history.json()['data']['cursor']['view_at']
+            business = history.json()['data']['cursor']['business']
             history = request_manager.get(url.format(max_, view_at, business))
 
     def set_record_history(self, stop=True):
@@ -640,12 +640,12 @@ class BiliBiliVideo:
 
 
 class Bilibili:
-    def __init__(self, quality=32):
+    def __init__(self):
         self.request_manager = request_manager
-        self.quality = quality
         self.audio = 30280
         self.mid: int = self.request_manager.is_login()
         self.login: bool = False if not self.mid else True
+        self.quality: int = 32 if not self.mid else 80
         if not self.mid:
             return
         self.csrf = clean_cookie(convert_cookies_to_dict(self.request_manager.session.headers.get("cookie"))).get(
@@ -747,6 +747,9 @@ class Bilibili:
               item['stat']['view'])
 
     def bangumi(self):
+        if not self.login:
+            print("请先登录!")
+            return
         while True:
             choose_bangumi = input("番剧选项: ")
             if choose_bangumi == "address":
@@ -861,6 +864,9 @@ class Bilibili:
         self.interaction.favorite_video(avid, self.bilibili_favorite.choose_favorite(self.bilibili_favorite.mid, avid))
 
     def download_favorite(self):
+        if not self.login:
+            print("请先登录!")
+            return
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
         info = self.bilibili_favorite.get_favorite_information(fav_id)
         count = 0
@@ -874,6 +880,9 @@ class Bilibili:
                     return
 
     def download_manga(self):
+        if not self.login:
+            print("请先登录!")
+            return
         print("漫画id: 即 https://manga.bilibili.com/detail/mc29410 中的 29410")
         try:
             comic_id = input("请输入漫画id或url: ")
@@ -886,13 +895,62 @@ class Bilibili:
             print("停止下载.")
 
     def export_favorite(self):
+        if not self.login:
+            print("请先登录!")
+            return
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
         self.bilibili_favorite.export_favorite(fav_id)
 
     def export_all_favorite(self):
+        if not self.login:
+            print("请先登录!")
+            return
         fav_id = self.bilibili_favorite.list_favorite(self.mid)
         for i in fav_id:
             self.bilibili_favorite.export_favorite(i)
+
+    def view_history(self):
+        if not self.login:
+            print("请先登录!")
+            return
+        print("历史界面")
+        print()
+        history_list = BilibiliHistory.get_history()
+        for history in history_list:
+            for cursor in range(0, len(history), 5):
+                five_history = history[cursor:cursor+5]
+                flag = True
+                while flag:
+                    for num, item in enumerate(five_history):
+                        if item['history']['business'] != "archive":
+                            print("该类型的历史记录不支持播放.")
+                            continue
+                        print(num + 1, ":")
+                        print("封面: ", item['cover'])
+                        print("标题: ", item['title'])
+                        print("作者: ", item['author_name'], " bvid: " , item['history']['bvid'], " 视频时长:",
+                              format_time(item["progress"]), "/", format_time(item['duration']))
+                        print("观看时间: ", datetime.datetime.fromtimestamp(item['view_at']).strftime("%Y-%m-%d %H:%M:%S"))
+                    while True:
+                        command = input("选择视频: ")
+                        if command == "exit":
+                            return
+                        elif not command:
+                            flag = False
+                            break
+                        elif not command.isdecimal():
+                            print("输入的不是整数!")
+                            continue
+                        elif int(command) > len(five_history) or int(command) <= 0:
+                            print("选视频超出范围!")
+                            continue
+                        bvid = five_history[int(command) - 1]['history']['bvid']
+                        mid = five_history[int(command) - 1]['author_mid']
+                        if not bvid:
+                            print("该类型的历史记录不支持播放.")
+                            continue
+                        # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
+                        self.view_video(bvid, mid=mid)
 
     def view_video(self, bvid, mid=0, no_favorite=False):
         video = BiliBiliVideo(bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch)
@@ -949,8 +1007,7 @@ class Bilibili:
                 shutil.rmtree("cached")
                 os.mkdir("cached")
             elif command == "refresh_login_state":
-                mid = self.request_manager.refresh_login_state()
-                if mid:
+                if self.request_manager.refresh_login_state():
                     return "refresh_message"
             elif command == "export_favorite":
                 self.export_favorite()
@@ -958,6 +1015,8 @@ class Bilibili:
                 self.export_all_favorite()
             elif command == "download_favorite":
                 self.download_favorite()
+            elif command == "history":
+                self.view_history()
             elif command == "view_self":
                 if self.login:
                     self.user_space(self.mid)
