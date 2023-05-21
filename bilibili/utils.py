@@ -65,7 +65,7 @@ class RequestManager:
         return self.is_login()
 
     def is_login(self) -> bool:
-        request = self.session.get('https://api.bilibili.com/x/member/web/account')
+        request = self.get('https://api.bilibili.com/x/member/web/account')
         if request.json()['code'] == -101:
             print("账号尚未登录.")
             print()
@@ -81,7 +81,7 @@ class RequestManager:
             raise Exception("Invalid login code: " + str(request.json()['code']))
 
     def get_local_user_mid(self) -> int:
-        request = self.session.get('https://api.bilibili.com/x/member/web/account')
+        request = self.get('https://api.bilibili.com/x/member/web/account')
         return request.json()['data']['mid']
 
 
