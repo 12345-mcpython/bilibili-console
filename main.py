@@ -1030,7 +1030,8 @@ class Bilibili:
                 print("未知命令!")
 
     def user_space(self, mid: int):
-        user_info = self.request_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?mid=" + str(mid))
+        user_info = self.request_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?"
+                                             + encrypt_wbi("mid=" + str(mid)))
         user_data = user_info.json()['data']
         print("用户空间")
         print("")
@@ -1051,11 +1052,11 @@ class Bilibili:
     def list_user_video(self, mid: int):
         pre_page = 5
         cursor = 1
-        user_info = self.request_manager.get(f"https://api.bilibili.com/x/space/wbi/arc/search?mid={mid}&ps=5")
+        user_info = self.request_manager.get(f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5"))
         total = user_info.json()['data']['page']['count'] // pre_page + 1
         while True:
             ls = self.request_manager.get(
-                f"https://api.bilibili.com/x/space/wbi/arc/search?mid={mid}&ps=5&pn={cursor}", cache=True)
+                f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5&pn={cursor}"), cache=True)
             if total < cursor:
                 break
             if len(ls.json()['data']['list']['vlist']) == 0:
