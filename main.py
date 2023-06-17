@@ -203,34 +203,42 @@ class BilibiliFavorite:
         print("选择收藏夹")
         for index, item in enumerate(request.json()['data']['list']):
             print(f"{index + 1}: {item['title']} ({item['media_count']}) {'(已收藏)' if item['fav_state'] else ''}")
-        while True:
-            if not one:
-                ids = []
-                choose = input("选择收藏夹(以逗号为分隔): ")
-                for index, item in enumerate(choose.split(",")):
-                    if not item.replace(" ", "").isdecimal():
-                        print(f"索引{index + 1} Error: 输入的必须为数字!")
-                        continue
-                    if int(item) - 1 < 0:
-                        print(f"索引{index + 1} Error: 输入的必须为正数!")
-                        continue
-                    try:
-                        if request.json()['data']['list'][int(item) - 1]['fav_state']:
-                            print(f"索引{index + 1} Warning: 此收藏夹已收藏过该视频, 将不会重复收藏.")
-                        ids.append(request.json()['data']['list'][int(item) - 1]['id'])
-                    except IndexError:
-                        print(f"索引{index + 1} Error: 索引超出收藏夹范围!")
-                        return []
-                return ids
-            else:
-                choose = input("选择收藏夹: ")
-                if not choose.isdecimal():
-                    print(f"Error: 输入的必须为数字!")
-                    continue
+        fail = False
+        if not one:
+            ids = []
+            choose = input("选择收藏夹(以逗号为分隔): ")
+            if choose == "exit":
+                return 0
+            for index, item in enumerate(choose.split(",")):
+                if not item.replace(" ", "").isdecimal():
+                    print(f"索引{index + 1} 错误: 输入的必须为数字!")
+                    fail = True
+                    break
+                if int(item) - 1 < 0:
+                    print(f"索引{index + 1} 错误: 输入的必须为正数!")
+                    fail = True
+                    break
                 try:
-                    return request.json()['data']['list'][int(choose) - 1]['id']
+                    if request.json()['data']['list'][int(item) - 1]['fav_state']:
+                        print(f"索引{index + 1} 警告: 此收藏夹已收藏过该视频, 将不会重复收藏.")
+                        continue
+                    ids.append(request.json()['data']['list'][int(item) - 1]['id'])
                 except IndexError:
-                    print("Error: 索引超出收藏夹范围!")
+                    print(f"索引{index + 1} 错误: 索引超出收藏夹范围!")
+                    fail = True
+            if fail:
+                print("收藏失败!")
+            return ids
+        else:
+            choose = input("选择收藏夹: ")
+            if not choose.isdecimal():
+                print(f"错误: 输入的必须为数字!")
+                print("收藏失败!")
+                return 0
+            try:
+                return request.json()['data']['list'][int(choose) - 1]['id']
+            except IndexError:
+                print("错误: 索引超出收藏夹范围!")
 
     def get_favorite(self, fav_id: int) -> list:
         """
@@ -861,13 +869,18 @@ class Bilibili:
         if not self.login:
             print("请先登录!")
             return
-        self.interaction.favorite_video(avid, self.bilibili_favorite.choose_favorite(self.bilibili_favorite.mid, avid))
+        fav_id = self.bilibili_favorite.choose_favorite(self.bilibili_favorite.mid, avid)
+        if fav_id == 0:
+            return
+        self.interaction.favorite_video(avid, fav_id)
 
     def download_favorite(self):
         if not self.login:
             print("请先登录!")
             return
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
+        if fav_id == 0:
+            return
         info = self.bilibili_favorite.get_favorite_information(fav_id)
         count = 0
         total = info['media_count']
@@ -899,6 +912,8 @@ class Bilibili:
             print("请先登录!")
             return
         fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
+        if fav_id == 0:
+            return
         self.bilibili_favorite.export_favorite(fav_id)
 
     def export_all_favorite(self):
@@ -918,7 +933,7 @@ class Bilibili:
         history_list = BilibiliHistory.get_history()
         for history in history_list:
             for cursor in range(0, len(history), 5):
-                five_history = history[cursor:cursor+5]
+                five_history = history[cursor:cursor + 5]
                 flag = True
                 while flag:
                     for num, item in enumerate(five_history):
@@ -928,9 +943,10 @@ class Bilibili:
                         print(num + 1, ":")
                         print("封面: ", item['cover'])
                         print("标题: ", item['title'])
-                        print("作者: ", item['author_name'], " bvid: " , item['history']['bvid'], " 视频时长:",
+                        print("作者: ", item['author_name'], " bvid: ", item['history']['bvid'], " 视频时长:",
                               format_time(item["progress"]), "/", format_time(item['duration']))
-                        print("观看时间: ", datetime.datetime.fromtimestamp(item['view_at']).strftime("%Y-%m-%d %H:%M:%S"))
+                        print("观看时间: ",
+                              datetime.datetime.fromtimestamp(item['view_at']).strftime("%Y-%m-%d %H:%M:%S"))
                     while True:
                         command = input("选择视频: ")
                         if command == "exit":
@@ -1052,11 +1068,13 @@ class Bilibili:
     def list_user_video(self, mid: int):
         pre_page = 5
         cursor = 1
-        user_info = self.request_manager.get(f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5"))
+        user_info = self.request_manager.get(
+            f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5"))
         total = user_info.json()['data']['page']['count'] // pre_page + 1
         while True:
             ls = self.request_manager.get(
-                f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5&pn={cursor}"), cache=True)
+                f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5&pn={cursor}"),
+                cache=True)
             if total < cursor:
                 break
             if len(ls.json()['data']['list']['vlist']) == 0:
