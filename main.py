@@ -144,6 +144,25 @@ class BilibiliManga:
         return True
 
 
+class BilibiliBangumi:
+    def __init__(self, mid: int):
+        self.mid = mid
+
+    def get_follow_bangumi(self) -> list:
+        r = request_manager.get(
+            f"https://api.bilibili.com/x/space/bangumi/follow/list?type=1&follow_status=0&pn=1&ps=15&vmid={self.mid}",
+            cache=True)
+        datas = []
+        for i in r.json()['data']['list']:
+            datas.append({'watch_progress': i['progress'],
+                          'img': i['cover'],
+                          "title": i['title'],
+                          "bangumi_type": i["season_type_name"],
+                          'areas': i['areas'][0]['name'],
+                          'update_progress': i['new_ep']['index_show']})
+        return datas
+
+
 class BilibiliHistory:
     def __init__(self, csrf):
         self.csrf = csrf
