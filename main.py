@@ -38,7 +38,7 @@ from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
 from bilibili.utils import enc, dec, format_time, validate_title, \
-    convert_cookies_to_dict, clean_cookie, encrypt_wbi, request_manager, hum_convert
+    convert_cookies_to_dict, clean_cookie, encrypt_wbi, request_manager, hum_convert, get_danmaku
 
 __version__ = '1.0.0-dev'
 
@@ -47,41 +47,54 @@ __year__ = 2023
 __author__ = "Laosun Studios"
 
 
-class BilibiliManga:
-    def __init__(self):
-        self.request_manager = request_manager
+def view_short_video_info(bvid):
+    video = request_manager.get("https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid)
+    item = video.json()['data']['View']
+    print("封面: ", item['pic'])
+    print("标题: ", item['title'])
+    print("作者: ", item['owner']['name'], " bvid: ", item['bvid'], " 日期: ", datetime.datetime.fromtimestamp(
+        item['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_time(item['duration']), " 观看量: ",
+          item['stat']['view'])
 
-    def get_manga_detail(self, manga_id: int) -> dict:
-        detail_request = self.request_manager.post(
+
+class BilibiliManga:
+    @staticmethod
+    def get_manga_detail(manga_id: int) -> dict:
+        detail_request = request_manager.post(
             "https://manga.bilibili.com/twirp/comic.v1.Comic/ComicDetail?device=pc&platform=web",
             data={"comic_id": manga_id})
         return detail_request.json()
 
-    def get_wallet(self) -> dict:
-        wallet = self.request_manager.post("https://manga.bilibili.com/twirp/user.v1.User/GetWallet?device=pc&platform"
-                                           "=web")
+    @staticmethod
+    def get_wallet() -> dict:
+        wallet = request_manager.post("https://manga.bilibili.com/twirp/user.v1.User/GetWallet?device=pc&platform"
+                                      "=web")
         return wallet.json()
 
-    def list_history(self) -> dict:
-        history = self.request_manager.post(
+    @staticmethod
+    def list_history() -> dict:
+        history = request_manager.post(
             "https://manga.bilibili.com/twirp/bookshelf.v1.Bookshelf/ListHistory?device=pc&platform=web",
             data={"page_num": 1, "page_size": 50})
         return history.json()
 
-    def get_image_list(self, epid) -> dict:
-        images = self.request_manager.post(
+    @staticmethod
+    def get_image_list(epid) -> dict:
+        images = request_manager.post(
             "https://manga.bilibili.com/twirp/comic.v1.Comic/GetImageIndex?device=pc&platform=web",
             data={"ep_id": epid})
         return images.json()
 
-    def get_token(self, image: str) -> dict:
-        token = self.request_manager.post(
+    @staticmethod
+    def get_token(image: str) -> dict:
+        token = request_manager.post(
             "https://manga.bilibili.com/twirp/comic.v1.Comic/ImageToken?device=pc&platform=web",
             data={"urls": "[\"{}\"]".format(image)})
         return token.json()
 
-    def download_manga(self, manga_id: int) -> bool:
-        manga_info = self.get_manga_detail(manga_id)
+    @staticmethod
+    def download_manga(manga_id: int) -> bool:
+        manga_info = BilibiliManga.get_manga_detail(manga_id)
         ep_info = manga_info['data']['ep_list']
         name = manga_info['data']['title']
         if not os.path.exists("download/manga"):
@@ -109,7 +122,7 @@ class BilibiliManga:
         with tqdm(total=end) as progress_bar:
             for i in download_manga_epid:
                 download_image_prefix = []
-                image_list = self.get_image_list(i)
+                image_list = BilibiliManga.get_image_list(i)
                 for j in image_list['data']['images']:
                     download_image_prefix.append(j['path'])
                     picture_count += 1
@@ -122,7 +135,7 @@ class BilibiliManga:
             for i, j in download_image.items():
                 download_image_url_local = []
                 for k in j:
-                    token = self.get_token(k)['data'][0]
+                    token = BilibiliManga.get_token(k)['data'][0]
                     download_image_url_local.append("{}?token={}".format(token['url'], token['token']))
                     progress_bar.update(1)
                 download_image_url[i] = download_image_url_local
@@ -205,10 +218,10 @@ class BilibiliHistory:
 
 class BilibiliFavorite:
     def __init__(self, mid: int):
-        self.request_manager = request_manager
         self.mid = mid
 
-    def choose_favorite(self, mid: int, avid: int = 0, one=False) -> list[int] | int:
+    @staticmethod
+    def choose_favorite(mid: int, avid: int = 0, one=False) -> list[int] | int:
         """
         选择收藏夹
         :param mid: 用户mid
@@ -216,7 +229,7 @@ class BilibiliFavorite:
         :param one: 是否为单选模式
         :return: 收藏夹id list or int
         """
-        request = self.request_manager.get(
+        request = request_manager.get(
             f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid={avid}&up_mid={mid}", cache=True)
         print("\n")
         print("选择收藏夹")
@@ -259,7 +272,8 @@ class BilibiliFavorite:
             except IndexError:
                 print("错误: 索引超出收藏夹范围!")
 
-    def get_favorite(self, fav_id: int) -> list:
+    @staticmethod
+    def get_favorite(fav_id: int) -> list:
         """
         获取收藏夹
         :param fav_id: 收藏夹id
@@ -267,27 +281,29 @@ class BilibiliFavorite:
         """
         pre_page = 5
         cursor = 1
-        request = self.request_manager.get(f"https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id={fav_id}",
-                                           cache=True)
+        request = request_manager.get(f"https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id={fav_id}",
+                                      cache=True)
         total = request.json()['data']['info']['media_count'] // pre_page + 1
         while True:
-            ls = self.request_manager.get(
+            ls = request_manager.get(
                 f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}", cache=True)
             if total < cursor:
                 break
             yield ls.json()['data']['medias']
             cursor += 1
 
-    def get_favorite_information(self, fav_id: int) -> dict:
+    @staticmethod
+    def get_favorite_information(fav_id: int) -> dict:
         """
         获取收藏夹信息
         :param fav_id:
         :return:
         """
-        request = self.request_manager.get(f"https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id={fav_id}")
+        request = request_manager.get(f"https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id={fav_id}")
         return request.json()['data']['info']
 
-    def export_favorite(self, fav_id: int):
+    @staticmethod
+    def export_favorite(fav_id: int):
         """
         导出收藏夹
         :param fav_id: 收藏夹id
@@ -295,7 +311,7 @@ class BilibiliFavorite:
         """
         pre_page = 5
         cursor = 1
-        r = self.request_manager.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id))
+        r = request_manager.get("https://api.bilibili.com/x/v3/fav/resource/list?ps=20&media_id=" + str(fav_id))
         total = r.json()['data']['info']['media_count'] // pre_page + (
             1 if r.json()['data']['info']['media_count'] % pre_page != 0 else 0)
         print(f"正在导出收藏夹\"{r.json()['data']['info']['title']}\".")
@@ -317,7 +333,7 @@ class BilibiliFavorite:
             while True:
                 if total < cursor:
                     break
-                medias = self.request_manager.get(
+                medias = request_manager.get(
                     f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}")
                 medias = medias.json()['data']['medias']
                 for i in medias:
@@ -339,9 +355,10 @@ class BilibiliFavorite:
             json.dump(export, f, ensure_ascii=False, sort_keys=True)
         print(f"导出收藏夹\"{r.json()['data']['info']['title']}\"成功.")
 
-    def list_favorite(self, mid):
+    @staticmethod
+    def list_favorite(mid):
         ls = []
-        request = self.request_manager.get(
+        request = request_manager.get(
             f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&up_mid={mid}", cache=True)
         for i in request.json()['data']['list']:
             ls.append(i['id'])
@@ -350,14 +367,13 @@ class BilibiliFavorite:
 
 class BilibiliInteraction:
     def __init__(self, csrf: str, favorite: BilibiliFavorite):
-        self.request_manager = request_manager
         self.csrf: str = csrf
         self.favorite = favorite
 
     def like(self, bvid: str, unlike=False):
 
-        r = self.request_manager.post("https://api.bilibili.com/x/web-interface/archive/like",
-                                      data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf})
+        r = request_manager.post("https://api.bilibili.com/x/web-interface/archive/like",
+                                 data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf})
         if r.json()['code'] != 0:
             print("点赞或取消点赞失败!")
             print(f"错误信息: {r.json()['message']}")
@@ -369,8 +385,8 @@ class BilibiliInteraction:
 
     def coin(self, bvid: str, count: int):
 
-        r = self.request_manager.post("https://api.bilibili.com/x/web-interface/coin/add",
-                                      data={"bvid": bvid, 'csrf': self.csrf, 'multiply': count})
+        r = request_manager.post("https://api.bilibili.com/x/web-interface/coin/add",
+                                 data={"bvid": bvid, 'csrf': self.csrf, 'multiply': count})
         if r.json()['code'] == 0:
             print("投币成功!")
         else:
@@ -378,8 +394,8 @@ class BilibiliInteraction:
             print(f"错误信息: {r.json()['message']}")
 
     def triple(self, bvid: str):
-        r = self.request_manager.post("https://api.bilibili.com/x/web-interface/archive/like/triple",
-                                      data={"bvid": bvid, "csrf": self.csrf})
+        r = request_manager.post("https://api.bilibili.com/x/web-interface/archive/like/triple",
+                                 data={"bvid": bvid, "csrf": self.csrf})
         if r.json()['code'] == 0:
             print("三联成功!")
         else:
@@ -387,8 +403,8 @@ class BilibiliInteraction:
             print(f"错误信息: {r.json()['message']}")
 
     def mark_interact_video(self, bvid: str, score: int):
-        r = self.request_manager.post("https://api.bilibili.com/x/stein/mark",
-                                      data={"bvid": bvid, "csrf": self.csrf, "mark": score})
+        r = request_manager.post("https://api.bilibili.com/x/stein/mark",
+                                 data={"bvid": bvid, "csrf": self.csrf, "mark": score})
         if r.json()['code'] == 0:
             print("评分成功!")
         else:
@@ -399,10 +415,10 @@ class BilibiliInteraction:
         if not favorite_list:
             print("收藏列表为空!")
             return
-        r = self.request_manager.post("https://api.bilibili.com/x/v3/fav/resource/deal",
-                                      data={"rid": aid, "type": 2,
-                                            "add_media_ids": ",".join('%s' % fav_id for fav_id in favorite_list),
-                                            "csrf": self.csrf})
+        r = request_manager.post("https://api.bilibili.com/x/v3/fav/resource/deal",
+                                 data={"rid": aid, "type": 2,
+                                       "add_media_ids": ",".join('%s' % fav_id for fav_id in favorite_list),
+                                       "csrf": self.csrf})
         if r.json()['code'] == 0:
             print("收藏成功!")
         else:
@@ -421,14 +437,13 @@ class BiliBiliVideo:
         self.epid = epid
         self.season_id = season_id
         self.bangumi = bangumi
-        self.request_manager = request_manager
         self.quality = quality
         self.audio_quality = audio_quality
         self.view_online_watch = view_online_watch
 
     def choose_video(self, return_information=False):
-        r = self.request_manager.get("https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid,
-                                     cache=True)
+        r = request_manager.get("https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid,
+                                cache=True)
         if r.json()['code'] != 0:
             print("获取视频信息错误!")
             print(r.json()['code'])
@@ -475,7 +490,7 @@ class BiliBiliVideo:
 
     def choose_video_collection(self):
         url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid
-        r = self.request_manager.get(url, cache=True)
+        r = request_manager.get(url, cache=True)
         if r.json()['code'] != 0:
             print("获取视频信息错误!")
             print(r.json()['code'])
@@ -516,7 +531,7 @@ class BiliBiliVideo:
         else:
             url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&bvid={self.bvid}&fnval=16"
 
-        play_url_request = self.request_manager.get(url, cache=True)
+        play_url_request = request_manager.get(url, cache=True)
 
         videos = play_url_request.json()['data' if not self.bangumi else 'result']['dash']["video"]
         audios = play_url_request.json()['data' if not self.bangumi else 'result']['dash']["audio"]
@@ -548,7 +563,7 @@ class BiliBiliVideo:
             height = video_mapping[default_video]['height']
         if not os.path.exists(f"cached/{cid}.ass"):
             a = Danmaku2ASS(
-                self.get_danmaku(cid),
+                get_danmaku(cid),
                 width,
                 height,
                 input_format="protobuf",
@@ -577,7 +592,7 @@ class BiliBiliVideo:
             if self.view_online_watch:
                 try:
                     while p.poll() is None:
-                        people_watching = self.request_manager.get(
+                        people_watching = request_manager.get(
                             f"https://api.bilibili.com/x/player/online/total?cid={cid}&bvid="
                             f"{self.bvid}")
                         people = f"\r{people_watching.json()['data']['total']} 人正在看"
@@ -590,25 +605,19 @@ class BiliBiliVideo:
                     return
             print("\n")
 
-    def get_danmaku(self, cid: int):
-        resp = self.request_manager.get(
-            "https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(cid),
-            cache=True)
-        return resp.content
-
     def download_one(self, cid: int, pic_url: str, title: str = "", part_title: str = "", base_dir: str = ""):
         if not self.bangumi:
             url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&bvid={self.bvid}"
         else:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?qn={self.quality}&cid={cid}&ep_id={self.bvid}"
 
-        req = self.request_manager.get(url)
+        req = request_manager.get(url)
         download_url = req.json()["data" if not self.bangumi else "result"]["durl"][0]["url"]
         if base_dir:
             download_dir = "download/" + base_dir + "/" + validate_title(title) + "/"
         else:
             download_dir = "download/" + validate_title(title) + "/"
-        res = self.request_manager.get(download_url, stream=True)
+        res = request_manager.get(download_url, stream=True)
         length = float(res.headers['content-length'])
         if not os.path.exists("download"):
             os.mkdir("download")
@@ -639,18 +648,18 @@ class BiliBiliVideo:
         if not os.path.exists(download_dir + validate_title(title) + ".jpg"):
             print("下载封面中...")
             with open(download_dir + validate_title(title) + ".jpg", "wb") as file:
-                file.write(self.request_manager.get(pic_url).content)
+                file.write(request_manager.get(pic_url).content)
         if not os.path.exists(download_dir + validate_title(part_title) + ".xml"):
             print("下载弹幕中...")
             with open(download_dir + validate_title(part_title) + ".xml", "w",
                       encoding="utf-8") as danmaku:
                 danmaku.write(
-                    self.request_manager.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
+                    request_manager.get(f"https://comment.bilibili.com/{cid}.xml").content.decode("utf-8"))
         return True
 
     def download_video_list(self, base_dir=""):
         url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid
-        request = self.request_manager.get(url, cache=True)
+        request = request_manager.get(url, cache=True)
         video = request.json()['data']["View"]["pages"]
         title = request.json()['data']["View"]['title']
         pic = request.json()['data']["View"]['pic']
@@ -668,14 +677,13 @@ class BiliBiliVideo:
 
 class Bilibili:
     def __init__(self):
-        self.request_manager = request_manager
         self.audio = 30280
-        self.mid: int = self.request_manager.is_login()
+        self.mid: int = request_manager.is_login()
         self.login: bool = False if not self.mid else True
         self.quality: int = 32 if not self.mid else 80
         if not self.mid:
             return
-        self.csrf = clean_cookie(convert_cookies_to_dict(self.request_manager.session.headers.get("cookie"))).get(
+        self.csrf = clean_cookie(convert_cookies_to_dict(request_manager.session.headers.get("cookie"))).get(
             "bili_jct", "")
         self.view_online_watch = True
         self.bilibili_favorite = BilibiliFavorite(self.mid)
@@ -718,9 +726,8 @@ class Bilibili:
         print("推荐界面")
         while True:
             # no cache
-            recommend_request = self.request_manager.get(
+            recommend_request = request_manager.get(
                 "https://api.bilibili.com/x/web-interface/wbi/index/top/feed/rcmd?" + encrypt_wbi("ps=5"))
-            print(recommend_request.url)
             for num, item in enumerate(recommend_request.json()['data']['item']):
                 print(num + 1, ":")
                 print("封面: ", item['pic'])
@@ -750,7 +757,7 @@ class Bilibili:
     def address(self):
         video_address = input("输入地址: ")
         if "b23.tv" in video_address:
-            video_address = self.request_manager.get(video_address).url
+            video_address = request_manager.get(video_address).url
 
         url_split = video_address.split("/")
         if url_split[-1].startswith("?"):
@@ -758,78 +765,16 @@ class Bilibili:
         else:
             video_id = url_split[-1].split("?")[0]
         if video_id.startswith("BV"):
-            self.view_short_video_info(video_id)
+            view_short_video_info(video_id)
             self.view_video(bvid=video_id)
         else:
-            self.view_short_video_info(enc(int(video_id.strip("av"))))
+            view_short_video_info(enc(int(video_id.strip("av"))))
             self.view_video(bvid=enc(int(video_id.strip("av"))))
-
-    def view_short_video_info(self, bvid):
-        video = self.request_manager.get("https://api.bilibili.com/x/web-interface/view/detail?bvid=" + bvid)
-        item = video.json()['data']['View']
-        print("封面: ", item['pic'])
-        print("标题: ", item['title'])
-        print("作者: ", item['owner']['name'], " bvid: ", item['bvid'], " 日期: ", datetime.datetime.fromtimestamp(
-            item['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", format_time(item['duration']), " 观看量: ",
-              item['stat']['view'])
-
-    def bangumi(self):
-        if not self.login:
-            print("请先登录!")
-            return
-        while True:
-            choose_bangumi = input("番剧选项: ")
-            if choose_bangumi == "address":
-                url = input("输入地址: ")
-                self.play_bangumi_by_address(url)
-            elif choose_bangumi == "exit":
-                return
-            else:
-                print("未知选项!")
-
-    def play_bangumi_by_address(self, url):
-        ssid_or_epid = url.split("/")[-1]
-        ssid_or_epid = ssid_or_epid.split("?")[0]
-        if ssid_or_epid.startswith("ss"):
-            url = "https://api.bilibili.com/pgc/view/web/season?season_id=" + \
-                  ssid_or_epid.strip("ss")
-        else:
-            url = "https://api.bilibili.com/pgc/view/web/season?ep_id=" + \
-                  ssid_or_epid.strip('ep')
-        bangumi_url = self.request_manager.get(url)
-        bangumi_page = bangumi_url.json()['result']['episodes']
-        for i, j in enumerate(bangumi_page):
-            print(f"{i + 1}: {j['share_copy']} ({j['badge']})")
-        print("请以冒号前面的数字为准选择视频.")
-        while True:
-            page = input("选择视频: ")
-            if page == "exit":
-                break
-            if not page:
-                continue
-            if not page.isdigit():
-                continue
-            if int(page) > len(bangumi_page) or int(page) <= 0:
-                print("选视频错误!")
-                continue
-            cid = bangumi_page[int(page) - 1]['cid']
-            bvid = bangumi_page[int(page) - 1]['bvid']
-            epid = bangumi_page[int(page) - 1]['id']
-            title = bangumi_page[int(page) - 1]['share_copy']
-            video = BiliBiliVideo(bvid=bvid, epid=epid, bangumi=True, quality=self.quality,
-                                  view_online_watch=self.view_online_watch)
-            video.play(cid, title=title)
-
-    def get_danmaku(self, cid: int):
-        resp = self.request_manager.get(
-            "https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(cid),
-            cache=True)
-        return resp.content
 
     # def play_interact_video(self, bvid: str, cid: int):
     #     self.play(bvid, cid, view_online_watch=False)
     #
-    #     graph_version = self.request_manager.get(f"https://api.bilibili.com/x/player/v2?bvid={bvid}&cid={cid}")
+    #     graph_version = request_manager.get(f"https://api.bilibili.com/x/player/v2?bvid={bvid}&cid={cid}")
     #     graph_version = graph_version.json()['data']['interaction']['graph_version']
     #
     #     edge_id = ""
@@ -839,7 +784,7 @@ class Bilibili:
     #                     f"?graph_version={graph_version}" \
     #                     f"&bvid={bvid}" \
     #                     f"&edge_id={edge_id}"
-    #         r = self.request_manager.get(edge_info)
+    #         r = request_manager.get(edge_info)
     #         if not r.json()['data']['edges'].get('questions'):
     #             print("互动视频已到达末尾.")
     #             score = input("是否评分? (y/n): ")
@@ -1014,7 +959,7 @@ class Bilibili:
                 self.triple(bvid)
             elif command == "favorite" and not no_favorite:
                 self.add_favorite(dec(bvid))
-                self.request_manager.cached_response = {}
+                request_manager.cached_response = {}
             elif command == "view_user":
                 self.user_space(mid)
             elif command:
@@ -1028,8 +973,8 @@ class Bilibili:
                 self.recommend()
             elif command == "address":
                 self.address()
-            elif command == "bangumi":
-                self.bangumi()
+            # elif command == "bangumi":
+            #     self.bangumi()
             elif command == "favorite":
                 self.favorite()
             elif command == "exit":
@@ -1042,7 +987,7 @@ class Bilibili:
                 shutil.rmtree("cached")
                 os.mkdir("cached")
             elif command == "refresh_login_state":
-                if self.request_manager.refresh_login_state():
+                if request_manager.refresh_login_state():
                     return "refresh_message"
             elif command == "export_favorite":
                 self.export_favorite()
@@ -1065,8 +1010,8 @@ class Bilibili:
                 print("未知命令!")
 
     def user_space(self, mid: int):
-        user_info = self.request_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?"
-                                             + encrypt_wbi("mid=" + str(mid)))
+        user_info = request_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?"
+                                        + encrypt_wbi("mid=" + str(mid)))
         user_data = user_info.json()['data']
         print("用户空间")
         print("")
@@ -1087,13 +1032,14 @@ class Bilibili:
     def list_user_video(self, mid: int):
         pre_page = 5
         cursor = 1
-        user_info = self.request_manager.get(
+        user_info = request_manager.get(
             f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5"))
         total = user_info.json()['data']['page']['count'] // pre_page + 1
         while True:
-            ls = self.request_manager.get(
+            ls = request_manager.get(
                 f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5&pn={cursor}"),
                 cache=True)
+            print(ls.url)
             if total < cursor:
                 break
             if len(ls.json()['data']['list']['vlist']) == 0:
