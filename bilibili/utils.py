@@ -2,6 +2,7 @@ import hashlib
 import os
 import re
 import sys
+import urllib.parse
 import time
 
 import requests
@@ -175,7 +176,8 @@ def read_cookie():
         sys.exit(1)
 
 
-def encrypt_wbi(request_argument: str):
+def encrypt_wbi(request_params: str):
+    params = {i.split("=")[0]: i.split("=")[1] for i in request_params.split("&")}
     r = request_manager.get("https://api.bilibili.com/x/web-interface/nav", cache=True)
     wbi_img_url = r.json()['data']['wbi_img']['img_url']
     wbi_sub_url = r.json()['data']['wbi_img']['sub_url']
@@ -188,8 +190,11 @@ def encrypt_wbi(request_argument: str):
     for i in oe:
         le.append(key[i])
     key = "".join(le)[:32]
-    hashed = request_argument + "&wts=" + str(round(time.time()))
-    return hashed + "&w_rid=" + hashlib.md5(hashed.encode() + key.encode()).hexdigest()
+    params['wts'] = str(round(time.time()))
+    wbi_sign = hashlib.md5(
+        (urllib.parse.urlencode(dict(sorted(params.items()))) + key).encode()).hexdigest()  # 计算 w_rid
+    params['w_rid'] = wbi_sign
+    return urllib.parse.urlencode(params)
 
 
 # https://www.cnblogs.com/0506winds/p/13953600.html
@@ -201,6 +206,13 @@ def hum_convert(value):
         if (value / size) < 1:
             return "%.2f%s" % (value, units[i])
         value = value / size
+
+
+def get_danmaku(cid: int):
+    resp = request_manager.get(
+        "https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(cid),
+        cache=True)
+    return resp.content
 
 
 request_manager = RequestManager(read_cookie())
