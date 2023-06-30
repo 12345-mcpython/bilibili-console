@@ -764,12 +764,16 @@ class Bilibili:
             video_id = url_split[-2]
         else:
             video_id = url_split[-1].split("?")[0]
-        if video_id.startswith("BV"):
-            view_short_video_info(video_id)
-            self.view_video(bvid=video_id)
-        else:
-            view_short_video_info(enc(int(video_id.strip("av"))))
-            self.view_video(bvid=enc(int(video_id.strip("av"))))
+        try:
+            if video_id.startswith("BV"):
+                view_short_video_info(video_id)
+                self.view_video(bvid=video_id)
+            else:
+                view_short_video_info(enc(int(video_id.strip("av"))))
+                self.view_video(bvid=enc(int(video_id.strip("av"))))
+        except (KeyError, ValueError):
+            traceback.print_exc()
+            print("视频解析错误, 请确保你输入的视频地址正确.")
 
     # def play_interact_video(self, bvid: str, cid: int):
     #     self.play(bvid, cid, view_online_watch=False)
