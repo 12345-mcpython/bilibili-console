@@ -158,8 +158,9 @@ class BilibiliManga:
 
 
 class BilibiliBangumi:
-    def __init__(self, mid: int):
+    def __init__(self, mid: int, quality: int):
         self.mid = mid
+        self.quality = quality
 
     def get_follow_bangumi(self) -> list:
         r = request_manager.get(
@@ -174,6 +175,40 @@ class BilibiliBangumi:
                           'areas': i['areas'][0]['name'],
                           'update_progress': i['new_ep']['index_show']})
         return datas
+
+    def select_bangumi(self, ssid='', epid=''):
+        if not any([ssid, epid]):
+            return
+        if ssid:
+            url = "https://api.bilibili.com/pgc/view/web/season?season_id=" + ssid
+        else:
+            url = "https://api.bilibili.com/pgc/view/web/season?ep_id=" + epid
+        bangumi_url = request_manager.get(url)
+        bangumi_page = bangumi_url.json()['result']['episodes']
+        for i, j in enumerate(bangumi_page):
+            print(f"{i + 1}: {j['share_copy']} ({j['badge']})")
+        print("请以冒号前面的数字为准选择视频.")
+        while True:
+            page = input("选择视频: ")
+            if page == "exit":
+                break
+            if not page:
+                continue
+            if not page.isdigit():
+                continue
+            if int(page) > len(bangumi_page) or int(page) <= 0:
+                print("选视频错误!")
+                continue
+            cid = bangumi_page[int(page) - 1]['cid']
+            bvid = bangumi_page[int(page) - 1]['bvid']
+            epid = bangumi_page[int(page) - 1]['id']
+            title = bangumi_page[int(page) - 1]['share_copy']
+            video = BiliBiliVideo(bvid=bvid, epid=epid, bangumi=True, quality=self.quality)
+            video.play(cid, title=title)
+
+
+class BilibiliSearch:
+    pass
 
 
 class BilibiliHistory:
@@ -690,6 +725,7 @@ class Bilibili:
         self.interaction: BilibiliInteraction = BilibiliInteraction(self.csrf, self.bilibili_favorite)
         self.manga = BilibiliManga()
         self.history = BilibiliHistory(self.csrf)
+        self.bangumi = BilibiliBangumi(self.mid, self.quality)
 
     def favorite(self):
         if not self.login:
@@ -977,8 +1013,12 @@ class Bilibili:
                 self.recommend()
             elif command == "address":
                 self.address()
-            # elif command == "bangumi":
-            #     self.bangumi()
+            elif command == "bangumi":
+                bangumi_address = input("输入地址: ")
+                if bangumi_address.split("/")[-1].startswith('ep'):
+                    self.bangumi.select_bangumi(epid=bangumi_address.split("/")[-1].strip("ep"))
+                else:
+                    self.bangumi.select_bangumi(ssid=bangumi_address.split("/")[-1].strip("ss"))
             elif command == "favorite":
                 self.favorite()
             elif command == "exit":
