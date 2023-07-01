@@ -229,7 +229,7 @@ class BilibiliBangumi:
             bvid = bangumi_page[int(page) - 1]['bvid']
             epid = bangumi_page[int(page) - 1]['id']
             title = bangumi_page[int(page) - 1]['share_copy']
-            video = BiliBiliVideo(bvid=bvid, epid=epid, bangumi=True, quality=self.quality)
+            video = BilibiliVideo(bvid=bvid, epid=epid, bangumi=True, quality=self.quality)
             video.play(cid, title=title)
 
 
@@ -578,7 +578,7 @@ class BilibiliVideo:
             elif int(page) > len(video) or int(page) <= 0:
                 print("选视频超出范围!")
                 continue
-            selected_video = BiliBiliVideo(bvid=videos[int(page) - 1]['bvid'],
+            selected_video = BilibiliVideo(bvid=videos[int(page) - 1]['bvid'],
                                            quality=self.quality,
                                            view_online_watch=self.view_online_watch)
             selected_video.select_video()
@@ -913,7 +913,7 @@ class Bilibili:
             for j in i:
                 count += 1
                 print(f"收藏夹进度: {count} / {total}")
-                video = BiliBiliVideo(bvid=j['bvid'], quality=80)
+                video = BilibiliVideo(bvid=j['bvid'], quality=80)
                 if not video.download_video_list(base_dir=validate_title(info['title'])):
                     return
 
@@ -1055,7 +1055,7 @@ class Bilibili:
             cursor += 1
 
     def view_video(self, bvid, mid=0, no_favorite=False):
-        video = BiliBiliVideo(bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch)
+        video = BilibiliVideo(bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch)
         while True:
             command = input("视频选项: ")
             if command == "exit":
