@@ -160,10 +160,12 @@ class BilibiliUserSpace:
     @staticmethod
     def get_following_list(mid: int):
         following_list = []
-        pre_page = 5
+        pre_page = 20
         r = user_manager.get(
             f"https://api.bilibili.com/x/relation/fans?vmid={mid}&pn=1&ps={pre_page}")
         total = r.json()['data']['total']
+        if total > 5:
+            total = 5
         for i in range(1, total // pre_page + 2):
             r = user_manager.get(
                 f"https://api.bilibili.com/x/relation/fans?vmid={mid}&pn={i}&ps={pre_page}")
@@ -173,10 +175,12 @@ class BilibiliUserSpace:
     @staticmethod
     def get_followed_list(mid: int):
         followed_list = []
-        pre_page = 5
+        pre_page = 20
         r = user_manager.get(
             f"https://api.bilibili.com/x/relation/followings?vmid={mid}&pn=1&ps={pre_page}")
         total = r.json()['data']['total']
+        if total > 5:
+            total = 5
         for i in range(1, total // pre_page + 2):
             r = user_manager.get(
                 f"https://api.bilibili.com/x/relation/followings?vmid={mid}&pn={i}&ps={pre_page}")
