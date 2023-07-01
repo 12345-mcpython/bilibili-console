@@ -972,6 +972,67 @@ class Bilibili:
                         # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
                         self.view_video(bvid, mid=mid)
 
+    def user_space(self, mid: int):
+        user_info = request_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?"
+                                        + encrypt_wbi("mid=" + str(mid)))
+        user_data = user_info.json()['data']
+        print("用户空间")
+        print("")
+        print("用户名: " + user_data['name'])
+        print("头像: " + user_data['face'])
+        print("Level: " + str(user_data['level']) + (" 硬核会员" if user_data['is_senior_member'] == 1 else ""))
+        print("个性签名: " + user_data['sign'])
+        print("")
+        while True:
+            command = input("用户空间选项: ")
+            if command == "list_video":
+                self.list_user_video(mid)
+            elif command == "exit":
+                return
+            elif command:
+                print("未知命令!")
+
+    def list_user_video(self, mid: int):
+        pre_page = 5
+        cursor = 1
+        user_info = request_manager.get(
+            f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5"))
+        total = user_info.json()['data']['page']['count'] // pre_page + 1
+        while True:
+            ls = request_manager.get(
+                f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5&pn={cursor}"),
+                cache=True)
+            print(ls.url)
+            if total < cursor:
+                break
+            if len(ls.json()['data']['list']['vlist']) == 0:
+                print("该用户未发送视频!")
+                return
+            for num, item in enumerate(ls.json()['data']['list']['vlist']):
+                print(num + 1, ":")
+                print("封面: ", item['pic'])
+                print("标题: ", item['title'])
+                print("作者: ", item['author'], " bvid: ", item['bvid'], " 日期: ",
+                      datetime.datetime.fromtimestamp(
+                          item['created']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", item['length'],
+                      " 观看量: ",
+                      item['play'])
+            while True:
+                command = input("选择视频: ")
+                if command == "exit":
+                    return
+                if not command:
+                    break
+                elif not command.isdecimal():
+                    print("输入的不是整数!")
+                    continue
+                elif int(command) > len(ls.json()['data']['list']['vlist']) or int(command) <= 0:
+                    print("选视频超出范围!")
+                    continue
+                bvid = ls.json()['data']['list']['vlist'][int(command) - 1]['bvid']
+                self.view_video(bvid, mid=mid)
+            cursor += 1
+
     def view_video(self, bvid, mid=0, no_favorite=False):
         video = BiliBiliVideo(bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch)
         while True:
@@ -1050,69 +1111,8 @@ class Bilibili:
                 self.user_space(int(input("请输入用户mid: ")))
             elif command == "download_manga":
                 self.download_manga()
-            elif command:
+            else:
                 print("未知命令!")
-
-    def user_space(self, mid: int):
-        user_info = request_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?"
-                                        + encrypt_wbi("mid=" + str(mid)))
-        user_data = user_info.json()['data']
-        print("用户空间")
-        print("")
-        print("用户名: " + user_data['name'])
-        print("头像: " + user_data['face'])
-        print("Level: " + str(user_data['level']) + (" 硬核会员" if user_data['is_senior_member'] == 1 else ""))
-        print("个性签名: " + user_data['sign'])
-        print("")
-        while True:
-            command = input("用户空间选项: ")
-            if command == "list_video":
-                self.list_user_video(mid)
-            elif command == "exit":
-                return
-            elif command:
-                print("未知命令!")
-
-    def list_user_video(self, mid: int):
-        pre_page = 5
-        cursor = 1
-        user_info = request_manager.get(
-            f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5"))
-        total = user_info.json()['data']['page']['count'] // pre_page + 1
-        while True:
-            ls = request_manager.get(
-                f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5&pn={cursor}"),
-                cache=True)
-            print(ls.url)
-            if total < cursor:
-                break
-            if len(ls.json()['data']['list']['vlist']) == 0:
-                print("该用户未发送视频!")
-                return
-            for num, item in enumerate(ls.json()['data']['list']['vlist']):
-                print(num + 1, ":")
-                print("封面: ", item['pic'])
-                print("标题: ", item['title'])
-                print("作者: ", item['author'], " bvid: ", item['bvid'], " 日期: ",
-                      datetime.datetime.fromtimestamp(
-                          item['created']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", item['length'],
-                      " 观看量: ",
-                      item['play'])
-            while True:
-                command = input("选择视频: ")
-                if command == "exit":
-                    return
-                if not command:
-                    break
-                elif not command.isdecimal():
-                    print("输入的不是整数!")
-                    continue
-                elif int(command) > len(ls.json()['data']['list']['vlist']) or int(command) <= 0:
-                    print("选视频超出范围!")
-                    continue
-                bvid = ls.json()['data']['list']['vlist'][int(command) - 1]['bvid']
-                self.view_video(bvid, mid=mid)
-            cursor += 1
 
 
 print(f"LBCC v{__version__}.")
