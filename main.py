@@ -156,6 +156,42 @@ class BilibiliManga:
         return True
 
 
+class BilibiliUserSpace:
+    @staticmethod
+    def get_following_list(mid: int):
+        following_list = []
+        pre_page = 5
+        r = user_manager.get(
+            f"https://api.bilibili.com/x/relation/fans?vmid={mid}&pn=1&ps={pre_page}&order=desc&order_type=attention")
+        total = r.json()['data']['total']
+        for i in range(1, total // pre_page + 2):
+            r = user_manager.get(
+                f"https://api.bilibili.com/x/relation/fans?vmid={mid}&pn={i}&ps={pre_page}&order=desc&order_type=attention")
+            following_list += r.json()['data']['list']
+        return following_list
+
+    @staticmethod
+    def get_user_data(mid: int):
+        user_info = user_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?"
+                                     + encrypt_wbi("mid=" + str(mid)))
+        return user_info.json()['data']
+
+    @staticmethod
+    def get_user_video(mid: int):
+        pre_page = 5
+        cursor = 1
+        request = user_manager.get(
+            "https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps={pre_page}"),
+            cache=True)
+        total = request.json()['data']['page']['count'] // pre_page + 1
+        while True:
+            ls = user_manager.get(
+                "https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps={pre_page}&pn={cursor}"), cache=True)
+            if total < cursor:
+                break
+            yield ls.json()['data']['list']['vlist']
+            cursor += 1
+
 class BilibiliBangumi:
     def __init__(self, quality: int):
         self.quality = quality
@@ -994,9 +1030,7 @@ class Bilibili:
                         self.view_video(bvid, mid=mid)
 
     def user_space(self, mid: int):
-        user_info = user_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?"
-                                     + encrypt_wbi("mid=" + str(mid)))
-        user_data = user_info.json()['data']
+        user_data = BilibiliUserSpace.get_user_data(mid)
         print("用户空间")
         print("")
         print("用户名: " + user_data['name'])
@@ -1014,22 +1048,11 @@ class Bilibili:
                 print("未知命令!")
 
     def list_user_video(self, mid: int):
-        pre_page = 5
-        cursor = 1
-        user_info = user_manager.get(
-            f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5"))
-        total = user_info.json()['data']['page']['count'] // pre_page + 1
-        while True:
-            ls = user_manager.get(
-                f"https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps=5&pn={cursor}"),
-                cache=True)
-            print(ls.url)
-            if total < cursor:
-                break
-            if len(ls.json()['data']['list']['vlist']) == 0:
-                print("该用户未发送视频!")
+        for i in BilibiliUserSpace.get_user_video(mid):
+            if not i:
+                print("该UP主未发送过视频.")
                 return
-            for num, item in enumerate(ls.json()['data']['list']['vlist']):
+            for num, item in enumerate(i):
                 print(num + 1, ":")
                 print("封面: ", item['pic'])
                 print("标题: ", item['title'])
@@ -1047,12 +1070,11 @@ class Bilibili:
                 elif not command.isdecimal():
                     print("输入的不是整数!")
                     continue
-                elif int(command) > len(ls.json()['data']['list']['vlist']) or int(command) <= 0:
+                elif int(command) > len(i) or int(command) <= 0:
                     print("选视频超出范围!")
                     continue
-                bvid = ls.json()['data']['list']['vlist'][int(command) - 1]['bvid']
+                bvid = i[int(command) - 1]['bvid']
                 self.view_video(bvid, mid=mid)
-            cursor += 1
 
     def view_video(self, bvid, mid=0, no_favorite=False):
         video = BilibiliVideo(bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch)
