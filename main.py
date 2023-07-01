@@ -184,7 +184,23 @@ class BilibiliBangumi:
 
     @staticmethod
     def follow_bangumi(season_id):
-        return "https://api.bilibili.com/pgc/web/follow/add"
+        data = {"season_id": season_id, "csrf": user_manager.csrf}
+        r = user_manager.post("https://api.bilibili.com/pgc/web/follow/add", data=data)
+        if r.json()['code'] == 0:
+            print("追番成功.")
+        else:
+            print("追番失败!")
+            print(f"失败信息: {r.json()['message']}")
+
+    @staticmethod
+    def cancel_follow_bangumi(season_id):
+        data = {"season_id": season_id, "csrf": user_manager.csrf}
+        r = user_manager.post("https://api.bilibili.com/pgc/web/follow/del", data=data)
+        if r.json()['code'] == 0:
+            print("取消追番成功.")
+        else:
+            print("取消追番失败!")
+            print(f"失败信息: {r.json()['message']}")
 
     def select_bangumi(self, ssid='', epid=''):
         if not any([ssid, epid]):
@@ -469,7 +485,7 @@ class BilibiliInteraction:
             print(f"错误信息: {r.json()['message']}")
 
 
-class BiliBiliVideo:
+class BilibiliVideo:
     def __init__(self, bvid: str = "", aid: int = 0,
                  epid: str = "", season_id: str = "", quality=80, view_online_watch=True,
                  audio_quality=30280, bangumi=False):
@@ -981,7 +997,6 @@ class Bilibili:
         user_info = user_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?"
                                      + encrypt_wbi("mid=" + str(mid)))
         user_data = user_info.json()['data']
-        print(user_data)
         print("用户空间")
         print("")
         print("用户名: " + user_data['name'])
