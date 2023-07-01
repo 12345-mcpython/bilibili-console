@@ -629,7 +629,6 @@ class BiliBiliVideo:
                   f"--referrer=\"https://www.bilibili.com\"  " \
                   f"--audio-file=\"{audio_url}\" " \
                   f"--title=\"{title}\" " \
-                  f"--loop " \
                   f"\"{video_url}\""
         with subprocess.Popen(command, shell=True) as p:
             if self.view_online_watch:
