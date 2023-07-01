@@ -802,7 +802,7 @@ class Bilibili:
             video_address = user_manager.get(video_address).url
 
         url_split = video_address.split("/")
-        if url_split[-1].startswith("?"):
+        if url_split[-1].startswith("?") or not url_split[-1]:
             video_id = url_split[-2]
         else:
             video_id = url_split[-1].split("?")[0]
