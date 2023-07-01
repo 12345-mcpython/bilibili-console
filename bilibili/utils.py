@@ -10,7 +10,7 @@ import requests
 cached_response: dict[str, str] = {}
 
 
-class RequestManager:
+class UserManager:
 
     def __init__(self, cookie=""):
         self.cached_response: dict[str, requests.Response] = {}
@@ -22,6 +22,9 @@ class RequestManager:
              "referer": "https://www.bilibili.com"})
         self.session.headers.update({"cookie": cookie})
         self.mid = 0
+        self.csrf = clean_cookie(convert_cookies_to_dict(self.session.headers.get("cookie"))).get(
+            "bili_jct", "")
+        self.is_login = False
 
     def get(self, url: str, params=None, cache=False, **kwargs) -> requests.Response:
         if self.cached_response.get(url):
@@ -64,28 +67,21 @@ class RequestManager:
         print()
         print("刷新登录状态成功.")
         print()
-        return self.is_login()
+        return self.login()
 
-    def is_login(self) -> bool:
+    def login(self):
         request = self.get('https://api.bilibili.com/x/member/web/account')
         if request.json()['code'] == -101:
             print("账号尚未登录.")
             print()
-            print("可能 cookie 已失效, 重新替换 cookie.txt 并执行 refresh_login_state.")
-            print()
-            return False
         elif request.json()['code'] == 0:
             print("账号已登录.")
             print(f"欢迎{request.json()['data']['uname']}登录.")
             print()
             self.mid = request.json()['data']['mid']
-            return self.mid
+            self.is_login = True
         else:
             raise Exception("Invalid login code: " + str(request.json()['code']))
-
-    def get_local_user_mid(self) -> int:
-        request = self.get('https://api.bilibili.com/x/member/web/account')
-        return request.json()['data']['mid']
 
 
 def convert_cookies_to_dict(cookies) -> dict[str, str]:
@@ -180,7 +176,7 @@ def read_cookie():
 
 def encrypt_wbi(request_params: str):
     params = {i.split("=")[0]: i.split("=")[1] for i in request_params.split("&")}
-    r = request_manager.get("https://api.bilibili.com/x/web-interface/nav", cache=True)
+    r = user_manager.get("https://api.bilibili.com/x/web-interface/nav", cache=True)
     wbi_img_url = r.json()['data']['wbi_img']['img_url']
     wbi_sub_url = r.json()['data']['wbi_img']['sub_url']
     oe = [46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12,
@@ -211,10 +207,10 @@ def hum_convert(value):
 
 
 def get_danmaku(cid: int):
-    resp = request_manager.get(
+    resp = user_manager.get(
         "https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(cid),
         cache=True)
     return resp.content
 
 
-request_manager = RequestManager(read_cookie())
+user_manager = UserManager(read_cookie())
