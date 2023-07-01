@@ -162,11 +162,13 @@ class BilibiliBangumi:
         self.quality = quality
 
     @staticmethod
-    def get_follow_bangumi() -> list:
+    def get_follow_bangumi(mid) -> list:
         r = request_manager.get(
             f"https://api.bilibili.com/x/space/bangumi/follow/list?type=1&follow_status=0&pn=1&ps=15" +
-            "&vmid={request_manager.mid}",
+            f"&vmid={mid}",
             cache=True)
+        if r.json()['code'] != 0:
+            raise Exception(r.json()['message'])
         datas = []
         for i in r.json()['data']['list']:
             datas.append({'watch_progress': i['progress'],
@@ -176,6 +178,10 @@ class BilibiliBangumi:
                           'areas': i['areas'][0]['name'],
                           'update_progress': i['new_ep']['index_show']})
         return datas
+
+    @staticmethod
+    def get_self_follow_bangumi():
+        return BilibiliBangumi.get_follow_bangumi(request_manager.mid)
 
     def select_bangumi(self, ssid='', epid=''):
         if not any([ssid, epid]):
