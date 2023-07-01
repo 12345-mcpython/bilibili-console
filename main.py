@@ -871,7 +871,7 @@ class Bilibili:
         if not self.login:
             print("请先登录!")
             return
-        fav_id = self.bilibili_favorite.choose_favorite(self.bilibili_favorite.mid, avid)
+        fav_id = self.bilibili_favorite.choose_favorite(self.mid, avid)
         if fav_id == 0:
             return
         self.interaction.favorite_video(avid, fav_id)
