@@ -91,9 +91,9 @@ class BilibiliManga:
             data={"urls": "[\"{}\"]".format(image)})
         return token.json()
 
-    @staticmethod
-    def download_manga(manga_id: int) -> bool:
-        manga_info = BilibiliManga.get_manga_detail(manga_id)
+    @classmethod
+    def download_manga(cls, manga_id: int) -> bool:
+        manga_info = cls.get_manga_detail(manga_id)
         ep_info = manga_info['data']['ep_list']
         name = manga_info['data']['title']
         if not os.path.exists("download/manga"):
@@ -121,7 +121,7 @@ class BilibiliManga:
         with tqdm(total=end) as progress_bar:
             for i in download_manga_epid:
                 download_image_prefix = []
-                image_list = BilibiliManga.get_image_list(i)
+                image_list = cls.get_image_list(i)
                 for j in image_list['data']['images']:
                     download_image_prefix.append(j['path'])
                     picture_count += 1
@@ -134,7 +134,7 @@ class BilibiliManga:
             for i, j in download_image.items():
                 download_image_url_local = []
                 for k in j:
-                    token = BilibiliManga.get_token(k)['data'][0]
+                    token = cls.get_token(k)['data'][0]
                     download_image_url_local.append("{}?token={}".format(token['url'], token['token']))
                     progress_bar.update(1)
                 download_image_url[i] = download_image_url_local
