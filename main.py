@@ -158,13 +158,14 @@ class BilibiliManga:
 
 
 class BilibiliBangumi:
-    def __init__(self, mid: int, quality: int):
-        self.mid = mid
+    def __init__(self, quality: int):
         self.quality = quality
 
-    def get_follow_bangumi(self) -> list:
+    @staticmethod
+    def get_follow_bangumi() -> list:
         r = request_manager.get(
-            f"https://api.bilibili.com/x/space/bangumi/follow/list?type=1&follow_status=0&pn=1&ps=15&vmid={self.mid}",
+            f"https://api.bilibili.com/x/space/bangumi/follow/list?type=1&follow_status=0&pn=1&ps=15" +
+            "&vmid={request_manager.mid}",
             cache=True)
         datas = []
         for i in r.json()['data']['list']:
@@ -252,9 +253,6 @@ class BilibiliHistory:
 
 
 class BilibiliFavorite:
-    def __init__(self, mid: int):
-        self.mid = mid
-
     @staticmethod
     def choose_favorite(mid: int, avid: int = 0, one=False) -> list[int] | int:
         """
@@ -721,11 +719,11 @@ class Bilibili:
         self.csrf = clean_cookie(convert_cookies_to_dict(request_manager.session.headers.get("cookie"))).get(
             "bili_jct", "")
         self.view_online_watch = True
-        self.bilibili_favorite = BilibiliFavorite(self.mid)
+        self.bilibili_favorite = BilibiliFavorite()
         self.interaction: BilibiliInteraction = BilibiliInteraction(self.csrf, self.bilibili_favorite)
         self.manga = BilibiliManga()
         self.history = BilibiliHistory(self.csrf)
-        self.bangumi = BilibiliBangumi(self.mid, self.quality)
+        self.bangumi = BilibiliBangumi(self.quality)
 
     def favorite(self):
         if not self.login:

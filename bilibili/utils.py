@@ -21,6 +21,7 @@ class RequestManager:
                            "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
              "referer": "https://www.bilibili.com"})
         self.session.headers.update({"cookie": cookie})
+        self.mid = 0
 
     def get(self, url: str, params=None, cache=False, **kwargs) -> requests.Response:
         if self.cached_response.get(url):
@@ -77,7 +78,8 @@ class RequestManager:
             print("账号已登录.")
             print(f"欢迎{request.json()['data']['uname']}登录.")
             print()
-            return request.json()['data']['mid']
+            self.mid = request.json()['data']['mid']
+            return self.mid
         else:
             raise Exception("Invalid login code: " + str(request.json()['code']))
 
