@@ -254,7 +254,7 @@ class BilibiliHistory:
 
 class BilibiliFavorite:
     @staticmethod
-    def choose_favorite(mid: int, avid: int = 0, one=False) -> list[int] | int:
+    def select_favorite(mid: int, avid: int = 0, one=False) -> list[int] | int:
         """
         选择收藏夹
         :param mid: 用户mid
@@ -271,10 +271,10 @@ class BilibiliFavorite:
         fail = False
         if not one:
             ids = []
-            choose = input("选择收藏夹(以逗号为分隔): ")
-            if choose == "exit":
+            command = input("选择收藏夹(以逗号为分隔): ")
+            if command == "exit":
                 return 0
-            for index, item in enumerate(choose.split(",")):
+            for index, item in enumerate(command.split(",")):
                 if not item.replace(" ", "").isdecimal():
                     print(f"索引{index + 1} 错误: 输入的必须为数字!")
                     fail = True
@@ -295,13 +295,13 @@ class BilibiliFavorite:
                 print("收藏失败!")
             return ids
         else:
-            choose = input("选择收藏夹: ")
-            if not choose.isdecimal():
+            command = input("选择收藏夹: ")
+            if not command.isdecimal():
                 print(f"错误: 输入的必须为数字!")
                 print("收藏失败!")
                 return 0
             try:
-                return request.json()['data']['list'][int(choose) - 1]['id']
+                return request.json()['data']['list'][int(command) - 1]['id']
             except IndexError:
                 print("错误: 索引超出收藏夹范围!")
 
@@ -474,7 +474,7 @@ class BiliBiliVideo:
         self.audio_quality = audio_quality
         self.view_online_watch = view_online_watch
 
-    def choose_video(self, return_information=False):
+    def select_video(self, return_information=False):
         r = request_manager.get("https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid,
                                 cache=True)
         if r.json()['code'] != 0:
@@ -521,7 +521,7 @@ class BiliBiliVideo:
                     else False
             break
 
-    def choose_video_collection(self):
+    def select_video_collection(self):
         url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid
         r = request_manager.get(url, cache=True)
         if r.json()['code'] != 0:
@@ -552,10 +552,10 @@ class BiliBiliVideo:
             elif int(page) > len(video) or int(page) <= 0:
                 print("选视频超出范围!")
                 continue
-            choose_video = BiliBiliVideo(bvid=videos[int(page) - 1]['bvid'],
+            selected_video = BiliBiliVideo(bvid=videos[int(page) - 1]['bvid'],
                                          quality=self.quality,
                                          view_online_watch=self.view_online_watch)
-            choose_video.choose_video()
+            selected_video.select_video()
             break
 
     def play(self, cid, title=""):
@@ -729,7 +729,7 @@ class Bilibili:
         if not self.login:
             print("请先登录!")
             return
-        fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
+        fav_id = self.bilibili_favorite.select_favorite(self.mid, one=True)
         all_request = self.bilibili_favorite.get_favorite(fav_id)
         for i in all_request:
             for num, item in enumerate(i):
@@ -871,7 +871,7 @@ class Bilibili:
         if not self.login:
             print("请先登录!")
             return
-        fav_id = self.bilibili_favorite.choose_favorite(self.mid, avid)
+        fav_id = self.bilibili_favorite.select_favorite(self.mid, avid)
         if fav_id == 0:
             return
         self.interaction.favorite_video(avid, fav_id)
@@ -880,7 +880,7 @@ class Bilibili:
         if not self.login:
             print("请先登录!")
             return
-        fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
+        fav_id = self.bilibili_favorite.select_favorite(self.mid, one=True)
         if fav_id == 0:
             return
         info = self.bilibili_favorite.get_favorite_information(fav_id)
@@ -913,7 +913,7 @@ class Bilibili:
         if not self.login:
             print("请先登录!")
             return
-        fav_id = self.bilibili_favorite.choose_favorite(self.mid, one=True)
+        fav_id = self.bilibili_favorite.select_favorite(self.mid, one=True)
         if fav_id == 0:
             return
         self.bilibili_favorite.export_favorite(fav_id)
@@ -974,6 +974,7 @@ class Bilibili:
         user_info = request_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?"
                                         + encrypt_wbi("mid=" + str(mid)))
         user_data = user_info.json()['data']
+        print(user_data)
         print("用户空间")
         print("")
         print("用户名: " + user_data['name'])
@@ -1038,9 +1039,9 @@ class Bilibili:
             if command == "exit":
                 return
             if command == "play":
-                video.choose_video()
+                video.select_video()
             elif command == "download":
-                cid, title, part_title, pic, is_dynamic = video.choose_video(return_information=True)
+                cid, title, part_title, pic, is_dynamic = video.select_video(return_information=True)
                 print(is_dynamic)
                 if is_dynamic:
                     print("互动视频无法下载! ")
