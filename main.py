@@ -162,13 +162,26 @@ class BilibiliUserSpace:
         following_list = []
         pre_page = 5
         r = user_manager.get(
-            f"https://api.bilibili.com/x/relation/fans?vmid={mid}&pn=1&ps={pre_page}&order=desc&order_type=attention")
+            f"https://api.bilibili.com/x/relation/fans?vmid={mid}&pn=1&ps={pre_page}")
         total = r.json()['data']['total']
         for i in range(1, total // pre_page + 2):
             r = user_manager.get(
-                f"https://api.bilibili.com/x/relation/fans?vmid={mid}&pn={i}&ps={pre_page}&order=desc&order_type=attention")
+                f"https://api.bilibili.com/x/relation/fans?vmid={mid}&pn={i}&ps={pre_page}")
             following_list += r.json()['data']['list']
         return following_list
+
+    @staticmethod
+    def get_followed_list(mid: int):
+        followed_list = []
+        pre_page = 5
+        r = user_manager.get(
+            f"https://api.bilibili.com/x/relation/followings?vmid={mid}&pn=1&ps={pre_page}")
+        total = r.json()['data']['total']
+        for i in range(1, total // pre_page + 2):
+            r = user_manager.get(
+                f"https://api.bilibili.com/x/relation/followings?vmid={mid}&pn={i}&ps={pre_page}")
+            followed_list += r.json()['data']['list']
+        return followed_list
 
     @staticmethod
     def get_user_data(mid: int):
@@ -186,11 +199,13 @@ class BilibiliUserSpace:
         total = request.json()['data']['page']['count'] // pre_page + 1
         while True:
             ls = user_manager.get(
-                "https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(f"mid={mid}&ps={pre_page}&pn={cursor}"), cache=True)
+                "https://api.bilibili.com/x/space/wbi/arc/search?" + encrypt_wbi(
+                    f"mid={mid}&ps={pre_page}&pn={cursor}"), cache=True)
             if total < cursor:
                 break
             yield ls.json()['data']['list']['vlist']
             cursor += 1
+
 
 class BilibiliBangumi:
     def __init__(self, quality: int):
