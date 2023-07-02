@@ -65,12 +65,6 @@ class BilibiliManga:
         return detail_request.json()
 
     @staticmethod
-    def get_wallet() -> dict:
-        wallet = user_manager.post("https://manga.bilibili.com/twirp/user.v1.User/GetWallet?device=pc&platform"
-                                   "=web")
-        return wallet.json()
-
-    @staticmethod
     def list_history() -> dict:
         history = user_manager.post(
             "https://manga.bilibili.com/twirp/bookshelf.v1.Bookshelf/ListHistory?device=pc&platform=web",
@@ -793,8 +787,6 @@ class Bilibili:
     def __init__(self):
         self.audio = 30280
         self.quality: int = 32 if not user_manager.mid else 80
-        if not user_manager.mid:
-            return
         self.view_online_watch = True
         self.bilibili_favorite = BilibiliFavorite()
         self.interaction: BilibiliInteraction = BilibiliInteraction()
