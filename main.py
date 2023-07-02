@@ -595,7 +595,7 @@ class BilibiliVideo:
                 print("选视频超出范围!")
                 continue
             if not return_information:
-                self.play(self.bvid, video[int(page) - 1]['cid'])
+                self.play(video[int(page) - 1]['cid'], self.bvid)
             else:
                 return video[int(page) - 1]['cid'], title, video[int(page) - 1]['part'], pic, True if \
                     r.json()['data']["View"]['stat']['evaluation'] \
