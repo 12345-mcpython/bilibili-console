@@ -164,9 +164,9 @@ class BilibiliUserSpace:
         r = user_manager.get(
             f"https://api.bilibili.com/x/relation/fans?vmid={mid}&pn=1&ps={pre_page}")
         total = r.json()['data']['total']
-        if total > 5:
-            total = 5
         for i in range(1, total // pre_page + 2):
+            if i == 5:
+                break
             r = user_manager.get(
                 f"https://api.bilibili.com/x/relation/fans?vmid={mid}&pn={i}&ps={pre_page}")
             following_list += r.json()['data']['list']
@@ -179,9 +179,9 @@ class BilibiliUserSpace:
         r = user_manager.get(
             f"https://api.bilibili.com/x/relation/followings?vmid={mid}&pn=1&ps={pre_page}")
         total = r.json()['data']['total']
-        if total > 5:
-            total = 5
         for i in range(1, total // pre_page + 2):
+            if i == 5:
+                break
             r = user_manager.get(
                 f"https://api.bilibili.com/x/relation/followings?vmid={mid}&pn={i}&ps={pre_page}")
             followed_list += r.json()['data']['list']
