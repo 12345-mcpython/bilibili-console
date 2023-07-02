@@ -480,14 +480,11 @@ class BilibiliFavorite:
 
 
 class BilibiliInteraction:
-    def __init__(self, csrf: str, favorite: BilibiliFavorite):
-        self.csrf: str = csrf
-        self.favorite = favorite
-
-    def like(self, bvid: str, unlike=False):
+    @staticmethod
+    def like(bvid: str, unlike=False):
 
         r = user_manager.post("https://api.bilibili.com/x/web-interface/archive/like",
-                              data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": self.csrf})
+                              data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": user_manager.csrf})
         if r.json()['code'] != 0:
             print("点赞或取消点赞失败!")
             print(f"错误信息: {r.json()['message']}")
@@ -497,42 +494,46 @@ class BilibiliInteraction:
             else:
                 print("点赞成功!")
 
-    def coin(self, bvid: str, count: int):
+    @staticmethod
+    def coin(bvid: str, count: int):
 
         r = user_manager.post("https://api.bilibili.com/x/web-interface/coin/add",
-                              data={"bvid": bvid, 'csrf': self.csrf, 'multiply': count})
+                              data={"bvid": bvid, 'csrf': user_manager.csrf, 'multiply': count})
         if r.json()['code'] == 0:
             print("投币成功!")
         else:
             print("投币失败!")
             print(f"错误信息: {r.json()['message']}")
 
-    def triple(self, bvid: str):
+    @staticmethod
+    def triple(bvid: str):
         r = user_manager.post("https://api.bilibili.com/x/web-interface/archive/like/triple",
-                              data={"bvid": bvid, "csrf": self.csrf})
+                              data={"bvid": bvid, "csrf": user_manager.csrf})
         if r.json()['code'] == 0:
             print("三联成功!")
         else:
             print("三联失败!")
             print(f"错误信息: {r.json()['message']}")
 
-    def mark_interact_video(self, bvid: str, score: int):
+    @staticmethod
+    def mark_interact_video(bvid: str, score: int):
         r = user_manager.post("https://api.bilibili.com/x/stein/mark",
-                              data={"bvid": bvid, "csrf": self.csrf, "mark": score})
+                              data={"bvid": bvid, "csrf": user_manager.csrf, "mark": score})
         if r.json()['code'] == 0:
             print("评分成功!")
         else:
             print("评分失败!")
             print(f"错误信息: {r.json()['message']}")
 
-    def favorite_video(self, aid: int, favorite_list: list):
+    @staticmethod
+    def favorite(aid: int, favorite_list: list):
         if not favorite_list:
             print("收藏列表为空!")
             return
         r = user_manager.post("https://api.bilibili.com/x/v3/fav/resource/deal",
                               data={"rid": aid, "type": 2,
                                     "add_media_ids": ",".join('%s' % fav_id for fav_id in favorite_list),
-                                    "csrf": self.csrf})
+                                    "csrf": user_manager.csrf})
         if r.json()['code'] == 0:
             print("收藏成功!")
         else:
@@ -796,7 +797,7 @@ class Bilibili:
             return
         self.view_online_watch = True
         self.bilibili_favorite = BilibiliFavorite()
-        self.interaction: BilibiliInteraction = BilibiliInteraction(user_manager.csrf, self.bilibili_favorite)
+        self.interaction: BilibiliInteraction = BilibiliInteraction()
         self.manga = BilibiliManga()
         self.history = BilibiliHistory(user_manager.csrf)
         self.bangumi = BilibiliBangumi(self.quality)
@@ -952,7 +953,7 @@ class Bilibili:
         fav_id = self.bilibili_favorite.select_favorite(user_manager.mid, avid)
         if fav_id == 0:
             return
-        self.interaction.favorite_video(avid, fav_id)
+        self.interaction.favorite(avid, fav_id)
 
     def download_favorite(self):
         if not user_manager.is_login:
