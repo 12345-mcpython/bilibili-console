@@ -863,7 +863,6 @@ class Bilibili:
                     print("选视频超出范围!")
                     continue
                 bvid = recommend_request.json()['data']['item'][int(command) - 1]['bvid']
-                mid = recommend_request.json()['data']['item'][int(command) - 1]['owner']['mid']
                 # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
                 self.view_video(bvid)
 
@@ -1043,7 +1042,6 @@ class Bilibili:
                             print("选视频超出范围!")
                             continue
                         bvid = five_history[int(command) - 1]['history']['bvid']
-                        mid = five_history[int(command) - 1]['author_mid']
                         if not bvid:
                             print("该类型的历史记录不支持播放.")
                             continue
