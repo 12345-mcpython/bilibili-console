@@ -955,7 +955,7 @@ class Bilibili:
             return
         self.interaction.favorite(avid, fav_id)
 
-    def download_favorite(self):
+    def download_favorite_video(self):
         if not user_manager.is_login:
             print("请先登录!")
             return
@@ -1161,7 +1161,7 @@ class Bilibili:
             elif command == "export_all_favorite":
                 self.export_all_favorite()
             elif command == "download_favorite":
-                self.download_favorite()
+                self.download_favorite_video()
             elif command == "history":
                 self.view_history()
             elif command == "view_self":
