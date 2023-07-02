@@ -549,6 +549,7 @@ class BilibiliVideo:
         self.quality = quality
         self.audio_quality = audio_quality
         self.view_online_watch = view_online_watch
+        self.author_mid = self.get_author_mid()
 
     def select_video(self, return_information=False):
         r = user_manager.get("https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid,
@@ -597,6 +598,12 @@ class BilibiliVideo:
                     else False
             break
 
+    def get_author_mid(self):
+        return \
+            user_manager.get("https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid,
+                             cache=True).json()[
+                'data']['Card']['card']['mid']
+
     def select_video_collection(self):
         url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid
         r = user_manager.get(url, cache=True)
@@ -628,6 +635,7 @@ class BilibiliVideo:
             elif int(page) > len(video) or int(page) <= 0:
                 print("选视频超出范围!")
                 continue
+            view_short_video_info(videos[int(page) - 1]['bvid'])
             selected_video = BilibiliVideo(bvid=videos[int(page) - 1]['bvid'],
                                            quality=self.quality,
                                            view_online_watch=self.view_online_watch)
@@ -857,7 +865,7 @@ class Bilibili:
                 bvid = recommend_request.json()['data']['item'][int(command) - 1]['bvid']
                 mid = recommend_request.json()['data']['item'][int(command) - 1]['owner']['mid']
                 # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
-                self.view_video(bvid, mid=mid)
+                self.view_video(bvid)
 
     def address(self):
         video_address = input("输入地址: ")
@@ -869,16 +877,17 @@ class Bilibili:
             video_id = url_split[-2]
         else:
             video_id = url_split[-1].split("?")[0]
-        try:
-            if video_id.startswith("BV"):
-                view_short_video_info(video_id)
-                self.view_video(bvid=video_id)
-            else:
+
+        if video_id.startswith("BV"):
+            view_short_video_info(video_id)
+            self.view_video(bvid=video_id)
+        else:
+            try:
                 view_short_video_info(enc(int(video_id.strip("av"))))
-                self.view_video(bvid=enc(int(video_id.strip("av"))))
-        except (KeyError, ValueError):
-            traceback.print_exc()
-            print("视频解析错误, 请确保你输入的视频地址正确.")
+            except (KeyError, ValueError):
+                traceback.print_exc()
+                print("视频解析错误, 请确保你输入的视频地址正确.")
+            self.view_video(bvid=enc(int(video_id.strip("av"))))
 
     # def play_interact_video(self, bvid: str, cid: int):
     #     self.play(bvid, cid, view_online_watch=False)
@@ -1039,7 +1048,7 @@ class Bilibili:
                             print("该类型的历史记录不支持播放.")
                             continue
                         # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
-                        self.view_video(bvid, mid=mid)
+                        self.view_video(bvid)
 
     def user_space(self, mid: int):
         user_data = BilibiliUserSpace.get_user_data(mid)
@@ -1086,9 +1095,9 @@ class Bilibili:
                     print("选视频超出范围!")
                     continue
                 bvid = i[int(command) - 1]['bvid']
-                self.view_video(bvid, mid=mid)
+                self.view_video(bvid)
 
-    def view_video(self, bvid, mid=0, no_favorite=False):
+    def view_video(self, bvid, no_favorite=False):
         video = BilibiliVideo(bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch)
         while True:
             command = input("视频选项: ")
@@ -1117,8 +1126,10 @@ class Bilibili:
                 self.add_favorite(dec(bvid))
                 user_manager.cached_response = {}
             elif command == "view_user":
-                self.user_space(mid)
-            elif command:
+                self.user_space(video.get_author_mid())
+            elif command == "view_video_collection":
+                video.select_video_collection()
+            else:
                 print("未知命令!")
 
     def main(self):
