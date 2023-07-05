@@ -834,10 +834,20 @@ class BilibiliVideo:
 
 class Bilibili:
     @staticmethod
-    def recommend():
+    def recommend() -> list:
         r = user_manager.get(
             "https://api.bilibili.com/x/web-interface/wbi/index/top/feed/rcmd?" + encrypt_wbi("ps=5"))
         return r.json()['data']['item']
+
+    @staticmethod
+    def get_media_list(media_id: int):
+        r = user_manager.get(f"https://api.bilibili.com/x/v3/fav/resource/ids?media_id={media_id}&platform=web")
+        return r.json()['data']
+
+    @staticmethod
+    def media_list_info(media_id: int):
+        r = user_manager.get(f"https://api.bilibili.com/x/v3/fav/folder/info?media_id={media_id}")
+        return r.json()['data']
 
 
 class BilibiliInterface:
@@ -1142,6 +1152,33 @@ class BilibiliInterface:
                 bvid = i[int(command) - 1]['bvid']
                 self.view_video(bvid)
 
+    def search(self):
+        keyword = input("输入关键词: ")
+        for i in BilibiliSearch.search(keyword):
+            for index, result in enumerate(i):
+                print(index + 1, ":")
+                print("封面: ", "https:" + result['pic'])
+                print("标题: ", result['title'])
+                print("作者: ", result['author'], " bvid: ", result['bvid'], " 日期: ",
+                      datetime.datetime.fromtimestamp(
+                          result['pubdate']).strftime("%Y-%m-%d %H:%M:%S"), " 视频时长:", result['duration'],
+                      " 观看量: ",
+                      result['play'])
+            while True:
+                command = input("选择视频: ")
+                if command == "exit":
+                    return
+                if not command:
+                    break
+                elif not command.isdecimal():
+                    print("输入的不是整数!")
+                    continue
+                elif int(command) > len(i) or int(command) <= 0:
+                    print("选视频超出范围!")
+                    continue
+                bvid = i[int(command) - 1]['bvid']
+                self.view_video(bvid)
+
     def view_video(self, bvid, no_favorite=False):
         video = BilibiliVideo(bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch)
         while True:
@@ -1221,6 +1258,8 @@ class BilibiliInterface:
                 self.user_space(int(input("请输入用户mid: ")))
             elif command == "download_manga":
                 self.download_manga()
+            elif command == "search":
+                self.search()
             else:
                 print("未知命令!")
 
