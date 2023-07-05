@@ -1181,8 +1181,7 @@ class Bilibili:
 print(f"LBCC v{__version__}.")
 print()
 
-user_manager.login()
-
 if __name__ == '__main__':
+    user_manager.login()
     bilibili = Bilibili()
     bilibili.main()
