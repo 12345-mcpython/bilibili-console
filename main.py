@@ -282,8 +282,44 @@ class BilibiliBangumi:
             video.play(cid, title=title)
 
 
+# search_type
+
+# article 专栏
+# video 视频
+# bili_user 用户
+# live 直播
+# media_ft 影视
+# media_bangumi 番剧
+
+# order
+# click 播放量
+# pubdate 最新
+# dm 弹幕
+# stow 收藏
+# 空 综合
+
 class BilibiliSearch:
-    pass
+    @staticmethod
+    def search(keyword, search_type="video", order=""):
+        """
+        搜索
+        :param keyword: 搜索关键词
+        :param search_type: 搜索类型 article 专栏 video 视频 bili_user 用户 live 直播 media_ft 影视 media_bangumi 番剧
+        :param order: 搜索排序 click 播放量 pubdate 最新 dm 弹幕 stow 收藏 空 综合
+        :return: 搜索结果
+        """
+        pre_page = 5
+        cursor = 1
+        while True:
+            ls = user_manager.get(
+                f"https://api.bilibili.com/x/web-interface/wbi/search/type?page={cursor}"
+                f"&page_size={pre_page}&keyword={keyword}&search_type={search_type}" + (
+                    f"&order={order}" if order else ''),
+                cache=True)
+            if len(ls.json()['data']['result']) == 0:
+                break
+            yield ls.json()['data']['result']
+            cursor += 1
 
 
 class BilibiliHistory:
