@@ -37,7 +37,8 @@ import requests
 from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
-from bilibili.utils import enc, dec, format_time, validate_title, encrypt_wbi, user_manager, hum_convert, get_danmaku
+from bilibili.utils import enc, dec, format_time, validate_title, encrypt_wbi, user_manager, hum_convert, get_danmaku, \
+    remove
 
 __version__ = '1.0.0-dev'
 
@@ -318,7 +319,11 @@ class BilibiliSearch:
                 cache=True)
             if len(ls.json()['data']['result']) == 0:
                 break
-            yield ls.json()['data']['result']
+            result = ls.json()['data']['result']
+            for i in result:
+                i["title"] = remove(i["title"], "<em class=\"keyword\">")
+                i["title"] = remove(i["title"], "</em>")
+            yield result
             cursor += 1
 
 

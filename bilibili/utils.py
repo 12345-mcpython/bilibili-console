@@ -95,6 +95,10 @@ def clean_cookie(dict_cookie: dict[str, str]) -> dict[str, str]:
     return cleaned
 
 
+def remove(remove_str: str, want_remove: str):
+    return remove_str.replace(want_remove, "")
+
+
 def format_time(timestamp: int) -> str:
     if timestamp > 60 * 60:
         fmt = "{}:{}:{}"
