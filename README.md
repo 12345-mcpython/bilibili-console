@@ -20,3 +20,6 @@ Laosun Bilibili Console Client (LBCC) 是一个跨平台B站命令行客户端.
 [mpv-player/mpv](https://github.com/mpv-player/mpv/) 提供播放器
 
 [SocialSisterYi/bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect/) 提供部分b站API
+
+## 注意
+使用 LBCC 播放的视频并不会涨播放量!!!
