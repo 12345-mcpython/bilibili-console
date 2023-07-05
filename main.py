@@ -792,6 +792,14 @@ class BilibiliVideo:
 
 
 class Bilibili:
+    @staticmethod
+    def recommend():
+        r = user_manager.get(
+            "https://api.bilibili.com/x/web-interface/wbi/index/top/feed/rcmd?" + encrypt_wbi("ps=5"))
+        return r.json()['data']['item']
+
+
+class BilibiliInterface:
     def __init__(self):
         self.audio = 30280
         self.quality: int = 32 if not user_manager.mid else 80
@@ -838,10 +846,8 @@ class Bilibili:
     def recommend(self):
         print("推荐界面")
         while True:
-            # no cache
-            recommend_request = user_manager.get(
-                "https://api.bilibili.com/x/web-interface/wbi/index/top/feed/rcmd?" + encrypt_wbi("ps=5"))
-            for num, item in enumerate(recommend_request.json()['data']['item']):
+            recommend_content = Bilibili.recommend()
+            for num, item in enumerate(recommend_content):
                 print(num + 1, ":")
                 print("封面: ", item['pic'])
                 print("标题: ", item['title'])
@@ -859,10 +865,10 @@ class Bilibili:
                 elif not command.isdecimal():
                     print("输入的不是整数!")
                     continue
-                elif int(command) > len(recommend_request.json()['data']['item']) or int(command) <= 0:
+                elif int(command) > len(recommend_content) or int(command) <= 0:
                     print("选视频超出范围!")
                     continue
-                bvid = recommend_request.json()['data']['item'][int(command) - 1]['bvid']
+                bvid = recommend_content[int(command) - 1]['bvid']
                 # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
                 self.view_video(bvid)
 
@@ -1183,5 +1189,5 @@ print()
 
 if __name__ == '__main__':
     user_manager.login()
-    bilibili = Bilibili()
+    bilibili = BilibiliInterface()
     bilibili.main()
