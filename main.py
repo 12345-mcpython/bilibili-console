@@ -1118,6 +1118,11 @@ class BilibiliInterface:
             command = input("用户空间选项: ")
             if command == "list_video":
                 self.list_user_video(mid)
+            elif command == "get_follow_bangumi":
+                for i, j in enumerate(BilibiliBangumi.get_follow_bangumi(mid)):
+                    print(f"{i+1}: ")
+                    print(f"封面: {j['img']}")
+                    print(f"名称: {j['title']} 更新进度: {j['update_progress']} 观看进度: {j['watch_progress']}")
             elif command == "exit":
                 return
             elif command:
