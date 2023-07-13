@@ -1159,6 +1159,9 @@ class BilibiliInterface:
 
     def search(self):
         keyword = input("输入关键词: ")
+        if keyword == "exit":
+            if input("确定退出吗, 或进行搜索? (y/n): ") == "y":
+                return
         for i in BilibiliSearch.search(keyword):
             for index, result in enumerate(i):
                 print(index + 1, ":")
