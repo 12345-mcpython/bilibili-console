@@ -745,7 +745,6 @@ class BilibiliVideo:
                   f"--audio-file=\"{audio_url}\" " \
                   f"--title=\"{title}\" " \
                   f"\"{video_url}\""
-        print(command)
         with subprocess.Popen(command, shell=True) as p:
             if self.view_online_watch:
                 try:
