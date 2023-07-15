@@ -698,11 +698,11 @@ class BilibiliVideo:
 
         for i in videos:
             if i['codecs'].startswith('avc'):
-                video_mapping[i['id']] = {"id": i['id'], "url": i['base_url'], "width": i['width'],
+                video_mapping[i['id']] = {"id": i['id'], "url": i['backup_url'][0], "width": i['width'],
                                           "height": i['height']}
 
         for i in audios:
-            audio_mapping[i['id']] = i['base_url']
+            audio_mapping[i['id']] = i['backup_url'][0]
 
         default_audio = sorted(list(audio_mapping.keys()), reverse=True)[0]
         default_video = sorted(list(video_mapping.keys()), reverse=True)[0]
@@ -745,6 +745,7 @@ class BilibiliVideo:
                   f"--audio-file=\"{audio_url}\" " \
                   f"--title=\"{title}\" " \
                   f"\"{video_url}\""
+        print(command)
         with subprocess.Popen(command, shell=True) as p:
             if self.view_online_watch:
                 try:
