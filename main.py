@@ -313,7 +313,7 @@ class BilibiliBangumi:
         print("请以冒号前面的数字为准选择视频.")
         while True:
             page = input("选择视频: ")
-            if page == "exit":
+            if page == "quit" or page == "q":
                 break
             if not page:
                 continue
@@ -444,7 +444,7 @@ class BilibiliFavorite:
         if not one:
             ids = []
             command = input("选择收藏夹(以逗号为分隔): ")
-            if command == "exit":
+            if command == "quit" or command == "q":
                 return 0
             for index, item in enumerate(command.split(",")):
                 if not item.replace(" ", "").isdecimal():
@@ -468,7 +468,7 @@ class BilibiliFavorite:
             return ids
         else:
             command = input("选择收藏夹: ")
-            if command == "exit":
+            if command == "quit" or command == "q":
                 return 0
             if not command.isdecimal():
                 print(f"错误: 输入的必须为数字!")
@@ -718,7 +718,7 @@ class BilibiliVideo:
         print("\n")
         while True:
             page = input("选择视频: ")
-            if page == "exit":
+            if page == "quit" or page == "q":
                 break
             elif not page:
                 continue
@@ -767,7 +767,7 @@ class BilibiliVideo:
             print(f"{i + 1}: {j['title']}")
         while True:
             page = input("选择视频: ")
-            if page == "exit":
+            if page == "quit" or page == "q":
                 break
             elif not page:
                 continue
@@ -1032,7 +1032,7 @@ class BilibiliInterface:
                 )
             while True:
                 command = input("选择视频: ")
-                if command == "exit":
+                if command == "quit" or command == "q":
                     return
                 elif not command:
                     break
@@ -1069,7 +1069,7 @@ class BilibiliInterface:
                 )
             while True:
                 command = input("选择视频: ")
-                if command == "exit":
+                if command == "quit" or command == "q":
                     return
                 elif not command:
                     break
@@ -1261,7 +1261,7 @@ class BilibiliInterface:
                         )
                     while True:
                         command = input("选择视频: ")
-                        if command == "exit":
+                        if command == "quit" or command == "q":
                             return
                         elif not command:
                             flag = False
@@ -1303,7 +1303,7 @@ class BilibiliInterface:
                     print(
                         f"名称: {j['title']} 更新进度: {j['update_progress']} 观看进度: {j['watch_progress']}"
                     )
-            elif command == "exit":
+            elif command == "quit" or command == "q":
                 return
             elif command:
                 print("未知命令!")
@@ -1333,7 +1333,7 @@ class BilibiliInterface:
                 )
             while True:
                 command = input("选择视频: ")
-                if command == "exit":
+                if command == "quit" or command == "q":
                     return
                 if not command:
                     break
@@ -1348,9 +1348,8 @@ class BilibiliInterface:
 
     def search(self):
         keyword = input("输入关键词: ")
-        if keyword == "exit":
-            if input("确定退出吗, 或进行搜索? (y/n): ") == "y":
-                return
+        if keyword == "quit" or keyword == "q":
+            return
         for i in BilibiliSearch.search(keyword):
             for index, result in enumerate(i):
                 print(index + 1, ":")
@@ -1372,7 +1371,7 @@ class BilibiliInterface:
                 )
             while True:
                 command = input("选择视频: ")
-                if command == "exit":
+                if command == "quit" or command == "q":
                     return
                 if not command:
                     break
@@ -1390,12 +1389,12 @@ class BilibiliInterface:
             bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch
         )
         while True:
-            command = input("视频选项: ")
-            if command == "exit":
+            command = input("视频选项(p/l/ul/c/t/f/d/da/q): ")
+            if command == "quit" or command == "q":
                 return
-            if command == "play":
+            if command == "play" or command == "p":
                 video.select_video()
-            elif command == "download":
+            elif command == "download" or command == "d":
                 cid, title, part_title, pic, is_dynamic = video.select_video(
                     return_information=True
                 )
@@ -1404,17 +1403,17 @@ class BilibiliInterface:
                     print("互动视频无法下载! ")
                     return
                 video.download_one(cid, pic_url=pic, title=title, part_title=part_title)
-            elif command == "download_video_list":
+            elif command == "download_video_list" or command == "da":
                 video.download_video_list(bvid)
-            elif command == "like":
+            elif command == "like" or command == "l":
                 self.like(bvid)
-            elif command == "unlike":
+            elif command == "unlike" or command == "ul":
                 self.like(bvid, unlike=True)
-            elif command == "coin":
+            elif command == "coin" or command == "c":
                 self.coin(bvid)
-            elif command == "triple":
+            elif command == "triple" or command == "t":
                 self.triple(bvid)
-            elif command == "favorite" and not no_favorite:
+            elif (command == "favorite" or command == "f") and not no_favorite:
                 self.add_favorite(dec(bvid))
                 user_manager.cached_response = {}
             elif command == "view_user":
@@ -1426,28 +1425,29 @@ class BilibiliInterface:
 
     def show_help(self):
         print(
-            """
-        recommend/r: 推荐
-        address/a: 按地址播放
-        bangumi/b: 按地址播放番剧
-        favorite/f: 查看收藏夹
-        quit/q: 退出
-        enable_online_watching: 开启在线观看
-        disable_online_watching: 关闭在线观看
-        clean_cache: 清除缓存
-        refresh_login_state: 刷新登录状态
-        export_favorite: 导出收藏夹
-        export_all_favorite: 导出所有收藏夹
-        download_favorite: 下载收藏夹视频
-        history: 查看历史记录
-        view_self: 查看自己的空间
-        view_user: 查看用户空间
-        download_manga: 下载漫画
-        search/s: 搜索
+            """帮助菜单：
+recommend/r: 推荐
+address/a: 按地址播放
+bangumi/b: 按地址播放番剧
+favorite/f: 查看收藏夹
+quit/q: 退出
+enable_online_watching: 开启在线观看
+disable_online_watching: 关闭在线观看
+clean_cache: 清除缓存
+refresh_login_state: 刷新登录状态
+export_favorite: 导出收藏夹
+export_all_favorite: 导出所有收藏夹
+download_favorite: 下载收藏夹视频
+history: 查看历史记录
+view_self: 查看自己的空间
+view_user: 查看用户空间
+download_manga: 下载漫画
+search/s: 搜索
         """
         )
 
     def main(self):
+        self.show_help()
         while True:
             command = input("主选项(r/a/b/f/s/q): ")
             command = command.lower().strip()
@@ -1455,6 +1455,8 @@ class BilibiliInterface:
                 self.recommend()
             elif command == "address" or command == "a":
                 self.address()
+            elif command == "help" or command == "h":
+                self.show_help()
             elif command == "bangumi" or command == "b":
                 bangumi_address = input("输入地址: ")
                 if bangumi_address.split("/")[-1].startswith("ep"):
