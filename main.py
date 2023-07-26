@@ -1424,9 +1424,32 @@ class BilibiliInterface:
             else:
                 print("未知命令!")
 
+    def show_help(self):
+        print(
+            """
+        recommend/r: 推荐
+        address/a: 按地址播放
+        bangumi/b: 按地址播放番剧
+        favorite/f: 查看收藏夹
+        quit/q: 退出
+        enable_online_watching: 开启在线观看
+        disable_online_watching: 关闭在线观看
+        clean_cache: 清除缓存
+        refresh_login_state: 刷新登录状态
+        export_favorite: 导出收藏夹
+        export_all_favorite: 导出所有收藏夹
+        download_favorite: 下载收藏夹视频
+        history: 查看历史记录
+        view_self: 查看自己的空间
+        view_user: 查看用户空间
+        download_manga: 下载漫画
+        search/s: 搜索
+        """
+        )
+
     def main(self):
         while True:
-            command = input("主选项: ")
+            command = input("主选项(r/a/b/f/s/q): ")
             command = command.lower().strip()
             if command == "recommend" or command == "r":
                 self.recommend()
