@@ -182,6 +182,17 @@ class BilibiliUserSpace:
             followed_list += r.json()['data']['list']
         return followed_list
 
+    # follow_type 1 关注 2 取关
+    @staticmethod
+    def modify_relation(mid: int, modify_type: int = 1):
+        data = {"fid": mid, "act": modify_type, "csrf": user_manager.csrf}
+        r = user_manager.post("https://api.bilibili.com/x/relation/modify", data=data)
+        if r.json()['code'] == 0:
+            print("更改用户关系成功.")
+        else:
+            print("更改用户关系失败!")
+            print(r.json()['message'])
+
     @staticmethod
     def get_user_data(mid: int):
         user_info = user_manager.get("https://api.bilibili.com/x/space/wbi/acc/info?"
@@ -1120,7 +1131,7 @@ class BilibiliInterface:
                 self.list_user_video(mid)
             elif command == "get_follow_bangumi":
                 for i, j in enumerate(BilibiliBangumi.get_follow_bangumi(mid)):
-                    print(f"{i+1}: ")
+                    print(f"{i + 1}: ")
                     print(f"封面: {j['img']}")
                     print(f"名称: {j['title']} 更新进度: {j['update_progress']} 观看进度: {j['watch_progress']}")
             elif command == "exit":
@@ -1219,6 +1230,10 @@ class BilibiliInterface:
                 self.user_space(video.get_author_mid())
             elif command == "view_video_collection":
                 video.select_video_collection()
+            elif command == "follow":
+                BilibiliUserSpace.modify_relation(video.get_author_mid(), modify_type=1)
+            elif command == "cancel_follow":
+                BilibiliUserSpace.modify_relation(video.get_author_mid(), modify_type=2)
             else:
                 print("未知命令!")
 
