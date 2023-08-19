@@ -224,11 +224,11 @@ class BilibiliUserSpace:
     def modify_relation(mid: int, modify_type: int = 1):
         data = {"fid": mid, "act": modify_type, "csrf": user_manager.csrf}
         r = user_manager.post("https://api.bilibili.com/x/relation/modify", data=data)
-        if r.json()['code'] == 0:
+        if r.json()["code"] == 0:
             print("更改用户关系成功.")
         else:
             print("更改用户关系失败!")
-            print(r.json()['message'])
+            print(r.json()["message"])
 
     @staticmethod
     def get_user_data(mid: int):
