@@ -1423,7 +1423,7 @@ class BilibiliInterface:
             bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch
         )
         while True:
-            command = input("视频选项(p/l/ul/c/t/f/d/da/q): ")
+            command = input("视频选项(p/l/ul/c/t/f/d/da/q/fo/ufo): ")
             if command == "quit" or command == "q":
                 return
             if command == "play" or command == "p":
@@ -1454,9 +1454,9 @@ class BilibiliInterface:
                 self.user_space(video.get_author_mid())
             elif command == "view_video_collection":
                 video.select_video_collection()
-            elif command == "follow":
+            elif command == "follow" or command == "fo":
                 BilibiliUserSpace.modify_relation(video.get_author_mid(), modify_type=1)
-            elif command == "cancel_follow":
+            elif command == "unfollow" or command == "ufo":
                 BilibiliUserSpace.modify_relation(video.get_author_mid(), modify_type=2)
             else:
                 print("未知命令!")
