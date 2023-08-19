@@ -9,6 +9,8 @@ Laosun Bilibili Console Client (LBCC) 是一个跨平台B站命令行客户端.
 
 (上列图片不代表任何立场)
 
+由于本人学业原因, 该项目更新频率下降.
+
 ## 使用
 
 [教程](USAGE.md)
@@ -22,4 +24,5 @@ Laosun Bilibili Console Client (LBCC) 是一个跨平台B站命令行客户端.
 [SocialSisterYi/bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect/) 提供部分b站API
 
 ## 注意
+
 使用 LBCC 播放的视频并不会涨播放量!!!
