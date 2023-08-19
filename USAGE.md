@@ -30,10 +30,10 @@
 
 ## 1.2 主界面指令集
 
-1. `recommend` 根据你账号的个性化需求推荐视频.
-2. `address` 根据地址播放视频. 支持 b23.tv 短链接.
-3. `bangumi` 番剧界面.
-4. `favorite` 预览当前已登录账号的收藏夹.
+1. `recommend/r` 根据你账号的个性化需求推荐视频.
+2. `address/a` 根据地址播放视频. 支持 b23.tv 短链接.
+3. `bangumi/b` 番剧界面.
+4. `favorite/f` 预览当前已登录账号的收藏夹.
 5. `view_self` 预览当前已登录账号的个人空间.
 6. `view_user` 根据mid预览账号的个人空间.
 7. `export_favorite` 导出收藏夹为JSON. JSON格式见下.
@@ -44,13 +44,13 @@
 
 ## 1.3 视频选项指令集
 
-1. `play` 播放视频.
-2. `like` 与 `unlike` 点赞或取消点赞视频.
-3. `unlike` 取消点赞.
-4. `coin` 投币视频.
-5. `triple` 三连视频.
-6. `download` 下载视频.
-7. `download_video_list` 下载全部视频.
+1. `play/p` 播放视频.
+2. `like/l` 与 `unlike/ul` 点赞或取消点赞视频.
+3. `unlike/ul` 取消点赞.
+4. `coin/c` 投币视频.
+5. `triple/t` 三连视频.
+6. `download/d` 下载视频.
+7. `download_video_list/da` 下载全部视频.
 8. `view_user` 预览视频作者的用户空间.
 
 ## 1.4 个人空间指令
