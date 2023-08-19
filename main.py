@@ -32,7 +32,6 @@ import subprocess
 import sys
 import time
 import traceback
-import readline
 
 import requests
 from tqdm import tqdm
@@ -75,6 +74,30 @@ def view_short_video_info(bvid):
         format_time(item["duration"]),
         " 观看量: ",
         item["stat"]["view"],
+    )
+
+
+def show_help():
+    print(
+        """帮助菜单：
+recommend/r: 推荐
+address/a: 按地址播放
+bangumi/b: 按地址播放番剧
+favorite/f: 查看收藏夹
+quit/q: 退出
+enable_online_watching: 开启在线观看
+disable_online_watching: 关闭在线观看
+clean_cache: 清除缓存
+refresh_login_state: 刷新登录状态
+export_favorite: 导出收藏夹
+export_all_favorite: 导出所有收藏夹
+download_favorite: 下载收藏夹视频
+history: 查看历史记录
+view_self: 查看自己的空间
+view_user: 查看用户空间
+download_manga: 下载漫画
+search/s: 搜索
+    """
     )
 
 
@@ -127,7 +150,7 @@ class BilibiliManga:
         download_manga_name = []
         locked = 0
         for i in list(reversed(ep_info)):
-            if i["ord"] >= first and i["ord"] <= end:
+            if first <= i["ord"] <= end:
                 if i["is_locked"]:
                     locked += 1
                     continue
@@ -167,11 +190,11 @@ class BilibiliManga:
                 filename = 0
                 for k in j:
                     path = (
-                        "download/manga/"
-                        + validate_title(name)
-                        + "/"
-                        + validate_title(i)
-                        + "/"
+                            "download/manga/"
+                            + validate_title(name)
+                            + "/"
+                            + validate_title(i)
+                            + "/"
                     )
                     file = path + f"{filename}.jpg"
                     if not os.path.exists(path):
@@ -402,7 +425,9 @@ class BilibiliHistory:
         business = ""
         history = user_manager.get(url.format(max_, view_at, business))
         while history.json()["data"]["cursor"]["max"] != 0:
-            yield history.json()["data"]["list"]
+            data = history.json()["data"]["list"]
+            for cursor in range(0, len(data), 5):
+                yield data[cursor:cursor + 5]
             max_ = history.json()["data"]["cursor"]["max"]
             view_at = history.json()["data"]["cursor"]["view_at"]
             business = history.json()["data"]["cursor"]["business"]
@@ -671,15 +696,15 @@ class BilibiliInteraction:
 
 class BilibiliVideo:
     def __init__(
-        self,
-        bvid: str = "",
-        aid: int = 0,
-        epid: str = "",
-        season_id: str = "",
-        quality=80,
-        view_online_watch=True,
-        audio_quality=30280,
-        bangumi=False,
+            self,
+            bvid: str = "",
+            aid: int = 0,
+            epid: str = "",
+            season_id: str = "",
+            quality=80,
+            view_online_watch=True,
+            audio_quality=30280,
+            bangumi=False,
     ):
         if not any([bvid, aid, epid, season_id]):
             raise Exception("Video id can't be null.")
@@ -889,12 +914,12 @@ class BilibiliVideo:
             print("\n")
 
     def download_one(
-        self,
-        cid: int,
-        pic_url: str,
-        title: str = "",
-        part_title: str = "",
-        base_dir: str = "",
+            self,
+            cid: int,
+            pic_url: str,
+            title: str = "",
+            part_title: str = "",
+            base_dir: str = "",
     ):
         if not self.bangumi:
             url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&bvid={self.bvid}"
@@ -949,9 +974,9 @@ class BilibiliVideo:
         if not os.path.exists(download_dir + validate_title(part_title) + ".xml"):
             print("下载弹幕中...")
             with open(
-                download_dir + validate_title(part_title) + ".xml",
-                "w",
-                encoding="utf-8",
+                    download_dir + validate_title(part_title) + ".xml",
+                    "w",
+                    encoding="utf-8",
             ) as danmaku:
                 danmaku.write(
                     user_manager.get(
@@ -974,7 +999,7 @@ class BilibiliVideo:
             cid = i["cid"]
             part_title = i["part"]
             if not self.download_one(
-                cid, pic, title=title, part_title=part_title, base_dir=base_dir
+                    cid, pic, title=title, part_title=part_title, base_dir=base_dir
             ):
                 return False
         return True
@@ -1200,7 +1225,7 @@ class BilibiliInterface:
                 print(f"收藏夹进度: {count} / {total}")
                 video = BilibiliVideo(bvid=j["bvid"], quality=80)
                 if not video.download_video_list(
-                    base_dir=validate_title(info["title"])
+                        base_dir=validate_title(info["title"])
                 ):
                     return
 
@@ -1242,54 +1267,51 @@ class BilibiliInterface:
             return
         print("历史界面")
         print()
-        history_list = BilibiliHistory.get_history()
-        for history in history_list:
-            for cursor in range(0, len(history), 5):
-                five_history = history[cursor : cursor + 5]
-                flag = True
-                while flag:
-                    for num, item in enumerate(five_history):
-                        if item["history"]["business"] != "archive":
-                            print("该类型的历史记录不支持播放.")
-                            continue
-                        print(num + 1, ":")
-                        print("封面: ", item["cover"])
-                        print("标题: ", item["title"])
-                        print(
-                            "作者: ",
-                            item["author_name"],
-                            " bvid: ",
-                            item["history"]["bvid"],
-                            " 视频时长:",
-                            format_time(item["progress"]),
-                            "/",
-                            format_time(item["duration"]),
-                        )
-                        print(
-                            "观看时间: ",
-                            datetime.datetime.fromtimestamp(item["view_at"]).strftime(
-                                "%Y-%m-%d %H:%M:%S"
-                            ),
-                        )
-                    while True:
-                        command = input("选择视频: ")
-                        if command == "quit" or command == "q":
-                            return
-                        elif not command:
-                            flag = False
-                            break
-                        elif not command.isdecimal():
-                            print("输入的不是整数!")
-                            continue
-                        elif int(command) > len(five_history) or int(command) <= 0:
-                            print("选视频超出范围!")
-                            continue
-                        bvid = five_history[int(command) - 1]["history"]["bvid"]
-                        if not bvid:
-                            print("该类型的历史记录不支持播放.")
-                            continue
-                        # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
-                        self.view_video(bvid)
+        for history in BilibiliHistory.get_history():
+            flag = True
+            while flag:
+                for num, item in enumerate(history):
+                    if item["history"]["business"] != "archive":
+                        print("该类型的历史记录不支持播放.")
+                        continue
+                    print(num + 1, ":")
+                    print("封面: ", item["cover"])
+                    print("标题: ", item["title"])
+                    print(
+                        "作者: ",
+                        item["author_name"],
+                        " bvid: ",
+                        item["history"]["bvid"],
+                        " 视频时长:",
+                        format_time(item["progress"]),
+                        "/",
+                        format_time(item["duration"]),
+                    )
+                    print(
+                        "观看时间: ",
+                        datetime.datetime.fromtimestamp(item["view_at"]).strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        ),
+                    )
+                while True:
+                    command = input("选择视频: ")
+                    if command == "quit" or command == "q":
+                        return
+                    elif not command:
+                        flag = False
+                        break
+                    elif not command.isdecimal():
+                        print("输入的不是整数!")
+                        continue
+                    elif int(command) > len(history) or int(command) <= 0:
+                        print("选视频超出范围!")
+                        continue
+                    bvid = history[int(command) - 1]["history"]["bvid"]
+                    if not bvid:
+                        print("该类型的历史记录不支持播放.")
+                        continue
+                    # title = recommend_request.json()['data']['item'][int(command) - 1]['title']
+                    self.view_video(bvid)
 
     def user_space(self, mid: int):
         user_data = BilibiliUserSpace.get_user_data(mid)
@@ -1439,31 +1461,7 @@ class BilibiliInterface:
             else:
                 print("未知命令!")
 
-    def show_help(self):
-        print(
-            """帮助菜单：
-recommend/r: 推荐
-address/a: 按地址播放
-bangumi/b: 按地址播放番剧
-favorite/f: 查看收藏夹
-quit/q: 退出
-enable_online_watching: 开启在线观看
-disable_online_watching: 关闭在线观看
-clean_cache: 清除缓存
-refresh_login_state: 刷新登录状态
-export_favorite: 导出收藏夹
-export_all_favorite: 导出所有收藏夹
-download_favorite: 下载收藏夹视频
-history: 查看历史记录
-view_self: 查看自己的空间
-view_user: 查看用户空间
-download_manga: 下载漫画
-search/s: 搜索
-        """
-        )
-
     def main(self):
-        self.show_help()
         while True:
             command = input("主选项(r/a/b/f/s/q): ")
             command = command.lower().strip()
@@ -1472,7 +1470,7 @@ search/s: 搜索
             elif command == "address" or command == "a":
                 self.address()
             elif command == "help" or command == "h":
-                self.show_help()
+                show_help()
             elif command == "bangumi" or command == "b":
                 bangumi_address = input("输入地址: ")
                 if bangumi_address.split("/")[-1].startswith("ep"):
@@ -1520,6 +1518,8 @@ search/s: 搜索
 
 
 print(f"LBCC v{__version__}.")
+print()
+print("Type \"help\" for more information.")
 print()
 
 if __name__ == "__main__":
