@@ -32,6 +32,7 @@ import subprocess
 import sys
 import time
 import traceback
+import readline
 
 import requests
 from tqdm import tqdm
