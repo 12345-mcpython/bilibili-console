@@ -32,7 +32,6 @@ import subprocess
 import sys
 import time
 import traceback
-import readline
 
 import requests
 from tqdm import tqdm
@@ -1340,8 +1339,66 @@ class BilibiliInterface:
                     )
             elif command == "quit" or command == "q":
                 return
+            elif command == "list_fans":
+                self.list_fans(mid)
+            elif command == "list_followed":
+                self.list_followed(mid)
             elif command:
                 print("未知命令!")
+
+    def list_fans(self, mid: int):
+        fans_list = BilibiliUserSpace.get_following_list(mid)
+        print("粉丝数: " + str(len(fans_list)))
+        for i, j in enumerate(fans_list):
+            print(f"{i + 1}:")
+            print(f"头像: {j['face']}")
+            print(f"昵称: {j['uname']} mid: {j['mid']}")
+            print(f"签名: {j['sign']}")
+        while True:
+            select = input("选择用户: ")
+            if select == "quit" or select == "q":
+                return
+            elif not select.isdecimal():
+                print("输入的不是整数!")
+                continue
+            elif int(select) > len(fans_list) or int(select) <= 0:
+                print("选择用户超出范围!")
+                continue
+            while True:
+                command = input("粉丝选项: ")
+                if command == "user_space":
+                    self.user_space(fans_list[int(select) - 1]['mid'])
+                elif command == "quit" or command == "q":
+                    break
+                else:
+                    print("未知命令! ")
+
+    def list_followed(self, mid: int):
+        fans_list = BilibiliUserSpace.get_followed_list(mid)
+        print("关注数: " + str(len(fans_list)))
+        for i, j in enumerate(fans_list):
+            print(f"{i + 1}:")
+            print(f"头像: {j['face']}")
+            print(f"昵称: {j['uname']} mid: {j['mid']}")
+            print(f"签名: {j['sign']}")
+        while True:
+            select = input("选择用户: ")
+            if select == "quit" or select == "q":
+                return
+            elif not select.isdecimal():
+                print("输入的不是整数!")
+                continue
+            elif int(select) > len(fans_list) or int(select) <= 0:
+                print("选择用户超出范围!")
+                continue
+            while True:
+                command = input("关注选项: ")
+                if command == "user_space":
+                    self.user_space(fans_list[int(select) - 1]['mid'])
+                elif command == "quit" or command == "q":
+                    break
+                else:
+                    print("未知命令! ")
 
     def list_user_video(self, mid: int):
         for i in BilibiliUserSpace.get_user_video(mid):
