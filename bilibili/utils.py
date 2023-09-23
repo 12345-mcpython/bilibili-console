@@ -26,9 +26,10 @@ class UserManager:
             "bili_jct", "")
         self.is_login = False
 
+    # 这个函数不可能返回 None, 因为 if 已经对 cached_response 进行了验空
     def get(self, url: str, params=None, cache=False, **kwargs) -> requests.Response:
         if self.cached_response.get(url):
-            return self.cached_response.get(url)
+            return self.cached_response.get(url)  # type: ignore
         else:
             count = 5
             while True:

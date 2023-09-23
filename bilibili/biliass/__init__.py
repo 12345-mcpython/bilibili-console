@@ -8,4 +8,4 @@ bilibili-console is distributed in the hope that it will be useful, but WITHOUT 
 You should have received a copy of the GNU General Public License along with bilibili-console. If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .biliass import *
+from .biliass import Danmaku2ASS

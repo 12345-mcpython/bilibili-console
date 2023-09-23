@@ -32,8 +32,10 @@ import subprocess
 import sys
 import time
 import traceback
+from typing import Generator, List
 
 import requests
+from requests import Response
 from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
@@ -144,8 +146,13 @@ class BilibiliManga:
         if not os.path.exists("download/manga/" + validate_title(name)):
             os.mkdir("download/manga/" + validate_title(name))
         first, end = input("选择回目范围 (1-{}): ".format(len(ep_info))).split("-")
-        first = int(first)
-        end = int(end)
+        try:
+            # first, end str值如果不可转换为 int 会直接跳出函数, 故对其忽略类型检查
+            first = int(first)  # type: ignore
+            end = int(end)  # type: ignore
+        except ValueError:
+            print("输入回目范围错误!")
+            return False
         download_manga_epid = []
         download_manga_name = []
         locked = 0
@@ -161,7 +168,8 @@ class BilibiliManga:
         cursor = 0
         picture_count = 0
         print("获取图片信息中.")
-        with tqdm(total=end) as progress_bar:
+        # 忽略原因同上
+        with tqdm(total=end) as progress_bar:  # type: ignore
             for i in download_manga_epid:
                 download_image_prefix = []
                 image_list = cls.get_image_list(i)
@@ -514,9 +522,10 @@ class BilibiliFavorite:
                 return request.json()["data"]["list"][int(command) - 1]["id"]
             except IndexError:
                 print("错误: 索引超出收藏夹范围!")
+                return 0
 
     @staticmethod
-    def get_favorite(fav_id: int) -> list:
+    def get_favorite(fav_id: int) -> Generator:
         """
         获取收藏夹
         :param fav_id: 收藏夹id
@@ -586,10 +595,9 @@ class BilibiliFavorite:
             while True:
                 if total < cursor:
                     break
-                medias = user_manager.get(
+                medias: List[dict] = user_manager.get(
                     f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}"
-                )
-                medias = medias.json()["data"]["medias"]
+                ).json()["data"]["medias"]
                 for i in medias:
                     # 清理数据
                     del i["type"]
