@@ -35,7 +35,6 @@ import traceback
 from typing import Generator, List
 
 import requests
-from requests import Response
 from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
