@@ -1356,6 +1356,8 @@ class BilibiliInterface:
     def list_fans(self, mid: int):
         fans_list = BilibiliUserSpace.get_following_list(mid)
         print("粉丝数: " + str(len(fans_list)))
+        if len(fans_list) > 100:
+            print("注意: 粉丝数超过100, 根据b站系统限制默认只能获取100条信息.")
         for i, j in enumerate(fans_list):
             print(f"{i + 1}:")
             print(f"头像: {j['face']}")
@@ -1383,6 +1385,8 @@ class BilibiliInterface:
     def list_followed(self, mid: int):
         fans_list = BilibiliUserSpace.get_followed_list(mid)
         print("关注数: " + str(len(fans_list)))
+        if len(fans_list) > 100:
+            print("注意: 关注数超过100, 根据b站系统限制默认只能获取100条信息.")
         for i, j in enumerate(fans_list):
             print(f"{i + 1}:")
             print(f"头像: {j['face']}")
