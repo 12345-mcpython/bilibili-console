@@ -39,8 +39,8 @@ from tqdm import tqdm
 
 from bilibili.biliass import Danmaku2ASS
 from bilibili.utils import (
-    enc,
-    dec,
+    av2bv,
+    bv2av,
     format_time,
     validate_title,
     encrypt_wbi,
@@ -715,8 +715,8 @@ class BilibiliVideo:
     ):
         if not any([bvid, aid, epid, season_id]):
             raise Exception("Video id can't be null.")
-        self.bvid = bvid if bvid else enc(aid)
-        self.aid = aid if aid else dec(bvid)
+        self.bvid = bvid if bvid else av2bv(aid)
+        self.aid = aid if aid else bv2av(bvid)
         self.epid = epid
         self.season_id = season_id
         self.bangumi = bangumi
@@ -1143,11 +1143,11 @@ class BilibiliInterface:
             self.view_video(bvid=video_id)
         else:
             try:
-                view_short_video_info(enc(int(video_id.strip("av"))))
+                view_short_video_info(av2bv(int(video_id.strip("av"))))
             except (KeyError, ValueError):
                 traceback.print_exc()
                 print("视频解析错误, 请确保你输入的视频地址正确.")
-            self.view_video(bvid=enc(int(video_id.strip("av"))))
+            self.view_video(bvid=av2bv(int(video_id.strip("av"))))
 
     # def play_interact_video(self, bvid: str, cid: int):
     #     self.play(bvid, cid, view_online_watch=False)
@@ -1517,7 +1517,7 @@ class BilibiliInterface:
             elif command == "triple" or command == "t":
                 self.triple(bvid)
             elif (command == "favorite" or command == "f") and not no_favorite:
-                self.add_favorite(dec(bvid))
+                self.add_favorite(bv2av(bvid))
                 user_manager.cached_response = {}
             elif command == "view_user":
                 self.user_space(video.get_author_mid())
