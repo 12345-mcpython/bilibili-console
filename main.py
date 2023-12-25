@@ -712,6 +712,7 @@ class BilibiliVideo:
             view_online_watch=True,
             audio_quality=30280,
             bangumi=False,
+            source="backup"
     ):
         if not any([bvid, aid, epid, season_id]):
             raise Exception("Video id can't be null.")
@@ -724,6 +725,8 @@ class BilibiliVideo:
         self.audio_quality = audio_quality
         self.view_online_watch = view_online_watch
         self.author_mid = self.get_author_mid()
+        self.source = source
+        self.see_message = False
 
     def select_video(self, return_information=False):
         r = user_manager.get(
@@ -835,7 +838,6 @@ class BilibiliVideo:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
         else:
             url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&bvid={self.bvid}&fnval=16"
-
         play_url_request = user_manager.get(url, cache=True)
 
         videos = play_url_request.json()["data" if not self.bangumi else "result"][
@@ -851,7 +853,7 @@ class BilibiliVideo:
             if i["codecs"].startswith("avc"):
                 video_mapping[i["id"]] = {
                     "id": i["id"],
-                    "url": i["backup_url"][0],
+                    "url": i["backup_url"][0] if self.source == "backup" else i['base_url'],
                     "width": i["width"],
                     "height": i["height"],
                 }
@@ -902,6 +904,9 @@ class BilibiliVideo:
             f'--title="{title}" '
             f'"{video_url}"'
         )
+        if not self.see_message:
+            print("如有未显示视频或加载过卡可以在主选项中输入 switch_source 以换视频源. 该信息仅会在第一次播放时显示.")
+            self.see_message = True
         with subprocess.Popen(command, shell=True) as p:
             if self.view_online_watch:
                 try:
@@ -1041,6 +1046,7 @@ class BilibiliInterface:
         self.audio = 30280
         self.quality: int = 32 if not user_manager.mid else 80
         self.view_online_watch = True
+        self.source = "main"
         self.bilibili_favorite = BilibiliFavorite()
         self.interaction: BilibiliInteraction = BilibiliInteraction()
         self.manga = BilibiliManga()
@@ -1489,7 +1495,7 @@ class BilibiliInterface:
 
     def view_video(self, bvid, no_favorite=False):
         video = BilibiliVideo(
-            bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch
+            bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch, source=self.source
         )
         while True:
             command = input("视频选项(p/l/ul/c/t/f/d/da/q/fo/ufo): ")
@@ -1582,6 +1588,9 @@ class BilibiliInterface:
                 self.download_manga()
             elif command == "search" or command == "s":
                 self.search()
+            elif command == "switch_play_source":
+                print("切换播放源成功")
+                self.source = "backup"
             else:
                 print("未知命令!")
 
