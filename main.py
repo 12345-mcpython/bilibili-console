@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Copyright (c) 2023 Laosun Studios.
+Copyright (c) 2024 Laosun Studios.
 
 Distributed under GPL-3.0 License.
 
@@ -52,7 +52,7 @@ from bilibili.utils import (
 
 __version__ = "1.0.0-dev"
 
-__year__ = 2023
+__year__ = 2024
 
 __author__ = "Laosun Studios"
 
