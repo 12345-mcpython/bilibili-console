@@ -463,6 +463,10 @@ class BilibiliHistory:
             cursor += 1
             req = user_manager.get(url.format(cursor, search))
 
+    @staticmethod
+    def dump_history():
+        return [j for i in BilibiliHistory.get_history() for j in i]
+
 
 class BilibiliFavorite:
     @staticmethod
@@ -1266,6 +1270,13 @@ class BilibiliInterface:
             return
         self.bilibili_favorite.export_favorite(fav_id)
 
+    def export_history(self):
+        if not user_manager.is_login:
+            print("请先登录!")
+            return
+        with open("history.json", "w", encoding="utf-8") as f:
+            json.dump(BilibiliHistory.dump_history(), f)
+
     def export_all_favorite(self):
         if not user_manager.is_login:
             print("请先登录!")
@@ -1571,6 +1582,8 @@ class BilibiliInterface:
                 user_manager.refresh_login_state()
             elif command == "export_favorite":
                 self.export_favorite()
+            elif command == "export_history":
+                self.export_history()
             elif command == "export_all_favorite":
                 self.export_all_favorite()
             elif command == "download_favorite":
