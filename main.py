@@ -470,7 +470,7 @@ class BilibiliHistory:
 
 class BilibiliFavorite:
     @staticmethod
-    def select_favorite(mid: int, avid: int = 0, one=False) -> list[int] | int:
+    def select_favorite(mid: int, avid: int = 0) -> list[int] | int:
         """
         选择收藏夹
         :param mid: 用户mid
@@ -489,43 +489,48 @@ class BilibiliFavorite:
                 f"{index + 1}: {item['title']} ({item['media_count']}) {'(已收藏)' if item['fav_state'] else ''}"
             )
         fail = False
-        if not one:
-            ids = []
-            command = input("选择收藏夹(以逗号为分隔): ")
-            if command == "quit" or command == "q":
-                return 0
-            for index, item in enumerate(command.split(",")):
-                if not item.replace(" ", "").isdecimal():
-                    print(f"索引{index + 1} 错误: 输入的必须为数字!")
-                    fail = True
-                    break
-                if int(item) - 1 < 0:
-                    print(f"索引{index + 1} 错误: 输入的必须为正数!")
-                    fail = True
-                    break
-                try:
-                    if request.json()["data"]["list"][int(item) - 1]["fav_state"]:
-                        print(f"索引{index + 1} 警告: 此收藏夹已收藏过该视频, 将不会重复收藏.")
-                        continue
-                    ids.append(request.json()["data"]["list"][int(item) - 1]["id"])
-                except IndexError:
-                    print(f"索引{index + 1} 错误: 索引超出收藏夹范围!")
-                    fail = True
-            if fail:
-                print("收藏失败!")
-            return ids
-        else:
-            command = input("选择收藏夹: ")
-            if command == "quit" or command == "q":
-                return 0
-            if not command.isdecimal():
-                print(f"错误: 输入的必须为数字!")
-                return 0
+        ids = []
+        command = input("选择收藏夹(以逗号为分隔): ")
+        if command == "quit" or command == "q":
+            return 0
+        for index, item in enumerate(command.split(",")):
+            if not item.replace(" ", "").isdecimal():
+                print(f"索引{index + 1} 错误: 输入的必须为数字!")
+                fail = True
+                break
+            if int(item) - 1 < 0:
+                print(f"索引{index + 1} 错误: 输入的必须为正数!")
+                fail = True
+                break
             try:
-                return request.json()["data"]["list"][int(command) - 1]["id"]
+                if request.json()["data"]["list"][int(item) - 1]["fav_state"]:
+                    print(f"索引{index + 1} 警告: 此收藏夹已收藏过该视频, 将不会重复收藏.")
+                    continue
+                ids.append(request.json()["data"]["list"][int(item) - 1]["id"])
             except IndexError:
-                print("错误: 索引超出收藏夹范围!")
-                return 0
+                print(f"索引{index + 1} 错误: 索引超出收藏夹范围!")
+                fail = True
+        if fail:
+            print("收藏失败!")
+        return ids
+
+    @staticmethod
+    def select_one_favorite(mid: int, avid: int = 0):
+        request = user_manager.get(
+            f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid={avid}&up_mid={mid}",
+            cache=True,
+        )
+        command = input("选择收藏夹: ")
+        if command == "quit" or command == "q":
+            return 0
+        if not command.isdecimal():
+            print(f"错误: 输入的必须为数字!")
+            return 0
+        try:
+            return request.json()["data"]["list"][int(command) - 1]["id"]
+        except IndexError:
+            print("错误: 索引超出收藏夹范围!")
+            return 0
 
     @staticmethod
     def get_favorite(fav_id: int) -> Generator:
@@ -1061,7 +1066,7 @@ class BilibiliInterface:
         if not user_manager.is_login:
             print("请先登录!")
             return
-        fav_id = self.bilibili_favorite.select_favorite(user_manager.mid, one=True)
+        fav_id = self.bilibili_favorite.select_one_favorite(user_manager.mid)
         if not fav_id:
             return
         all_request = self.bilibili_favorite.get_favorite(fav_id)
@@ -1230,7 +1235,7 @@ class BilibiliInterface:
         if not user_manager.is_login:
             print("请先登录!")
             return
-        fav_id = self.bilibili_favorite.select_favorite(user_manager.mid, one=True)
+        fav_id = self.bilibili_favorite.select_one_favorite(user_manager.mid)
         if fav_id == 0:
             return
         info = self.bilibili_favorite.get_favorite_information(fav_id)
@@ -1265,7 +1270,7 @@ class BilibiliInterface:
         if not user_manager.is_login:
             print("请先登录!")
             return
-        fav_id = self.bilibili_favorite.select_favorite(user_manager.mid, one=True)
+        fav_id = self.bilibili_favorite.select_one_favorite(user_manager.mid)
         if fav_id == 0:
             return
         self.bilibili_favorite.export_favorite(fav_id)
