@@ -475,7 +475,6 @@ class BilibiliFavorite:
         选择收藏夹
         :param mid: 用户mid
         :param avid: 视频avid
-        :param one: 是否为单选模式
         :return: 收藏夹id list or int
         """
         request = user_manager.get(
@@ -531,6 +530,9 @@ class BilibiliFavorite:
         except IndexError:
             print("错误: 索引超出收藏夹范围!")
             return 0
+        except TypeError as e:
+            print("错误: 收藏夹可能未开放")
+            traceback.print_exc()
 
     @staticmethod
     def get_favorite(fav_id: int) -> Generator:
@@ -1062,11 +1064,11 @@ class BilibiliInterface:
         self.history = BilibiliHistory(user_manager.csrf)
         self.bangumi = BilibiliBangumi(self.quality)
 
-    def favorite(self):
+    def favorite(self, mid=user_manager.mid):
         if not user_manager.is_login:
             print("请先登录!")
             return
-        fav_id = self.bilibili_favorite.select_one_favorite(user_manager.mid)
+        fav_id = self.bilibili_favorite.select_one_favorite(mid)
         if not fav_id:
             return
         all_request = self.bilibili_favorite.get_favorite(fav_id)
@@ -1280,7 +1282,7 @@ class BilibiliInterface:
             print("请先登录!")
             return
         with open("history.json", "w", encoding="utf-8") as f:
-            json.dump(BilibiliHistory.dump_history(), f)
+            json.dump(self.history.dump_history(), f)
 
     def export_all_favorite(self):
         if not user_manager.is_login:
@@ -1372,6 +1374,8 @@ class BilibiliInterface:
                 self.list_fans(mid)
             elif command == "list_followed":
                 self.list_followed(mid)
+            elif command == "list_favorite":
+                self.favorite(mid)
             elif command:
                 print("未知命令!")
 
