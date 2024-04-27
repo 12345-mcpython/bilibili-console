@@ -712,6 +712,62 @@ class BilibiliInteraction:
             print(f"错误信息: {r.json()['message']}")
 
 
+# type
+# 1	    视频稿件	稿件 avid
+# 2	    话题	话题 id
+# 4	    活动	活动 id
+# 5	    小视频	小视频 id
+# 6	    小黑屋封禁信息	封禁公示 id
+# 7	    公告信息	公告 id
+# 8	    直播活动	直播间 id
+# 9	    活动稿件	(?)
+# 10	直播公告	(?)
+# 11	相簿（图片动态）	相簿 id
+# 12	专栏	专栏 cvid
+# 13	票务	(?)
+# 14	音频	音频 auid
+# 15	风纪委员会	众裁项目 id
+# 16	点评	(?)
+# 17	动态（纯文字动态&分享）	动态 id
+# 18	播单	(?)
+# 19	音乐播单	(?)
+# 20	漫画	(?)
+# 21	漫画	(?)
+# 22	漫画	漫画 mcid
+# 33	课程	课程 epid
+
+# sort_type
+# 默认为0
+# 0：按时间
+# 1：按点赞数
+# 2：按回复数
+class BilibiliComment:
+    @staticmethod
+    def get_comment(content_type: int, content_id: int, sort_type: int = 0):
+        pre_page = 5
+        cursor = 1
+        request = user_manager.get(
+            f"https://api.bilibili.com/x/v2/reply?type={content_type}&oid={content_id}&sort={sort_type}&ps={pre_page}"
+            f"&pn={cursor}",
+            cache=True,
+        )
+        total = request.json()["data"]["page"]["count"] // pre_page + 1
+        while True:
+            ls = user_manager.get(
+                f"https://api.bilibili.com/x/v2/reply?type={content_type}&oid={content_id}&sort={sort_type}&ps={pre_page}"
+                f"&pn={cursor}",
+                cache=True,
+            )
+            if total < cursor:
+                break
+            yield ls.json()["data"]["replies"]
+            cursor += 1
+
+    @staticmethod
+    def like_comment():
+        pass
+
+
 class BilibiliVideo:
     def __init__(
             self,
@@ -1513,12 +1569,37 @@ class BilibiliInterface:
                 bvid = i[int(command) - 1]["bvid"]
                 self.view_video(bvid)
 
+    def view_comment(self, bvid):
+        comment_generator = BilibiliComment.get_comment(1, bv2av(bvid))
+        for i in comment_generator:
+            for index, result in enumerate(i):
+                print(index + 1, ":")
+                print(
+                    "作者: ",
+                    result["member"]["uname"],
+                    " 日期: ",
+                    datetime.datetime.fromtimestamp(result["ctime"]).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+                    " 点赞量: ",
+                    result["like"],
+                )
+                print("内容: ", result["content"]["message"])
+            while True:
+                command = input("评论选项: ")
+                if command == "quit" or command == "q":
+                    return
+                if command == "next":
+                    break
+                else:
+                    print("未知命令!")
+
     def view_video(self, bvid, no_favorite=False):
         video = BilibiliVideo(
             bvid=bvid, quality=self.quality, view_online_watch=self.view_online_watch, source=self.source
         )
         while True:
-            command = input("视频选项(p/l/ul/c/t/f/d/da/q/fo/ufo): ")
+            command = input("视频选项(p/l/ul/c/t/f/d/da/q/fo/ufo/cm): ")
             if command == "quit" or command == "q":
                 return
             if command == "play" or command == "p":
@@ -1553,6 +1634,8 @@ class BilibiliInterface:
                 BilibiliUserSpace.modify_relation(video.get_author_mid(), modify_type=1)
             elif command == "unfollow" or command == "ufo":
                 BilibiliUserSpace.modify_relation(video.get_author_mid(), modify_type=2)
+            elif command == "comment" or command == "cm":
+                self.view_comment(bvid)
             else:
                 print("未知命令!")
 
