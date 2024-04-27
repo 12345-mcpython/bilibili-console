@@ -519,6 +519,10 @@ class BilibiliFavorite:
             f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid={avid}&up_mid={mid}",
             cache=True,
         )
+        for index, item in enumerate(request.json()["data"]["list"]):
+            print(
+                f"{index + 1}: {item['title']} ({item['media_count']}) {'(已收藏)' if item['fav_state'] else ''}"
+            )
         command = input("选择收藏夹: ")
         if command == "quit" or command == "q":
             return 0
@@ -1120,11 +1124,11 @@ class BilibiliInterface:
         self.history = BilibiliHistory(user_manager.csrf)
         self.bangumi = BilibiliBangumi(self.quality)
 
-    def favorite(self, mid=user_manager.mid):
+    def favorite(self, mid=0):
         if not user_manager.is_login:
             print("请先登录!")
             return
-        fav_id = self.bilibili_favorite.select_one_favorite(mid)
+        fav_id = self.bilibili_favorite.select_one_favorite(user_manager.mid if not mid else mid)
         if not fav_id:
             return
         all_request = self.bilibili_favorite.get_favorite(fav_id)
@@ -1287,7 +1291,7 @@ class BilibiliInterface:
         fav_id = self.bilibili_favorite.select_favorite(user_manager.mid, avid)
         if fav_id == 0:
             return
-        self.interaction.favorite(avid, fav_id)
+        self.interaction.favorite(avid, fav_id)  # type: ignore
 
     def download_favorite_video(self):
         if not user_manager.is_login:

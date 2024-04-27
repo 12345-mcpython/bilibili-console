@@ -224,12 +224,12 @@ def av2bv(aid):
 
 
 def bv2av(bvid: str):
-    bvid = list(bvid)
-    bvid[3], bvid[9] = bvid[9], bvid[3]
-    bvid[4], bvid[7] = bvid[7], bvid[4]
-    bvid = bvid[3:]
+    bvid_list = list(bvid)
+    bvid_list[3], bvid_list[9] = bvid_list[9], bvid_list[3]
+    bvid_list[4], bvid_list[7] = bvid_list[7], bvid_list[4]
+    bvid_list = bvid_list[3:]
     tmp = 0
-    for i in bvid:
+    for i in bvid_list:
         idx = data.index(i.encode())
         tmp = tmp * BASE + idx
     return (tmp & MASK_CODE) ^ XOR_CODE
