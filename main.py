@@ -56,6 +56,8 @@ __year__ = 2024
 
 __author__ = "Laosun Studios"
 
+saw = False
+
 
 def view_short_video_info(bvid):
     video = user_manager.get(
@@ -905,6 +907,7 @@ class BilibiliVideo:
             break
 
     def play(self, cid, title=""):
+        global saw
         if self.bangumi:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
         else:
@@ -975,9 +978,9 @@ class BilibiliVideo:
             f'--title="{title}" '
             f'"{video_url}"'
         )
-        if not self.see_message:
+        if not saw:
             print("如有未显示视频或加载过卡可以在主选项中输入 switch_source 以换视频源. 该信息仅会在第一次播放时显示.")
-            self.see_message = True
+            saw = True
         with subprocess.Popen(command, shell=True) as p:
             if self.view_online_watch:
                 try:
@@ -1697,9 +1700,12 @@ class BilibiliInterface:
                 self.download_manga()
             elif command == "search" or command == "s":
                 self.search()
-            elif command == "switch_play_source":
+            elif command == "switch_source":
                 print("切换播放源成功")
-                self.source = "backup"
+                if self.source == "backup":
+                    self.source = ""
+                else:
+                    self.source = "backup"
             else:
                 print("未知命令!")
 
