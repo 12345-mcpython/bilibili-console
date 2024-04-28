@@ -2,7 +2,7 @@
 
 ## 1.1 下载并安装
 
-首先安装 [python](http://www.python.org/downloads)
+首先安装 [python](http://www.python.org/downloads) 3.6 版本以上
 和 [mpv](https://laosun-image.obs.cn-north-4.myhuaweicloud.com/mpv.exe)
 
 然后 `git clone https://github.com/12345-mcpython/bilibili-console` 或
