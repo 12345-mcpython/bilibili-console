@@ -593,6 +593,24 @@ class safe_list(list):
 
 
 @export
+def Proto2ASS(
+        inputs: Union[List[Union[str, bytes]], Union[str, bytes]],
+        stage_width: int,
+        stage_height: int,
+        reserve_blank: float = 0,
+        font_face: str = "sans-serif",
+        font_size: float = 25.0,
+        alpha: float = 1.0,
+        duration_marquee: float = 5.0,
+        duration_still: float = 5.0,
+        comment_filter: Optional[str] = None,
+        reduced: bool = False
+) -> str:
+    return Danmaku2ASS(inputs, stage_width, stage_height, "protobuf", reserve_blank, font_face, font_size, alpha,
+                       duration_marquee, duration_still, comment_filter, reduced)
+
+
+@export
 def Danmaku2ASS(
         inputs: Union[List[Union[str, bytes]], Union[str, bytes]],
         stage_width: int,

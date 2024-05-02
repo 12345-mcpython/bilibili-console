@@ -37,7 +37,6 @@ from typing import Generator, List
 import requests
 from tqdm import tqdm
 
-from bilibili.biliass import Danmaku2ASS
 from bilibili.utils import (
     av2bv,
     bv2av,
@@ -47,7 +46,7 @@ from bilibili.utils import (
     user_manager,
     hum_convert,
     get_danmaku,
-    remove,
+    remove, parse_view, danmaku_provider,
 )
 
 __version__ = "1.0.0-dev"
@@ -102,6 +101,28 @@ download_manga: 下载漫画
 search/s: 搜索
     """
     )
+
+
+class BilibiliLogin:
+    @staticmethod
+    def login_by_password(username: str, password: str):
+        token, challenge, validate = BilibiliLogin.generate_captcha()
+
+    @staticmethod
+    def generate_captcha():
+        r = user_manager.get("https://passport.bilibili.com/x/passport-login/captcha")
+        data = r.json()
+        challenge = data["data"]["geetest"]["challenge"]
+        gt = data["data"]["geetest"]["gt"]
+        print("gt: ", gt, "challenge: ", challenge)
+        print("请到 https://kuresaru.github.io/geetest-validator/ 进行认证.")
+        while True:
+            validate = input("请输入得到的 validate: ")
+            if len(validate.strip()) != 32:
+                print("validate 长度错误! ")
+                continue
+            break
+        return data["data"]["token"], challenge, validate
 
 
 class BilibiliManga:
@@ -951,19 +972,18 @@ class BilibiliVideo:
             width = video_mapping[default_video]["width"]
             height = video_mapping[default_video]["height"]
         if not os.path.exists(f"cached/{cid}.ass"):
-            a = Danmaku2ASS(
+            a = danmaku_provider()(
                 get_danmaku(cid),
                 width,
                 height,
-                input_format="protobuf",
                 reserve_blank=0,
                 font_face="SimHei",
                 font_size=25,
-                text_opacity=0.8,
+                alpha=0.8,
                 duration_marquee=15.0,
                 duration_still=10.0,
                 comment_filter=None,
-                is_reduce_comments=False,
+                reduced=False,
                 progress_callback=None,
             )
             with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
@@ -1007,6 +1027,7 @@ class BilibiliVideo:
             part_title: str = "",
             base_dir: str = "",
     ):
+        print(cid)
         if not self.bangumi:
             url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&bvid={self.bvid}"
         else:
@@ -1016,6 +1037,9 @@ class BilibiliVideo:
         download_url = req.json()["data" if not self.bangumi else "result"]["durl"][0][
             "url"
         ]
+        print(req.json())
+        # width = req.json()["data" if not self.bangumi else "result"]["durl"][0]["width"]
+        # height = req.json()["data" if not self.bangumi else "result"]["durl"][0]["height"]
         if base_dir:
             download_dir = "download/" + base_dir + "/" + validate_title(title) + "/"
         else:
@@ -1069,6 +1093,25 @@ class BilibiliVideo:
                         f"https://comment.bilibili.com/{cid}.xml"
                     ).content.decode("utf-8")
                 )
+            with open(download_dir + validate_title(part_title) + ".proto", "wb", encoding="utf-8") as danmaku:
+                view = parse_view(cid)
+                total = int(view['dmSge']['total'])
+                danmaku_byte = [get_danmaku(cid, i) for i in range(1, total + 1)]
+                # a = danmaku_provider()(
+                #     b"".join(danmaku_byte),
+                #     width,
+                #     height,
+                #     reserve_blank=0,
+                #     font_face="SimHei",
+                #     font_size=25,
+                #     alpha=0.8,
+                #     duration_marquee=15.0,
+                #     duration_still=10.0,
+                #     comment_filter=None,
+                #     reduced=False,
+                #     progress_callback=None,
+                # )
+                danmaku.write(b"".join(danmaku_byte))
         return True
 
     def download_video_list(self, base_dir=""):

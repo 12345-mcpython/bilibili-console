@@ -1,76 +1,25 @@
 import hashlib
+import json
 import os
 import re
 import sys
-import urllib.parse
 import time
+import urllib.parse
 
 import requests
+from google.protobuf.json_format import MessageToJson
+
+from bilibili.biliass.biliass import Proto2ASS
+from bilibili.biliass.protobuf.view_pb2 import DmWebViewReply
 
 XOR_CODE = 23442827791579
 MASK_CODE = 2251799813685247
 MAX_AID = 1 << 51
 
-data = [
-    b"F",
-    b"c",
-    b"w",
-    b"A",
-    b"P",
-    b"N",
-    b"K",
-    b"T",
-    b"M",
-    b"u",
-    b"g",
-    b"3",
-    b"G",
-    b"V",
-    b"5",
-    b"L",
-    b"j",
-    b"7",
-    b"E",
-    b"J",
-    b"n",
-    b"H",
-    b"p",
-    b"W",
-    b"s",
-    b"x",
-    b"4",
-    b"t",
-    b"b",
-    b"8",
-    b"h",
-    b"a",
-    b"Y",
-    b"e",
-    b"v",
-    b"i",
-    b"q",
-    b"B",
-    b"z",
-    b"6",
-    b"r",
-    b"k",
-    b"C",
-    b"y",
-    b"1",
-    b"2",
-    b"m",
-    b"U",
-    b"S",
-    b"D",
-    b"Q",
-    b"X",
-    b"9",
-    b"R",
-    b"d",
-    b"o",
-    b"Z",
-    b"f",
-]
+data = [b"F", b"c", b"w", b"A", b"P", b"N", b"K", b"T", b"M", b"u", b"g", b"3", b"G", b"V", b"5", b"L", b"j", b"7",
+        b"E", b"J", b"n", b"H", b"p", b"W", b"s", b"x", b"4", b"t", b"b", b"8", b"h", b"a", b"Y", b"e", b"v", b"i",
+        b"q", b"B", b"z", b"6", b"r", b"k", b"C", b"y", b"1", b"2", b"m", b"U", b"S", b"D", b"Q", b"X", b"9", b"R",
+        b"d", b"o", b"Z", b"f"]
 
 BASE = 58
 BV_LEN = 12
@@ -86,8 +35,8 @@ class UserManager:
         self.session.headers.update(
             {
                 "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) "
-                "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
+                              "(KHTML, like Gecko) "
+                              "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
                 "referer": "https://www.bilibili.com",
             }
         )
@@ -253,77 +202,14 @@ def encrypt_wbi(request_params: str):
     r = user_manager.get("https://api.bilibili.com/x/web-interface/nav", cache=True)
     wbi_img_url = r.json()["data"]["wbi_img"]["img_url"]
     wbi_sub_url = r.json()["data"]["wbi_img"]["sub_url"]
-    oe = [
-        46,
-        47,
-        18,
-        2,
-        53,
-        8,
-        23,
-        32,
-        15,
-        50,
-        10,
-        31,
-        58,
-        3,
-        45,
-        35,
-        27,
-        43,
-        5,
-        49,
-        33,
-        9,
-        42,
-        19,
-        29,
-        28,
-        14,
-        39,
-        12,
-        38,
-        41,
-        13,
-        37,
-        48,
-        7,
-        16,
-        24,
-        55,
-        40,
-        61,
-        26,
-        17,
-        0,
-        1,
-        60,
-        51,
-        30,
-        4,
-        22,
-        25,
-        54,
-        21,
-        56,
-        59,
-        6,
-        63,
-        57,
-        62,
-        11,
-        36,
-        20,
-        34,
-        44,
-        52,
-    ]
+    oe = [46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12,
+          38, 41, 13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62,
+          11, 36, 20, 34, 44, 52]
 
     le = []
     key = (
-        wbi_img_url.split("/")[-1].split(".")[0]
-        + wbi_sub_url.split("/")[-1].split(".")[0]
+            wbi_img_url.split("/")[-1].split(".")[0]
+            + wbi_sub_url.split("/")[-1].split(".")[0]
     )
     for i in oe:
         le.append(key[i])
@@ -347,14 +233,35 @@ def hum_convert(value):
         value = value / size
 
 
-def get_danmaku(cid: int):
+def get_danmaku(cid: int, index: int = 1):
     resp = user_manager.get(
-        "https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={}&segment_index=1".format(
-            cid
-        ),
+        f"https://api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid={cid}&segment_index={index}",
         cache=True,
     )
     return resp.content
+
+
+def get_more_danmaku(cid: int):
+    view = parse_view(cid)
+    total = int(view['dmSge']['total'])
+    danmaku_byte = [get_danmaku(cid, i) for i in range(1, total + 1)]
+    return b"".join(danmaku_byte)
+
+
+def parse_view(cid: int):
+    resp = user_manager.get(f"https://api.bilibili.com/x/v2/dm/web/view?oid={cid}&type=1", cache=True)
+    dm_view = DmWebViewReply()
+    dm_view.ParseFromString(resp.content)
+    dm_view = json.loads(MessageToJson(dm_view))
+    return dm_view
+
+
+def danmaku_provider():
+    try:
+        from danmakuC.bilibili import proto2ass
+        return proto2ass
+    except Exception:
+        return Proto2ASS
 
 
 user_manager = UserManager(read_cookie())
