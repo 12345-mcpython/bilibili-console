@@ -982,9 +982,8 @@ class BilibiliVideo:
                 alpha=0.8,
                 duration_marquee=15.0,
                 duration_still=10.0,
-                comment_filter=None,
-                reduced=False,
-                progress_callback=None,
+                comment_filter="",
+                reduced=False
             )
             with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
                 f.write(a)
@@ -1093,7 +1092,7 @@ class BilibiliVideo:
                         f"https://comment.bilibili.com/{cid}.xml"
                     ).content.decode("utf-8")
                 )
-            with open(download_dir + validate_title(part_title) + ".proto", "wb", encoding="utf-8") as danmaku:
+            with open(download_dir + validate_title(part_title) + ".proto", "wb") as danmaku:
                 view = parse_view(cid)
                 total = int(view['dmSge']['total'])
                 danmaku_byte = [get_danmaku(cid, i) for i in range(1, total + 1)]
@@ -1108,8 +1107,7 @@ class BilibiliVideo:
                 #     duration_marquee=15.0,
                 #     duration_still=10.0,
                 #     comment_filter=None,
-                #     reduced=False,
-                #     progress_callback=None,
+                #     reduced=False
                 # )
                 danmaku.write(b"".join(danmaku_byte))
         return True
