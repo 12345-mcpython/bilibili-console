@@ -1386,7 +1386,7 @@ class BilibiliInterface:
             print("请先登录!")
             return
         with open("history.json", "w", encoding="utf-8") as f:
-            json.dump(self.history.dump_history(), f)
+            json.dump(self.history.dump_history(), f, ensure_ascii=False, indent=4)
 
     def export_all_favorite(self):
         if not user_manager.is_login:
