@@ -929,6 +929,8 @@ class BilibiliVideo:
 
     def play(self, cid, title=""):
         global saw
+        if not os.path.exists("cached"):
+            os.mkdir("cached")
         if self.bangumi:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
         else:
@@ -971,6 +973,7 @@ class BilibiliVideo:
             video_url = video_mapping[default_video]["url"]
             width = video_mapping[default_video]["width"]
             height = video_mapping[default_video]["height"]
+
         if not os.path.exists(f"cached/{cid}.ass"):
             a = danmaku_provider()(
                 get_danmaku(cid),
