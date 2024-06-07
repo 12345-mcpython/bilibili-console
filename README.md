@@ -1,6 +1,7 @@
 # LBCC
 
 ## 介绍
+
 Laosun Bilibili Console Client (LBCC) 是一个跨平台B站命令行客户端.
 
 ![](https://laosun-image.obs.cn-north-4.myhuaweicloud.com/111111.png)
@@ -15,7 +16,8 @@ Laosun Bilibili Console Client (LBCC) 是一个跨平台B站命令行客户端.
 
 ## 致谢
 
-[yutto-dev/biliass](https://github.com/yutto-dev/biliass/) 提供弹幕转换
+[yutto-dev/biliass](https://github.com/yutto-dev/biliass/) 和 
+[HFrost0/danmakuC](https://github.com/HFrost0/danmakuC/) 提供弹幕转换
 
 [mpv-player/mpv](https://github.com/mpv-player/mpv/) 提供播放器
 
