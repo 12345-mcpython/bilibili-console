@@ -37,8 +37,11 @@ from typing import Generator, List
 
 import requests
 import rsa
+from google.protobuf.json_format import MessageToJson
 from tqdm import tqdm
 
+from bilibili.protobuf.dm_pb2 import DmSegMobileReply
+# from bilibili.biliass.protobuf.danmaku_pb2 import DmSegMobileReply
 from bilibili.utils import (
     av2bv,
     bv2av,
@@ -1692,6 +1695,18 @@ class BilibiliInterface:
             elif (command == "favorite" or command == "f") and not no_favorite:
                 self.add_favorite(bv2av(bvid))
                 user_manager.cached_response = {}
+            elif command == "export_danmaku":
+                cid, title, _, _, _ = video.select_video(
+                    return_information=True
+                )
+                view = parse_view(cid)
+                total = int(view['dmSge']['total'])
+                danmaku_byte_list = [get_danmaku(cid, i) for i in range(1, total + 1)]
+                danmaku_byte = b"".join(danmaku_byte_list)
+                DM = DmSegMobileReply()
+                DM.ParseFromString(danmaku_byte)
+                with open(f"{cid}.json", "w", encoding="utf-8") as f:
+                    json.dump(MessageToJson(DM), f, indent=4, ensure_ascii=False)
             elif command == "view_user":
                 self.user_space(video.get_author_mid())
             elif command == "view_video_collection":
