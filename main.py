@@ -23,6 +23,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 The old version also use the GPL-3.0 license, not MIT License.
 """
+import base64
 import datetime
 import json
 import os
@@ -35,6 +36,7 @@ import traceback
 from typing import Generator, List
 
 import requests
+import rsa
 from tqdm import tqdm
 
 from bilibili.utils import (
@@ -107,6 +109,14 @@ class BilibiliLogin:
     @staticmethod
     def login_by_password(username: str, password: str):
         token, challenge, validate = BilibiliLogin.generate_captcha()
+        hash_, key = BilibiliLogin.get_key()
+        pk = rsa.PublicKey.load_pkcs1_openssl_pem(key.encode())
+        password_hash = rsa.encrypt((hash_ + password).encode(), pk)
+        password_base64 = base64.b64encode(password_hash)
+        data = {"username": username, "password": password_base64, "keep": 0, "token": token, "challenge": challenge,
+                "validate": validate, "seccode": validate + "|jordan"}
+        r = user_manager.post("https://passport.bilibili.com/x/passport-login/web/login", data=data)
+        return r.cookies
 
     @staticmethod
     def generate_captcha():
@@ -123,6 +133,11 @@ class BilibiliLogin:
                 continue
             break
         return data["data"]["token"], challenge, validate
+
+    @staticmethod
+    def get_key() -> tuple[str, str]:
+        r = user_manager.get("https://passport.bilibili.com/x/passport-login/web/key")
+        return r.json()["data"]["hash"], r.json()["data"]["key"]
 
 
 class BilibiliManga:

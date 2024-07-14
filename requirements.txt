@@ -2,3 +2,4 @@ requests
 protobuf
 tqdm
 danmakuC
+rsa
