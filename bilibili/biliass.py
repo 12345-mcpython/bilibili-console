@@ -1,22 +1,11 @@
-"""
-This file is part of bilibili-console.
-
-bilibili-console is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-
-bilibili-console is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with bilibili-console. If not, see <https://www.gnu.org/licenses/>.
-"""
-
 import json
 import logging
 import math
 import random
 import re
-import xml.dom.minidom
-from typing import Callable, Optional, Union, List, Generator, Tuple
+from typing import Optional, Union, List, Generator, Tuple
 
-from bilibili.biliass.protobuf.danmaku_pb2 import DanmakuEvent
+from .protobuf.dm_pb2 import DmSegMobileReply
 
 #
 # ReadComments**** protocol
@@ -61,90 +50,8 @@ Comment = Tuple[float, float, int, str, Union[int, str], int, float, float, floa
 
 
 @export
-def ReadCommentsBilibiliXml(text: Union[str, bytes], fontsize: float) -> Generator[Comment, None, None]:
-    if isinstance(text, bytes):
-        text = text.decode()
-    text = FilterBadChars(text)
-    dom = xml.dom.minidom.parseString(text)
-    version = dom.version
-    assert version in ["1.0", "2.0"], "未知的 XML 版本号 {}".format(version)
-    if version == "1.0":
-        return ReadCommentsBilibiliXmlV1(text, fontsize)
-    else:
-        return ReadCommentsBilibiliXmlV2(text, fontsize)
-
-
-def ReadCommentsBilibiliXmlV1(text: str, fontsize: float) -> Generator[Comment, None, None]:
-    dom = xml.dom.minidom.parseString(text)
-    comment_element = dom.getElementsByTagName("d")
-    for i, comment in enumerate(comment_element):
-        try:
-            p = str(comment.getAttribute("p")).split(",")
-            assert len(p) >= 5
-            assert p[1] in ("1", "4", "5", "6", "7", "8")
-            if comment.childNodes.length > 0:
-                if p[1] in ("1", "4", "5", "6"):
-                    c = str(comment.childNodes[0].wholeText).replace("/n", "\n")
-                    size = int(p[2]) * fontsize / 25.0
-                    yield (
-                        float(p[0]),
-                        int(p[4]),
-                        i,
-                        c,
-                        {"1": 0, "4": 2, "5": 1, "6": 3}[p[1]],
-                        int(p[3]),
-                        size,
-                        (c.count("\n") + 1) * size,
-                        CalculateLength(c) * size,
-                    )
-                elif p[1] == "7":  # positioned comment
-                    c = str(comment.childNodes[0].wholeText)
-                    yield (float(p[0]), int(p[4]), i, c, "bilipos", int(p[3]), int(p[2]), 0, 0)
-                elif p[1] == "8":
-                    pass  # ignore scripted comment
-        except (AssertionError, AttributeError, IndexError, TypeError, ValueError):
-            logging.warning("Invalid comment: %s" % comment.toxml())
-            continue
-
-
-def ReadCommentsBilibiliXmlV2(text: str, fontsize: float) -> Generator[Comment, None, None]:
-    dom = xml.dom.minidom.parseString(text)
-    comment_element = dom.getElementsByTagName("d")
-    for i, comment in enumerate(comment_element):
-        try:
-            p = str(comment.getAttribute("p")).split(",")
-            assert len(p) >= 7
-            assert p[3] in ("1", "4", "5", "6", "7", "8")
-            if comment.childNodes.length > 0:
-                time = float(p[2]) / 1000.0
-                if p[3] in ("1", "4", "5", "6"):
-                    c = str(comment.childNodes[0].wholeText).replace("/n", "\n")
-                    size = int(p[4]) * fontsize / 25.0
-                    yield (
-                        time,
-                        int(p[6]),
-                        i,
-                        c,
-                        {"1": 0, "4": 2, "5": 1, "6": 3}[p[3]],
-                        int(p[5]),
-                        size,
-                        (c.count("\n") + 1) * size,
-                        CalculateLength(c) * size,
-                    )
-                elif p[3] == "7":  # positioned comment
-                    c = str(comment.childNodes[0].wholeText)
-                    yield (time, int(p[6]), i, c, "bilipos", int(p[5]), int(p[4]), 0, 0)
-                elif p[3] == "8":
-                    pass  # ignore scripted comment
-        except (AssertionError, AttributeError, IndexError, TypeError, ValueError):
-            logging.warning("Invalid comment: %s" % comment.toxml())
-            continue
-
-
-@export
 def ReadCommentsBilibiliProtobuf(protobuf: Union[bytes, str], fontsize: float) -> Generator[Comment, None, None]:
-    assert isinstance(protobuf, bytes), "protobuf 仅支持使用 bytes 转换"
-    target = DanmakuEvent()
+    target = DmSegMobileReply()
     target.ParseFromString(protobuf)
     for i, elem in enumerate(target.elems):
         try:
@@ -201,7 +108,7 @@ class AssText:
                 return GetPosition(InputPos, isHeight)
 
         try:
-            comment_args = safe_list(json.loads(c[3]))
+            comment_args = SafeList(json.loads(c[3]))
             text = ASSEscape(str(comment_args[4]).replace("/n", "\n"))
             from_x = comment_args.get(0, 0)
             from_y = comment_args.get(1, 0)
@@ -211,7 +118,7 @@ class AssText:
             from_y = GetPosition(from_y, True)
             to_x = GetPosition(to_x, False)
             to_y = GetPosition(to_y, True)
-            alpha = safe_list(str(comment_args.get(2, "1")).split("-"))
+            alpha = SafeList(str(comment_args.get(2, "1")).split("-"))
             from_alpha = float(alpha.get(0, 1))
             to_alpha = float(alpha.get(1, from_alpha))
             from_alpha = 255 - round(from_alpha * 255)
@@ -423,22 +330,19 @@ def ProcessComments(
         width,
         height,
         bottomReserved,
-        fontface,
-        fontsize,
+        font_face,
+        font_size,
         alpha,
         duration_marquee,
         duration_still,
         filters_regex,
         reduced,
-        progress_callback,
 ):
-    styleid = "biliass_%04x" % random.randint(0, 0xFFFF)
+    style_id = "danmaku_%04x" % random.randint(0, 0xFFFF)
     ass = AssText()
-    ass.WriteASSHead(width, height, fontface, fontsize, alpha, styleid)
+    ass.WriteASSHead(width, height, font_face, font_size, alpha, style_id)
     rows = [[None] * (height - bottomReserved + 1) for i in range(4)]
     for idx, i in enumerate(comments):
-        if progress_callback and idx % 1000 == 0:
-            progress_callback(idx, len(comments))
         if isinstance(i[4], int):
             skip = False
             for filter_regex in filters_regex:
@@ -454,7 +358,7 @@ def ProcessComments(
                 if freerows >= i[7]:
                     MarkCommentRow(rows, i, row)
                     ass.WriteComment(
-                        i, row, width, height, bottomReserved, fontsize, duration_marquee, duration_still, styleid
+                        i, row, width, height, bottomReserved, font_size, duration_marquee, duration_still, style_id
                     )
                     break
                 else:
@@ -464,14 +368,12 @@ def ProcessComments(
                     row = FindAlternativeRow(rows, i, height, bottomReserved)
                     MarkCommentRow(rows, i, row)
                     ass.WriteComment(
-                        i, row, width, height, bottomReserved, fontsize, duration_marquee, duration_still, styleid
+                        i, row, width, height, bottomReserved, font_size, duration_marquee, duration_still, style_id
                     )
         elif i[4] == "bilipos":
-            ass.WriteCommentBilibiliPositioned(i, width, height, styleid)
+            ass.WriteCommentBilibiliPositioned(i, width, height, style_id)
         else:
             logging.warning("Invalid comment: %r" % i[3])
-    if progress_callback:
-        progress_callback(len(comments), len(comments))
     return ass.to_string()
 
 
@@ -584,7 +486,7 @@ def FilterBadChars(string: str) -> str:
     return re.sub("[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f]", "\ufffd", string)
 
 
-class safe_list(list):
+class SafeList(list):
     def get(self, index, default=None):
         try:
             return self[index]
@@ -594,7 +496,7 @@ class safe_list(list):
 
 @export
 def Proto2ASS(
-        inputs: Union[List[Union[str, bytes]], Union[str, bytes]],
+        danmaku_list: Union[List[Union[str, bytes]], Union[str, bytes]],
         stage_width: int,
         stage_height: int,
         reserve_blank: float = 0,
@@ -606,45 +508,22 @@ def Proto2ASS(
         comment_filter: Optional[str] = None,
         reduced: bool = False
 ) -> str:
-    return Danmaku2ASS(inputs, stage_width, stage_height, "protobuf", reserve_blank, font_face, font_size, alpha,
-                       duration_marquee, duration_still, comment_filter, reduced)
-
-
-@export
-def Danmaku2ASS(
-        inputs: Union[List[Union[str, bytes]], Union[str, bytes]],
-        stage_width: int,
-        stage_height: int,
-        input_format: str = "xml",
-        reserve_blank: float = 0,
-        font_face: str = "sans-serif",
-        font_size: float = 25.0,
-        text_opacity: float = 1.0,
-        duration_marquee: float = 5.0,
-        duration_still: float = 5.0,
-        comment_filter: Optional[str] = None,
-        is_reduce_comments: bool = False,
-        progress_callback: Optional[Callable[..., None]] = None,
-) -> str:
     comment_filters: List[str] = [comment_filter] if comment_filter is not None else []
     filters_regex = []
     for comment_filter in comment_filters:
         try:
             if comment_filter:
                 filters_regex.append(re.compile(comment_filter))
-        except:
+        except re.error:
             raise ValueError("Invalid regular expression: %s" % comment_filter)
 
     comments: List[Comment] = []
-    if not isinstance(inputs, list):
-        inputs = [inputs]
-    for input in inputs:
-        if input_format == "xml":
-            comments.extend(ReadCommentsBilibiliXml(input, font_size))
-        else:
-            if isinstance(input, str):
-                logging.warning("Protobuf 只能使用 bytes 转换")
-            comments.extend(ReadCommentsBilibiliProtobuf(input, font_size))
+    if not isinstance(danmaku_list, list):
+        danmaku_list = [danmaku_list]
+    for danmaku in danmaku_list:
+        if isinstance(danmaku, str):
+            raise Exception("Argument 'inputs' type must be bytes.")
+        comments.extend(ReadCommentsBilibiliProtobuf(danmaku, font_size))
     comments.sort()
     return ProcessComments(
         comments,
@@ -653,10 +532,9 @@ def Danmaku2ASS(
         reserve_blank,
         font_face,
         font_size,
-        text_opacity,
+        alpha,
         duration_marquee,
         duration_still,
         filters_regex,
-        is_reduce_comments,
-        progress_callback,
+        reduced,
     )

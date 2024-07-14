@@ -9,7 +9,7 @@ import urllib.parse
 import requests
 from google.protobuf.json_format import MessageToJson
 
-from bilibili.biliass.biliass import Proto2ASS
+from bilibili.biliass import Proto2ASS
 from bilibili.biliass.protobuf.view_pb2 import DmWebViewReply
 
 XOR_CODE = 23442827791579
