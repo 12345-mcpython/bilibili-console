@@ -2,7 +2,6 @@ import hashlib
 import json
 import os
 import re
-import sys
 import time
 import urllib.parse
 
@@ -10,7 +9,7 @@ import requests
 from google.protobuf.json_format import MessageToJson
 
 from bilibili.biliass import Proto2ASS
-from bilibili.biliass.protobuf.view_pb2 import DmWebViewReply
+from bilibili.protobuf.dm_pb2 import DmSegMobileReply
 
 XOR_CODE = 23442827791579
 MASK_CODE = 2251799813685247
@@ -107,6 +106,8 @@ class UserManager:
 
 
 def convert_cookies_to_dict(cookies) -> dict[str, str]:
+    if not cookies:
+        return {}
     return dict([li.split("=", 1) for li in cookies.split(";")])
 
 
@@ -188,13 +189,10 @@ def read_cookie():
     if os.path.exists("cookie.txt"):
         with open("cookie.txt") as f:
             cookie = f.read().strip()
-            if not cookie:
-                print("cookie.txt 内没有内容!")
-                sys.exit(1)
             return cookie
     else:
-        print("cookie.txt 不存在! 请创建 cookie.txt 并写入 cookie!")
-        sys.exit(1)
+        with open("cookie.txt", "w") as f:
+            f.write("")
 
 
 def encrypt_wbi(request_params: str):
@@ -250,7 +248,7 @@ def get_more_danmaku(cid: int):
 
 def parse_view(cid: int):
     resp = user_manager.get(f"https://api.bilibili.com/x/v2/dm/web/view?oid={cid}&type=1", cache=True)
-    dm_view = DmWebViewReply()
+    dm_view = DmSegMobileReply()
     dm_view.ParseFromString(resp.content)
     dm_view = json.loads(MessageToJson(dm_view))
     return dm_view
