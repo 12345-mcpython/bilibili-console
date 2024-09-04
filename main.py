@@ -111,13 +111,32 @@ search/s: 搜索
 
 class BilibiliLogin:
     temp_header = {
-        "Cookie": "buvid3=5603F7D1-31B0-E10F-A023-E7D234E2575A09371infoc; b_nut=1724042209; b_lsid=F2BA7A82_19168EC6A72; _uuid=F744198D-46B9-169D-410E7-DBF444CF193609911infoc; buvid_fp=535b7926d2bce6633446979540b0c9e7; enable_web_push=DISABLE; home_feed_column=5; buvid4=965EAF91-26D7-540C-0FF3-1F8C24D0071F10501-024081904-jIG8YFmJNZDFoKLp7PaXjw%3D%3D; bmg_af_switch=1; bmg_src_def_domain=i0.hdslb.com; browser_resolution=1530-402",
-
         "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                       "(KHTML, like Gecko) "
                       "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
         "Referer": "https://www.bilibili.com",
     }
+
+    temp_login_header = temp_header.copy()
+
+    @staticmethod
+    def generate_cookie():
+        r = requests.get("https://www.bilibili.com", headers=BilibiliLogin.temp_header)
+        cookie = ""
+        for i, j in r.cookies.items():
+            cookie += f"{i}={j}; "
+        BilibiliLogin.temp_login_header["Cookie"] = cookie[:-2]
+
+    @staticmethod
+    def logout():
+        r = user_manager.post("https://passport.bilibili.com/login/exit/v2", data={"biliCSRF": user_manager.csrf})
+        rsp_json = r.json()
+        if rsp_json["code"] == 0:
+            print("退出登录成功.")
+            with open("cookie.txt", "w") as f:
+                f.write("")
+            user_manager.refresh_login()
+
 
     @staticmethod
     def login_by_password(username: str, password: str):
@@ -129,15 +148,20 @@ class BilibiliLogin:
         data = {"username": username, "password": password_base64, "keep": 0, "token": token, "challenge": challenge,
                 "validate": validate, "seccode": validate + "|jordan"}
         r = requests.post("https://passport.bilibili.com/x/passport-login/web/login", data=data,
-                          headers=BilibiliLogin.temp_header)
+                          headers=BilibiliLogin.temp_login_header)
+        if r.json()["code"] != 0:
+            print("登录失败!")
+            print(r.json()["message"])
+            return False
         cookie = ""
         for i, j in r.cookies.items():
             cookie += f"{i}={j}; "
-        return cookie[:-2]
+        return cookie[:-2] + "; " + BilibiliLogin.temp_login_header["Cookie"]
 
     @staticmethod
     def generate_captcha():
-        r = requests.get("https://passport.bilibili.com/x/passport-login/captcha", headers=BilibiliLogin.temp_header)
+        r = requests.get("https://passport.bilibili.com/x/passport-login/captcha",
+                         headers=BilibiliLogin.temp_login_header)
         data = r.json()
         challenge = data["data"]["geetest"]["challenge"]
         gt = data["data"]["geetest"]["gt"]
@@ -153,7 +177,8 @@ class BilibiliLogin:
 
     @staticmethod
     def get_key() -> tuple[str, str]:
-        r = requests.get("https://passport.bilibili.com/x/passport-login/web/key", headers=BilibiliLogin.temp_header)
+        r = requests.get("https://passport.bilibili.com/x/passport-login/web/key",
+                         headers=BilibiliLogin.temp_login_header)
         return r.json()["data"]["hash"], r.json()["data"]["key"]
 
 
@@ -682,8 +707,8 @@ class BilibiliFavorite:
                 export["medias"] += medias
                 cursor += 1
                 progress_bar.update(1)
-        with open(str(fav_id) + ".json", "w", encoding="utf-8") as f:
-            json.dump(export, f, ensure_ascii=False, sort_keys=True)
+        with open(f"favorite_{str(fav_id)}_{str(round(time.time()))}.json", "w", encoding="utf-8") as f:
+            json.dump(export, f, indent=4, ensure_ascii=False)
         print(f"导出收藏夹\"{r.json()['data']['info']['title']}\"成功.")
 
     @staticmethod
@@ -1420,7 +1445,7 @@ class BilibiliInterface:
         if not user_manager.is_login:
             print("请先登录!")
             return
-        with open("history.json", "w", encoding="utf-8") as f:
+        with open(f"history_{str(round(time.time()))}.json", "w", encoding="utf-8") as f:
             json.dump(self.history.dump_history(), f, ensure_ascii=False, indent=4)
 
     def export_all_favorite(self):
@@ -1765,8 +1790,8 @@ class BilibiliInterface:
             elif command == "clean_cache":
                 shutil.rmtree("cached")
                 os.mkdir("cached")
-            elif command == "refresh_login_state":
-                user_manager.refresh_login_state()
+            elif command == "refresh_login":
+                user_manager.refresh_login()
             elif command == "export_favorite":
                 self.export_favorite()
             elif command == "export_history":
@@ -1798,10 +1823,16 @@ class BilibiliInterface:
                 if user_manager.is_login:
                     print("无需登录!")
                 else:
+                    BilibiliLogin.generate_cookie()
                     username = input("输入用户名: ")
                     password = getpass.getpass("输入密码: ")
                     cookies = BilibiliLogin.login_by_password(username, password)
-                    print(cookies)
+                    if cookies:
+                        print(cookies)
+                        print("登录成功!")
+                        print("请将上述输出内容复制入 cookie.txt 文件内.")
+            elif command == "logout":
+                BilibiliLogin.logout()
             else:
                 print("未知命令!")
 

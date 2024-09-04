@@ -80,7 +80,7 @@ class UserManager:
                     raise request_error
         return request
 
-    def refresh_login_state(self):
+    def refresh_login(self):
         if os.path.exists("cookie.txt"):
             with open("cookie.txt") as file:
                 cookie = file.read()
@@ -101,6 +101,9 @@ class UserManager:
             print()
             self.mid = request.json()["data"]["mid"]
             self.is_login = True
+            self.csrf = clean_cookie(
+                convert_cookies_to_dict(self.session.headers.get("cookie"))
+            ).get("bili_jct", "")
         else:
             raise Exception("Invalid login code: " + str(request.json()["code"]))
 
