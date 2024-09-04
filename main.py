@@ -1821,16 +1821,17 @@ class BilibiliInterface:
                     self.source = "backup"
             elif command == "login":
                 if user_manager.is_login:
-                    print("无需登录!")
+                    print("已经登录!")
                 else:
                     BilibiliLogin.generate_cookie()
                     username = input("输入用户名: ")
                     password = getpass.getpass("输入密码: ")
                     cookies = BilibiliLogin.login_by_password(username, password)
                     if cookies:
-                        print(cookies)
                         print("登录成功!")
-                        print("请将上述输出内容复制入 cookie.txt 文件内.")
+                        with open("cookie.txt", "w") as f:
+                            f.write(cookies)
+                        user_manager.refresh_login()
             elif command == "logout":
                 if input("确定退出? (y/n)").lower() == "y":
                     BilibiliLogin.logout()
