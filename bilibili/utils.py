@@ -9,7 +9,7 @@ import requests
 from google.protobuf.json_format import MessageToJson
 
 from bilibili.biliass import Proto2ASS
-from bilibili.protobuf.dm_pb2 import DmSegMobileReply
+from bilibili.protobuf.dm_pb2 import DmSegMobileReply, DmWebViewReply
 
 XOR_CODE = 23442827791579
 MASK_CODE = 2251799813685247
@@ -251,7 +251,7 @@ def get_more_danmaku(cid: int):
 
 def parse_view(cid: int):
     resp = user_manager.get(f"https://api.bilibili.com/x/v2/dm/web/view?oid={cid}&type=1", cache=True)
-    dm_view = DmSegMobileReply()
+    dm_view = DmWebViewReply()
     dm_view.ParseFromString(resp.content)
     dm_view = json.loads(MessageToJson(dm_view))
     return dm_view

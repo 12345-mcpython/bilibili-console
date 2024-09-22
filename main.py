@@ -137,7 +137,6 @@ class BilibiliLogin:
                 f.write("")
             user_manager.refresh_login()
 
-
     @staticmethod
     def login_by_password(username: str, password: str):
         token, challenge, validate = BilibiliLogin.generate_captcha()
@@ -550,15 +549,15 @@ class BilibiliHistory:
 
 class BilibiliFavorite:
     @staticmethod
-    def select_favorite(mid: int, avid: int = 0) -> list[int] | int:
+    def select_favorite(mid: int, aid: int = 0) -> list[int] | int:
         """
         选择收藏夹
         :param mid: 用户mid
-        :param avid: 视频avid
+        :param aid: 视频aid
         :return: 收藏夹id list or int
         """
         request = user_manager.get(
-            f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid={avid}&up_mid={mid}",
+            f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid={aid}&up_mid={mid}",
             cache=True,
         )
         print("\n")
@@ -594,9 +593,9 @@ class BilibiliFavorite:
         return ids
 
     @staticmethod
-    def select_one_favorite(mid: int, avid: int = 0):
+    def select_one_favorite(mid: int, aid: int = 0):
         request = user_manager.get(
-            f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid={avid}&up_mid={mid}",
+            f"https://api.bilibili.com/x/v3/fav/folder/created/list-all?type=2&rid={aid}&up_mid={mid}",
             cache=True,
         )
         for index, item in enumerate(request.json()["data"]["list"]):
@@ -797,7 +796,7 @@ class BilibiliInteraction:
 
 
 # type
-# 1	    视频稿件	稿件 avid
+# 1	    视频稿件	稿件 aid
 # 2	    话题	话题 id
 # 4	    活动	活动 id
 # 5	    小视频	小视频 id
@@ -1154,6 +1153,7 @@ class BilibiliVideo:
                 )
             with open(download_dir + validate_title(part_title) + ".proto", "wb") as danmaku:
                 view = parse_view(cid)
+                print(view)
                 total = int(view['dmSge']['total'])
                 danmaku_byte = [get_danmaku(cid, i) for i in range(1, total + 1)]
                 # a = danmaku_provider()(
@@ -1388,14 +1388,14 @@ class BilibiliInterface:
             return
         self.interaction.triple(bvid)
 
-    def add_favorite(self, avid):
+    def add_favorite(self, aid):
         if not user_manager.is_login:
             print("请先登录!")
             return
-        fav_id = self.bilibili_favorite.select_favorite(user_manager.mid, avid)
+        fav_id = self.bilibili_favorite.select_favorite(user_manager.mid, aid)
         if fav_id == 0:
             return
-        self.interaction.favorite(avid, fav_id)  # type: ignore
+        self.interaction.favorite(aid, fav_id)  # type: ignore
 
     def download_favorite_video(self):
         if not user_manager.is_login:
@@ -1832,7 +1832,8 @@ class BilibiliInterface:
                         print("登录成功!")
                         print("请将上述输出内容复制入 cookie.txt 文件内.")
             elif command == "logout":
-                BilibiliLogin.logout()
+                if input("确定退出? (y/n)").lower() == "y":
+                    BilibiliLogin.logout()
             else:
                 print("未知命令!")
 
