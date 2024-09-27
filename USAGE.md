@@ -38,9 +38,12 @@
 6. `view_user` 根据mid预览账号的个人空间.
 7. `export_favorite` 导出收藏夹为JSON. JSON格式见下.
 8. `download_favorite` 下载收藏夹内全部视频.
-9. `refresh_login_state` 重载登录状态, 重新加载cookie.txt文件内cookie.
+9. `refresh_login` 重载登录状态, 重新加载cookie.txt文件内cookie.
 10. `clean_cache` 清空缓存的弹幕文件.
 11. `enable_online_watching` 与 `disable_online_watching` 启用或禁用正在观看的人数.
+12. `login` 登录.
+13. `logout` 登出.
+14. `history` 查看该账号历史记录.
 
 ## 1.3 视频选项指令集
 
@@ -52,6 +55,8 @@
 6. `download/d` 下载视频.
 7. `download_video_list/da` 下载全部视频.
 8. `view_user` 预览视频作者的用户空间.
+9. `follow/fo` 关注视频作者.
+10. `unfollow/ufo` 取关视频作者.
 
 ## 1.4 个人空间指令
 
