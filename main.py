@@ -77,7 +77,8 @@ def view_short_video_info(bvid):
         " bvid: ",
         item["bvid"],
         " 日期: ",
-        datetime.datetime.fromtimestamp(item["pubdate"]).strftime("%Y-%m-%d %H:%M:%S"),
+        datetime.datetime.fromtimestamp(
+            item["pubdate"]).strftime("%Y-%m-%d %H:%M:%S"),
         " 视频时长:",
         format_time(item["duration"]),
         " 观看量: ",
@@ -121,7 +122,8 @@ class BilibiliLogin:
 
     @staticmethod
     def generate_cookie():
-        r = requests.get("https://www.bilibili.com", headers=BilibiliLogin.temp_header)
+        r = requests.get("https://www.bilibili.com",
+                         headers=BilibiliLogin.temp_header)
         cookie = ""
         for i, j in r.cookies.items():
             cookie += f"{i}={j}; "
@@ -129,7 +131,8 @@ class BilibiliLogin:
 
     @staticmethod
     def logout():
-        r = user_manager.post("https://passport.bilibili.com/login/exit/v2", data={"biliCSRF": user_manager.csrf})
+        r = user_manager.post(
+            "https://passport.bilibili.com/login/exit/v2", data={"biliCSRF": user_manager.csrf})
         rsp_json = r.json()
         if rsp_json["code"] == 0:
             print("退出登录成功.")
@@ -254,7 +257,8 @@ class BilibiliManga:
                 for j in image_list["data"]["images"]:
                     download_image_prefix.append(j["path"])
                     picture_count += 1
-                download_image[download_manga_name[cursor]] = download_image_prefix
+                download_image[download_manga_name[cursor]
+                               ] = download_image_prefix
                 progress_bar.update(1)
                 cursor += 1
         download_image_url = {}
@@ -276,11 +280,11 @@ class BilibiliManga:
                 filename = 0
                 for k in j:
                     path = (
-                            "download/manga/"
-                            + validate_title(name)
-                            + "/"
-                            + validate_title(i)
-                            + "/"
+                        "download/manga/"
+                        + validate_title(name)
+                        + "/"
+                        + validate_title(i)
+                        + "/"
                     )
                     file = path + f"{filename}.jpg"
                     if not os.path.exists(path):
@@ -332,7 +336,8 @@ class BilibiliUserSpace:
     @staticmethod
     def modify_relation(mid: int, modify_type: int = 1):
         data = {"fid": mid, "act": modify_type, "csrf": user_manager.csrf}
-        r = user_manager.post("https://api.bilibili.com/x/relation/modify", data=data)
+        r = user_manager.post(
+            "https://api.bilibili.com/x/relation/modify", data=data)
         if r.json()["code"] == 0:
             print("更改用户关系成功.")
         else:
@@ -403,7 +408,8 @@ class BilibiliBangumi:
     @staticmethod
     def follow_bangumi(season_id):
         data = {"season_id": season_id, "csrf": user_manager.csrf}
-        r = user_manager.post("https://api.bilibili.com/pgc/web/follow/add", data=data)
+        r = user_manager.post(
+            "https://api.bilibili.com/pgc/web/follow/add", data=data)
         if r.json()["code"] == 0:
             print("追番成功.")
         else:
@@ -413,7 +419,8 @@ class BilibiliBangumi:
     @staticmethod
     def cancel_follow_bangumi(season_id):
         data = {"season_id": season_id, "csrf": user_manager.csrf}
-        r = user_manager.post("https://api.bilibili.com/pgc/web/follow/del", data=data)
+        r = user_manager.post(
+            "https://api.bilibili.com/pgc/web/follow/del", data=data)
         if r.json()["code"] == 0:
             print("取消追番成功.")
         else:
@@ -727,7 +734,8 @@ class BilibiliInteraction:
     def like(bvid: str, unlike=False):
         r = user_manager.post(
             "https://api.bilibili.com/x/web-interface/archive/like",
-            data={"bvid": bvid, "like": 2 if unlike else 1, "csrf": user_manager.csrf},
+            data={"bvid": bvid, "like": 2 if unlike else 1,
+                  "csrf": user_manager.csrf},
         )
         if r.json()["code"] != 0:
             print("点赞或取消点赞失败!")
@@ -933,7 +941,8 @@ class BilibiliVideo:
                     title,
                     video[int(page) - 1]["part"],
                     pic,
-                    True if r.json()["data"]["View"]["stat"]["evaluation"] else False,
+                    True if r.json()[
+                        "data"]["View"]["stat"]["evaluation"] else False,
                 )
             break
 
@@ -944,8 +953,8 @@ class BilibiliVideo:
         ).json()["data"]["Card"]["card"]["mid"]
 
     def select_video_collection(self):
-        url = "https://api.bilibili.com/x/web-interface/view/detail?bvid=" + self.bvid
-        r = user_manager.get(url, cache=True)
+        r = user_manager.get(
+            f"https://api.bilibili.com/x/web-interface/view/detail?bvid={self.bvid}", cache=True)
         if r.json()["code"] != 0:
             print("获取视频信息错误!")
             print(r.json()["code"])
@@ -983,10 +992,7 @@ class BilibiliVideo:
             selected_video.select_video()
             break
 
-    def play(self, cid, title=""):
-        global saw
-        if not os.path.exists("cached"):
-            os.mkdir("cached")
+    def get_video_and_audio_url(self, cid):
         if self.bangumi:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
         else:
@@ -1029,6 +1035,13 @@ class BilibiliVideo:
             video_url = video_mapping[default_video]["url"]
             width = video_mapping[default_video]["width"]
             height = video_mapping[default_video]["height"]
+        return video_url, width, height, audio_url
+
+    def play(self, cid, title=""):
+        global saw
+        if not os.path.exists("cached"):
+            os.mkdir("cached")
+        video_url, width, height, audio_url = self.get_video_and_audio_url(cid)
 
         if not os.path.exists(f"cached/{cid}.ass"):
             a = danmaku_provider()(
@@ -1099,7 +1112,8 @@ class BilibiliVideo:
         # width = req.json()["data" if not self.bangumi else "result"]["durl"][0]["width"]
         # height = req.json()["data" if not self.bangumi else "result"]["durl"][0]["height"]
         if base_dir:
-            download_dir = "download/" + base_dir + "/" + validate_title(title) + "/"
+            download_dir = "download/" + base_dir + \
+                "/" + validate_title(title) + "/"
         else:
             download_dir = "download/" + validate_title(title) + "/"
         res = user_manager.get(download_url, stream=True)
@@ -1119,7 +1133,8 @@ class BilibiliVideo:
             total=length,
             initial=os.path.getsize(dts),
             unit_scale=True,
-            desc=reprlib.repr(validate_title(part_title)).replace("'", "") + ".mp4",
+            desc=reprlib.repr(validate_title(part_title)
+                              ).replace("'", "") + ".mp4",
             unit="B",
         )
         try:
@@ -1155,7 +1170,8 @@ class BilibiliVideo:
                 view = parse_view(cid)
                 print(view)
                 total = int(view['dmSge']['total'])
-                danmaku_byte = [get_danmaku(cid, i) for i in range(1, total + 1)]
+                danmaku_byte = [get_danmaku(cid, i)
+                                for i in range(1, total + 1)]
                 # a = danmaku_provider()(
                 #     b"".join(danmaku_byte),
                 #     width,
@@ -1232,7 +1248,8 @@ class BilibiliInterface:
         if not user_manager.is_login:
             print("请先登录!")
             return
-        fav_id = self.bilibili_favorite.select_one_favorite(user_manager.mid if not mid else mid)
+        fav_id = self.bilibili_favorite.select_one_favorite(
+            user_manager.mid if not mid else mid)
         if not fav_id:
             return
         all_request = self.bilibili_favorite.get_favorite(fav_id)
@@ -1446,7 +1463,8 @@ class BilibiliInterface:
             print("请先登录!")
             return
         with open(f"history_{str(round(time.time()))}.json", "w", encoding="utf-8") as f:
-            json.dump(self.history.dump_history(), f, ensure_ascii=False, indent=4)
+            json.dump(self.history.dump_history(), f,
+                      ensure_ascii=False, indent=4)
 
     def export_all_favorite(self):
         if not user_manager.is_login:
@@ -1720,7 +1738,8 @@ class BilibiliInterface:
                 if is_dynamic:
                     print("互动视频无法下载! ")
                     return
-                video.download_one(cid, pic_url=pic, title=title, part_title=part_title)
+                video.download_one(
+                    cid, pic_url=pic, title=title, part_title=part_title)
             elif command == "download_video_list" or command == "da":
                 video.download_video_list(bvid)
             elif command == "like" or command == "l":
@@ -1740,20 +1759,24 @@ class BilibiliInterface:
                 )
                 view = parse_view(cid)
                 total = int(view['dmSge']['total'])
-                danmaku_byte_list = [get_danmaku(cid, i) for i in range(1, total + 1)]
+                danmaku_byte_list = [get_danmaku(
+                    cid, i) for i in range(1, total + 1)]
                 danmaku_byte = b"".join(danmaku_byte_list)
                 DM = DmSegMobileReply()
                 DM.ParseFromString(danmaku_byte)
                 with open(f"{cid}.json", "w", encoding="utf-8") as f:
-                    json.dump(MessageToJson(DM), f, indent=4, ensure_ascii=False)
+                    json.dump(MessageToJson(DM), f,
+                              indent=4, ensure_ascii=False)
             elif command == "view_user":
                 self.user_space(video.get_author_mid())
             elif command == "view_video_collection":
                 video.select_video_collection()
             elif command == "follow" or command == "fo":
-                BilibiliUserSpace.modify_relation(video.get_author_mid(), modify_type=1)
+                BilibiliUserSpace.modify_relation(
+                    video.get_author_mid(), modify_type=1)
             elif command == "unfollow" or command == "ufo":
-                BilibiliUserSpace.modify_relation(video.get_author_mid(), modify_type=2)
+                BilibiliUserSpace.modify_relation(
+                    video.get_author_mid(), modify_type=2)
             elif command == "comment" or command == "cm":
                 self.view_comment(bvid)
             else:
@@ -1826,7 +1849,8 @@ class BilibiliInterface:
                     BilibiliLogin.generate_cookie()
                     username = input("输入用户名: ")
                     password = getpass.getpass("输入密码: ")
-                    cookies = BilibiliLogin.login_by_password(username, password)
+                    cookies = BilibiliLogin.login_by_password(
+                        username, password)
                     if cookies:
                         print("登录成功!")
                         with open("cookie.txt", "w") as f:
