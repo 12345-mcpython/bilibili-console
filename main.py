@@ -151,9 +151,10 @@ class BilibiliLogin:
                 "validate": validate, "seccode": validate + "|jordan"}
         r = requests.post("https://passport.bilibili.com/x/passport-login/web/login", data=data,
                           headers=BilibiliLogin.temp_login_header)
-        if r.json()["code"] != 0:
+        if r.json()["code"] != 0 or r.json()["data"]["message"].startswith("本次登录"):
             print("登录失败!")
             print(r.json()["message"])
+            print(r.json()["data"]["message"])
             return False
         cookie = ""
         for i, j in r.cookies.items():
