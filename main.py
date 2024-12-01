@@ -63,6 +63,9 @@ __author__ = "Laosun Studios"
 
 saw = False
 
+quality_mapping = {6: "240P 极速", 16: "360P 流畅", 32: "480P 清晰", 64: "720P 高清", 74: "720P60 高帧率",
+                   80: "1080P 高清", 112: "1080P+ 高码率", 116: "1080P60 高帧率", 120: "4K 超清"}
+
 
 def view_short_video_info(bvid):
     video = user_manager.get(
@@ -1025,6 +1028,24 @@ class BilibiliVideo:
             selected_video.select_video()
             break
 
+    def switch_quality(self, cid):
+        if self.bangumi:
+            url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
+        else:
+            url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&bvid={self.bvid}&fnval=16"
+        play_url_request = user_manager.get(url, cache=True)
+        can_use_quality = {v["id"] for v in play_url_request.json()["data"]["dash"]["video"]}
+        can_use_quality_description = [quality_mapping[v] for v in can_use_quality]
+        quality_description_number_mapping = list(zip(can_use_quality_description, can_use_quality))
+        for index, description in enumerate(quality_description_number_mapping):
+            print(f"{index + 1}: {description[0]}")
+        quality = input("选择画质: ")
+        if quality.isdigit() and int(quality) > 0 and int(quality) < len(quality_description_number_mapping) + 1:
+            self.quality = quality_description_number_mapping[int(quality) - 1][1]
+            print("更改成功! ")
+        else:
+            print("输入不正确! ")
+
     def get_video_and_audio_url(self, cid):
         if self.bangumi:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
@@ -1131,7 +1152,6 @@ class BilibiliVideo:
             part_title: str = "",
             base_dir: str = "",
     ):
-        print(cid)
         if not self.bangumi:
             url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&qn={self.quality}&bvid={self.bvid}"
         else:
@@ -1141,7 +1161,6 @@ class BilibiliVideo:
         download_url = req.json()["data" if not self.bangumi else "result"]["durl"][0][
             "url"
         ]
-        print(req.json())
         # width = req.json()["data" if not self.bangumi else "result"]["durl"][0]["width"]
         # height = req.json()["data" if not self.bangumi else "result"]["durl"][0]["height"]
         if base_dir:
@@ -1201,7 +1220,6 @@ class BilibiliVideo:
                 )
             with open(download_dir + validate_title(part_title) + ".proto", "wb") as danmaku:
                 view = parse_view(cid)
-                print(view)
                 total = int(view['dmSge']['total'])
                 danmaku_byte = [get_danmaku(cid, i)
                                 for i in range(1, total + 1)]
@@ -1763,6 +1781,11 @@ class BilibiliInterface:
                 return
             if command == "play" or command == "p":
                 video.select_video()
+            elif command == "switch_quality":
+                cid, title, _, _, _ = video.select_video(
+                    return_information=True
+                )
+                video.switch_quality(cid)
             elif command == "download" or command == "d":
                 cid, title, part_title, pic, is_dynamic = video.select_video(
                     return_information=True
