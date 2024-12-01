@@ -162,6 +162,36 @@ class BilibiliLogin:
         return cookie[:-2] + "; " + BilibiliLogin.temp_login_header["Cookie"]
 
     @staticmethod
+    def send_sms(phone_number: str) -> str | bool:
+        token, challenge, validate = BilibiliLogin.generate_captcha()
+        data = {"cid": 86, "tel": phone_number, "challenge": challenge, "seccode": validate + "|jordan",
+                "validate": validate, "token": token,
+                "source": "main-fe-header"}
+        r = requests.post("https://passport.bilibili.com/x/passport-login/web/sms/send", data=data,
+                          headers=BilibiliLogin.temp_login_header)
+        if r.json()["code"] != 0:
+            print("发送短信认证码失败! ")
+            print(r.json()["code"])
+            print(r.json()["message"])
+            return False
+        return r.json()["data"]["captcha_key"]
+
+    @staticmethod
+    def login_by_sms(phone_number: str, captcha_key: str, sms_code: str) -> str | bool:
+        data = {"cid": 86, "tel": phone_number, "captcha_key": captcha_key, "code": sms_code, "keep": True,
+                "source": "main_mini"}
+        r = requests.post("https://passport.bilibili.com/x/passport-login/web/login/sms", data=data,
+                          headers=BilibiliLogin.temp_login_header)
+        if r.json()["code"] != 0:
+            print("登录失败! ")
+            print(r.json()["message"])
+            return False
+        cookie = ""
+        for i, j in r.cookies.items():
+            cookie += f"{i}={j}; "
+        return cookie[:-2] + "; " + BilibiliLogin.temp_login_header["Cookie"]
+
+    @staticmethod
     def generate_captcha():
         r = requests.get("https://passport.bilibili.com/x/passport-login/captcha",
                          headers=BilibiliLogin.temp_login_header)
@@ -259,7 +289,7 @@ class BilibiliManga:
                     download_image_prefix.append(j["path"])
                     picture_count += 1
                 download_image[download_manga_name[cursor]
-                               ] = download_image_prefix
+                ] = download_image_prefix
                 progress_bar.update(1)
                 cursor += 1
         download_image_url = {}
@@ -281,11 +311,11 @@ class BilibiliManga:
                 filename = 0
                 for k in j:
                     path = (
-                        "download/manga/"
-                        + validate_title(name)
-                        + "/"
-                        + validate_title(i)
-                        + "/"
+                            "download/manga/"
+                            + validate_title(name)
+                            + "/"
+                            + validate_title(i)
+                            + "/"
                     )
                     file = path + f"{filename}.jpg"
                     if not os.path.exists(path):
@@ -1114,7 +1144,7 @@ class BilibiliVideo:
         # height = req.json()["data" if not self.bangumi else "result"]["durl"][0]["height"]
         if base_dir:
             download_dir = "download/" + base_dir + \
-                "/" + validate_title(title) + "/"
+                           "/" + validate_title(title) + "/"
         else:
             download_dir = "download/" + validate_title(title) + "/"
         res = user_manager.get(download_url, stream=True)
@@ -1847,11 +1877,21 @@ class BilibiliInterface:
                 if user_manager.is_login:
                     print("已经登录!")
                 else:
+                    cookies = ""
                     BilibiliLogin.generate_cookie()
-                    username = input("输入用户名: ")
-                    password = getpass.getpass("输入密码: ")
-                    cookies = BilibiliLogin.login_by_password(
-                        username, password)
+                    login_method = input("登录方式 (sms/password): ")
+                    if login_method == "password":
+                        username = input("输入用户名: ")
+                        password = getpass.getpass("输入密码: ")
+                        cookies = BilibiliLogin.login_by_password(
+                            username, password)
+                    elif login_method == "sms":
+                        print("默认区号为 +86 (中国).")
+                        tel = input("输入电话号码: ")
+                        captcha_key = BilibiliLogin.send_sms(tel)
+                        if captcha_key:
+                            sms_code = input("输入认证码: ")
+                            cookies = BilibiliLogin.login_by_sms(tel, captcha_key, sms_code)
                     if cookies:
                         print("登录成功!")
                         with open("cookie.txt", "w") as f:
