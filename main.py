@@ -90,9 +90,11 @@ def show_help():
     print(
         """帮助菜单：
 recommend/r: 推荐
+login/l: 登录
 address/a: 按地址播放
 bangumi/b: 按地址播放番剧
 favorite/f: 查看收藏夹
+search/s: 搜索
 quit/q: 退出
 enable_online_watching: 开启在线观看
 disable_online_watching: 关闭在线观看
@@ -105,7 +107,6 @@ history: 查看历史记录
 view_self: 查看自己的空间
 view_user: 查看用户空间
 download_manga: 下载漫画
-search/s: 搜索
     """
     )
 
@@ -1784,6 +1785,14 @@ class BilibiliInterface:
             elif (command == "favorite" or command == "f") and not no_favorite:
                 self.add_favorite(bv2av(bvid))
                 user_manager.cached_response = {}
+            elif command == "follow" or command == "fo":
+                BilibiliUserSpace.modify_relation(
+                    video.get_author_mid(), modify_type=1)
+            elif command == "unfollow" or command == "ufo":
+                BilibiliUserSpace.modify_relation(
+                    video.get_author_mid(), modify_type=2)
+            elif command == "comment" or command == "cm":
+                self.view_comment(bvid)
             elif command == "export_danmaku":
                 cid, title, _, _, _ = video.select_video(
                     return_information=True
@@ -1802,20 +1811,12 @@ class BilibiliInterface:
                 self.user_space(video.get_author_mid())
             elif command == "view_video_collection":
                 video.select_video_collection()
-            elif command == "follow" or command == "fo":
-                BilibiliUserSpace.modify_relation(
-                    video.get_author_mid(), modify_type=1)
-            elif command == "unfollow" or command == "ufo":
-                BilibiliUserSpace.modify_relation(
-                    video.get_author_mid(), modify_type=2)
-            elif command == "comment" or command == "cm":
-                self.view_comment(bvid)
             else:
                 print("未知命令!")
 
     def main(self):
         while True:
-            command = input("主选项(r/a/b/f/s/q): ")
+            command = input("主选项(r/a/b/f/s/q/l): ")
             command = command.lower().strip()
             if command == "recommend" or command == "r":
                 self.recommend()
@@ -1837,6 +1838,8 @@ class BilibiliInterface:
                 self.favorite()
             elif command == "quit" or command == "q":
                 sys.exit(0)
+            elif command == "search" or command == "s":
+                self.search()
             elif command == "enable_online_watching":
                 self.view_online_watch = True
             elif command == "disable_online_watching":
@@ -1865,15 +1868,13 @@ class BilibiliInterface:
                 self.user_space(int(input("请输入用户mid: ")))
             elif command == "download_manga":
                 self.download_manga()
-            elif command == "search" or command == "s":
-                self.search()
             elif command == "switch_source":
                 print("切换播放源成功")
                 if self.source == "backup":
                     self.source = ""
                 else:
                     self.source = "backup"
-            elif command == "login":
+            elif command == "login" or command == "l":
                 if user_manager.is_login:
                     print("已经登录!")
                 else:
