@@ -91,6 +91,7 @@ def show_help():
         """帮助菜单：
 recommend/r: 推荐
 login/l: 登录
+logout/lo: 登出
 address/a: 按地址播放
 bangumi/b: 按地址播放番剧
 favorite/f: 查看收藏夹
@@ -1814,6 +1815,31 @@ class BilibiliInterface:
             else:
                 print("未知命令!")
 
+    def login(self):
+        if user_manager.is_login:
+            print("已经登录!")
+        else:
+            cookies = ""
+            BilibiliLogin.generate_cookie()
+            login_method = input("登录方式 (sms/password): ")
+            if login_method == "password":
+                username = input("输入用户名: ")
+                password = getpass.getpass("输入密码: ")
+                cookies = BilibiliLogin.login_by_password(
+                    username, password)
+            elif login_method == "sms":
+                print("默认区号为 +86 (中国).")
+                tel = input("输入电话号码: ")
+                captcha_key = BilibiliLogin.send_sms(tel)
+                if captcha_key:
+                    sms_code = input("输入认证码: ")
+                    cookies = BilibiliLogin.login_by_sms(tel, captcha_key, sms_code)
+            if cookies:
+                print("登录成功!")
+                with open("cookie.txt", "w") as f:
+                    f.write(cookies)
+                user_manager.refresh_login()
+
     def main(self):
         while True:
             command = input("主选项(r/a/b/f/s/q/l): ")
@@ -1875,30 +1901,8 @@ class BilibiliInterface:
                 else:
                     self.source = "backup"
             elif command == "login" or command == "l":
-                if user_manager.is_login:
-                    print("已经登录!")
-                else:
-                    cookies = ""
-                    BilibiliLogin.generate_cookie()
-                    login_method = input("登录方式 (sms/password): ")
-                    if login_method == "password":
-                        username = input("输入用户名: ")
-                        password = getpass.getpass("输入密码: ")
-                        cookies = BilibiliLogin.login_by_password(
-                            username, password)
-                    elif login_method == "sms":
-                        print("默认区号为 +86 (中国).")
-                        tel = input("输入电话号码: ")
-                        captcha_key = BilibiliLogin.send_sms(tel)
-                        if captcha_key:
-                            sms_code = input("输入认证码: ")
-                            cookies = BilibiliLogin.login_by_sms(tel, captcha_key, sms_code)
-                    if cookies:
-                        print("登录成功!")
-                        with open("cookie.txt", "w") as f:
-                            f.write(cookies)
-                        user_manager.refresh_login()
-            elif command == "logout":
+                self.login()
+            elif command == "logout" or command == "lo":
                 if input("确定退出? (y/n)").lower() == "y":
                     BilibiliLogin.logout()
             else:
