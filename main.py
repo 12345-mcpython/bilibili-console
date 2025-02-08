@@ -868,24 +868,19 @@ class BilibiliInteraction:
 # 0：按时间
 # 1：按点赞数
 # 2：按回复数
+# https://api.bilibili.com/x/v2/reply/reply?oid=113858106693946&type=1&root=252881092688&ps=10&pn=1&web_location=333.788
 class BilibiliComment:
     @staticmethod
     def get_comment(content_type: int, content_id: int, sort_type: int = 0):
-        pre_page = 5
+        pre_page = 10
         cursor = 1
-        request = user_manager.get(
-            f"https://api.bilibili.com/x/v2/reply?type={content_type}&oid={content_id}&sort={sort_type}&ps={pre_page}"
-            f"&pn={cursor}",
-            cache=True,
-        )
-        total = request.json()["data"]["page"]["count"] // pre_page + 1
         while True:
             ls = user_manager.get(
                 f"https://api.bilibili.com/x/v2/reply?type={content_type}&oid={content_id}&sort={sort_type}&ps={pre_page}"
                 f"&pn={cursor}",
                 cache=True,
             )
-            if total < cursor:
+            if not ls.json()["data"]["replies"]:
                 break
             yield ls.json()["data"]["replies"]
             cursor += 1
@@ -1817,6 +1812,13 @@ class BilibiliInterface:
                     video.get_author_mid(), modify_type=2)
             elif command == "comment" or command == "cm":
                 self.view_comment(bvid)
+            elif command == "export_comment":
+                data = []
+                for i in BilibiliComment.get_comment(1, bv2av(bvid)):
+                    for j in i:
+                        data.append(j)
+                with open(f"comment_{bvid}.json", "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=4, ensure_ascii=False)
             elif command == "export_danmaku":
                 cid, title, _, _, _ = video.select_video(
                     return_information=True
