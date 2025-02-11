@@ -876,14 +876,17 @@ class BilibiliComment:
     def get_comment(content_type: int, content_id: int, sort_type: int = 0):
         pre_page = 10
         cursor = 1
-        datas = []
         while True:
-            ls = user_manager.get(
-                f"https://api.bilibili.com/x/v2/reply?type={content_type}&oid={content_id}&sort={sort_type}&ps={pre_page}"
-                f"&pn={cursor}",
-                cache=True,
-            )
-
+            datas = []
+            try:
+                ls = user_manager.get(
+                    f"https://api.bilibili.com/x/v2/reply?type={content_type}&oid={content_id}&sort={sort_type}&ps={pre_page}"
+                    f"&pn={cursor}",
+                    cache=True,
+                )
+            except json.decoder.JSONDecodeError:
+                time.sleep(1200)
+                continue
             if not ls.json()["data"]["replies"]:
                 break
             for i in ls.json()["data"]["replies"]:
@@ -904,14 +907,25 @@ class BilibiliComment:
         pre_page = 10
         cursor = 1
         while True:
-            ls = user_manager.get(
-                f"https://api.bilibili.com/x/v2/reply/reply?type={content_type}&oid={oid}&sort={sort_type}&root={comment_id}&ps={pre_page}"
-                f"&pn={cursor}",
-                cache=True,
-            )
+            datas = []
+            try:
+                ls = user_manager.get(
+                    f"https://api.bilibili.com/x/v2/reply/reply?type={content_type}&oid={oid}&sort={sort_type}&root={comment_id}&ps={pre_page}"
+                    f"&pn={cursor}",
+                    cache=True,
+                )
+            except json.decoder.JSONDecodeError:
+                time.sleep(1200)
+                continue
             if not ls.json()["data"]["replies"]:
                 break
-            yield ls.json()["data"]["replies"]
+            for i in ls.json()["data"]["replies"]:
+                data = {"content": i["content"], "rpid": i["rpid"], "like": i["like"],
+                        "send_time": i["ctime"],
+                        "user": {"mid": i["mid"], "uname": i["member"]["uname"],
+                                 "level": i["member"]["level_info"]["current_level"]}}
+                datas.append(data)
+            yield datas
             cursor += 1
 
 
@@ -1279,7 +1293,7 @@ class BilibiliVideo:
         return True
 
 
-class Bilibili:
+class BilibiliMain:
     @staticmethod
     def recommend() -> list:
         r = user_manager.get(
@@ -1314,6 +1328,7 @@ class BilibiliInterface:
         self.manga = BilibiliManga()
         self.history = BilibiliHistory(user_manager.csrf)
         self.bangumi = BilibiliBangumi(self.quality)
+        self.delay = 1
 
     def favorite(self, mid=0):
         if not user_manager.is_login:
@@ -1361,7 +1376,7 @@ class BilibiliInterface:
     def recommend(self):
         print("推荐界面")
         while True:
-            recommend_content = Bilibili.recommend()
+            recommend_content = BilibiliMain.recommend()
             for num, item in enumerate(recommend_content):
                 print(num + 1, ":")
                 print("封面: ", item["pic"])
@@ -1416,6 +1431,7 @@ class BilibiliInterface:
             except (KeyError, ValueError):
                 traceback.print_exc()
                 print("视频解析错误, 请确保你输入的视频地址正确.")
+                return
             self.view_video(bvid=av2bv(int(video_id.strip("av"))))
 
     # def play_interact_video(self, bvid: str, cid: int):
@@ -1505,20 +1521,20 @@ class BilibiliInterface:
                 ):
                     return
 
-    def download_manga(self):
-        if not user_manager.is_login:
-            print("请先登录!")
-            return
-        print("漫画id: 即 https://manga.bilibili.com/detail/mc29410 中的 29410")
-        try:
-            comic_id = input("请输入漫画id或url: ")
-            if comic_id.startswith("https"):
-                comic_id = comic_id.split("mc")[1]
-            self.manga.download_manga(int(comic_id))
-        except (ValueError, IndexError):
-            print("id输入错误.")
-        except KeyboardInterrupt:
-            print("停止下载.")
+    # def download_manga(self):
+    #     if not user_manager.is_login:
+    #         print("请先登录!")
+    #         return
+    #     print("漫画id: 即 https://manga.bilibili.com/detail/mc29410 中的 29410")
+    #     try:
+    #         comic_id = input("请输入漫画id或url: ")
+    #         if comic_id.startswith("https"):
+    #             comic_id = comic_id.split("mc")[1]
+    #         self.manga.download_manga(int(comic_id))
+    #     except (ValueError, IndexError):
+    #         print("id输入错误.")
+    #     except KeyboardInterrupt:
+    #         print("停止下载.")
 
     def export_favorite(self):
         if not user_manager.is_login:
@@ -1842,6 +1858,15 @@ class BilibiliInterface:
                 for i in BilibiliComment.get_comment(1, bv2av(bvid)):
                     for j in i:
                         data.append(j)
+                    time.sleep(self.delay)
+                for i in data:
+                    if i["reply_count"] > 0:
+                        replies = BilibiliComment.get_comment_reply(1, bv2av(bvid), i["rpid"])
+                        replies_data = []
+                        for reply in replies:
+                            replies_data.append(reply)
+                            time.sleep(self.delay)
+                        i["reply"] = replies_data
                 with open(f"comment_{bvid}.json", "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=4, ensure_ascii=False)
             elif command == "export_danmaku":
@@ -1942,8 +1967,8 @@ class BilibiliInterface:
                     print("用户未登录!")
             elif command == "view_user":
                 self.user_space(int(input("请输入用户mid: ")))
-            elif command == "download_manga":
-                self.download_manga()
+            # elif command == "download_manga":
+            #     self.download_manga()
             elif command == "switch_source":
                 print("切换播放源成功")
                 if self.source == "backup":
@@ -1955,6 +1980,8 @@ class BilibiliInterface:
             elif command == "logout" or command == "lo":
                 if input("确定退出? (y/n)").lower() == "y":
                     BilibiliLogin.logout()
+            elif command == "set_export_delay":
+                self.delay = int(input("输入导出延迟: "))
             else:
                 print("未知命令!")
 

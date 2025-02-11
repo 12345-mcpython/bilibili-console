@@ -33,9 +33,7 @@ class UserManager:
         self.session = requests.session()
         self.session.headers.update(
             {
-                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                              "(KHTML, like Gecko) "
-                              "Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0",
                 "referer": "https://www.bilibili.com",
             }
         )
@@ -64,6 +62,12 @@ class UserManager:
                         raise request_error
             if cache:
                 self.cached_response[url] = request
+            try:
+                request.json()
+            except json.decoder.JSONDecodeError:
+                if "风控" in request.text:
+                    print("请求被风控! ")
+                raise
             return request
 
     def post(self, url: str, params=None, **kwargs) -> requests.Response:
