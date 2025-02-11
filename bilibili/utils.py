@@ -62,12 +62,6 @@ class UserManager:
                         raise request_error
             if cache:
                 self.cached_response[url] = request
-            try:
-                request.json()
-            except json.decoder.JSONDecodeError:
-                if "风控" in request.text:
-                    print("请求被风控! ")
-                raise
             return request
 
     def post(self, url: str, params=None, **kwargs) -> requests.Response:
