@@ -220,6 +220,8 @@ class BilibiliLogin:
         return r.json()["data"]["hash"], r.json()["data"]["key"]
 
 
+# https://github.com/SocialSisterYi/bilibili-API-collect/issues/1168
+
 class BilibiliManga:
     @staticmethod
     def get_manga_detail(manga_id: int) -> dict:
@@ -874,9 +876,36 @@ class BilibiliComment:
     def get_comment(content_type: int, content_id: int, sort_type: int = 0):
         pre_page = 10
         cursor = 1
+        datas = []
         while True:
             ls = user_manager.get(
                 f"https://api.bilibili.com/x/v2/reply?type={content_type}&oid={content_id}&sort={sort_type}&ps={pre_page}"
+                f"&pn={cursor}",
+                cache=True,
+            )
+
+            if not ls.json()["data"]["replies"]:
+                break
+            for i in ls.json()["data"]["replies"]:
+                data = {"content": i["content"], "rpid": i["rpid"], "reply_count": i["rcount"], "like": i["like"],
+                        "send_time": i["ctime"],
+                        "user": {"mid": i["mid"], "uname": i["member"]["uname"],
+                                 "level": i["member"]["level_info"]["current_level"]}}
+                datas.append(data)
+            yield datas
+            cursor += 1
+
+    @staticmethod
+    def like_comment():
+        pass
+
+    @staticmethod
+    def get_comment_reply(content_type: int, oid: int, comment_id: int, sort_type: int = 0):
+        pre_page = 10
+        cursor = 1
+        while True:
+            ls = user_manager.get(
+                f"https://api.bilibili.com/x/v2/reply/reply?type={content_type}&oid={oid}&sort={sort_type}&root={comment_id}&ps={pre_page}"
                 f"&pn={cursor}",
                 cache=True,
             )
@@ -884,10 +913,6 @@ class BilibiliComment:
                 break
             yield ls.json()["data"]["replies"]
             cursor += 1
-
-    @staticmethod
-    def like_comment():
-        pass
 
 
 class BilibiliVideo:
