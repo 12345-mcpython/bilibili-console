@@ -110,7 +110,6 @@ download_favorite: 下载收藏夹视频
 history: 查看历史记录
 view_self: 查看自己的空间
 view_user: 查看用户空间
-download_manga: 下载漫画
     """
     )
 
@@ -221,118 +220,118 @@ class BilibiliLogin:
 
 
 # https://github.com/SocialSisterYi/bilibili-API-collect/issues/1168
-
-class BilibiliManga:
-    @staticmethod
-    def get_manga_detail(manga_id: int) -> dict:
-        detail_request = user_manager.post(
-            "https://manga.bilibili.com/twirp/comic.v1.Comic/ComicDetail?device=pc&platform=web",
-            data={"comic_id": manga_id},
-        )
-        return detail_request.json()
-
-    @staticmethod
-    def list_history() -> dict:
-        history = user_manager.post(
-            "https://manga.bilibili.com/twirp/bookshelf.v1.Bookshelf/ListHistory?device=pc&platform=web",
-            data={"page_num": 1, "page_size": 50},
-        )
-        return history.json()
-
-    @staticmethod
-    def get_image_list(epid) -> dict:
-        images = user_manager.post(
-            "https://manga.bilibili.com/twirp/comic.v1.Comic/GetImageIndex?device=pc&platform=web",
-            data={"ep_id": epid},
-        )
-        return images.json()
-
-    @staticmethod
-    def get_token(image: str) -> dict:
-        token = user_manager.post(
-            "https://manga.bilibili.com/twirp/comic.v1.Comic/ImageToken?device=pc&platform=web",
-            data={"urls": '["{}"]'.format(image)},
-        )
-        return token.json()
-
-    @classmethod
-    def download_manga(cls, manga_id: int) -> bool:
-        manga_info = cls.get_manga_detail(manga_id)
-        ep_info = manga_info["data"]["ep_list"]
-        name = manga_info["data"]["title"]
-        if not os.path.exists("download/manga"):
-            os.mkdir("download/manga")
-        if not os.path.exists("download/manga/" + validate_title(name)):
-            os.mkdir("download/manga/" + validate_title(name))
-        first, end = input("选择回目范围 (1-{}): ".format(len(ep_info))).split("-")
-        try:
-            # first, end str值如果不可转换为 int 会直接跳出函数, 故对其忽略类型检查
-            first = int(first)  # type: ignore
-            end = int(end)  # type: ignore
-        except ValueError:
-            print("输入回目范围错误!")
-            return False
-        download_manga_epid = []
-        download_manga_name = []
-        locked = 0
-        for i in list(reversed(ep_info)):
-            if first <= i["ord"] <= end:
-                if i["is_locked"]:
-                    locked += 1
-                    continue
-                download_manga_epid.append(i["id"])
-                download_manga_name.append(i["title"])
-        print(f"有{locked}篇被上锁, 需要购买" if locked else "")
-        download_image = {}
-        cursor = 0
-        picture_count = 0
-        print("获取图片信息中.")
-        # 忽略原因同上
-        with tqdm(total=end) as progress_bar:  # type: ignore
-            for i in download_manga_epid:
-                download_image_prefix = []
-                image_list = cls.get_image_list(i)
-                for j in image_list["data"]["images"]:
-                    download_image_prefix.append(j["path"])
-                    picture_count += 1
-                download_image[download_manga_name[cursor]
-                ] = download_image_prefix
-                progress_bar.update(1)
-                cursor += 1
-        download_image_url = {}
-        print("获取图片token中.")
-        with tqdm(total=picture_count) as progress_bar:
-            for i, j in download_image.items():
-                download_image_url_local = []
-                for k in j:
-                    token = cls.get_token(k)["data"][0]
-                    download_image_url_local.append(
-                        "{}?token={}".format(token["url"], token["token"])
-                    )
-                    progress_bar.update(1)
-                download_image_url[i] = download_image_url_local
-        print("下载图片中.")
-        byte = 0
-        with tqdm(total=picture_count) as progress_bar:
-            for i, j in download_image_url.items():
-                filename = 0
-                for k in j:
-                    path = (
-                            "download/manga/"
-                            + validate_title(name)
-                            + "/"
-                            + validate_title(i)
-                            + "/"
-                    )
-                    file = path + f"{filename}.jpg"
-                    if not os.path.exists(path):
-                        os.mkdir(path)
-                    with open(file, "wb") as f:
-                        byte += f.write(user_manager.get(k).content)
-                        progress_bar.update(1)
-                        filename += 1
-        print("下载完成. 总计下载了 {} 字节 ({})".format(byte, hum_convert(byte)))
-        return True
+#
+# class BilibiliManga:
+#     @staticmethod
+#     def get_manga_detail(manga_id: int) -> dict:
+#         detail_request = user_manager.post(
+#             "https://manga.bilibili.com/twirp/comic.v1.Comic/ComicDetail?device=pc&platform=web",
+#             data={"comic_id": manga_id},
+#         )
+#         return detail_request.json()
+#
+#     @staticmethod
+#     def list_history() -> dict:
+#         history = user_manager.post(
+#             "https://manga.bilibili.com/twirp/bookshelf.v1.Bookshelf/ListHistory?device=pc&platform=web",
+#             data={"page_num": 1, "page_size": 50},
+#         )
+#         return history.json()
+#
+#     @staticmethod
+#     def get_image_list(epid) -> dict:
+#         images = user_manager.post(
+#             "https://manga.bilibili.com/twirp/comic.v1.Comic/GetImageIndex?device=pc&platform=web",
+#             data={"ep_id": epid},
+#         )
+#         return images.json()
+#
+#     @staticmethod
+#     def get_token(image: str) -> dict:
+#         token = user_manager.post(
+#             "https://manga.bilibili.com/twirp/comic.v1.Comic/ImageToken?device=pc&platform=web",
+#             data={"urls": '["{}"]'.format(image)},
+#         )
+#         return token.json()
+#
+#     @classmethod
+#     def download_manga(cls, manga_id: int) -> bool:
+#         manga_info = cls.get_manga_detail(manga_id)
+#         ep_info = manga_info["data"]["ep_list"]
+#         name = manga_info["data"]["title"]
+#         if not os.path.exists("download/manga"):
+#             os.mkdir("download/manga")
+#         if not os.path.exists("download/manga/" + validate_title(name)):
+#             os.mkdir("download/manga/" + validate_title(name))
+#         first, end = input("选择回目范围 (1-{}): ".format(len(ep_info))).split("-")
+#         try:
+#             # first, end str值如果不可转换为 int 会直接跳出函数, 故对其忽略类型检查
+#             first = int(first)  # type: ignore
+#             end = int(end)  # type: ignore
+#         except ValueError:
+#             print("输入回目范围错误!")
+#             return False
+#         download_manga_epid = []
+#         download_manga_name = []
+#         locked = 0
+#         for i in list(reversed(ep_info)):
+#             if first <= i["ord"] <= end:
+#                 if i["is_locked"]:
+#                     locked += 1
+#                     continue
+#                 download_manga_epid.append(i["id"])
+#                 download_manga_name.append(i["title"])
+#         print(f"有{locked}篇被上锁, 需要购买" if locked else "")
+#         download_image = {}
+#         cursor = 0
+#         picture_count = 0
+#         print("获取图片信息中.")
+#         # 忽略原因同上
+#         with tqdm(total=end) as progress_bar:  # type: ignore
+#             for i in download_manga_epid:
+#                 download_image_prefix = []
+#                 image_list = cls.get_image_list(i)
+#                 for j in image_list["data"]["images"]:
+#                     download_image_prefix.append(j["path"])
+#                     picture_count += 1
+#                 download_image[download_manga_name[cursor]
+#                 ] = download_image_prefix
+#                 progress_bar.update(1)
+#                 cursor += 1
+#         download_image_url = {}
+#         print("获取图片token中.")
+#         with tqdm(total=picture_count) as progress_bar:
+#             for i, j in download_image.items():
+#                 download_image_url_local = []
+#                 for k in j:
+#                     token = cls.get_token(k)["data"][0]
+#                     download_image_url_local.append(
+#                         "{}?token={}".format(token["url"], token["token"])
+#                     )
+#                     progress_bar.update(1)
+#                 download_image_url[i] = download_image_url_local
+#         print("下载图片中.")
+#         byte = 0
+#         with tqdm(total=picture_count) as progress_bar:
+#             for i, j in download_image_url.items():
+#                 filename = 0
+#                 for k in j:
+#                     path = (
+#                             "download/manga/"
+#                             + validate_title(name)
+#                             + "/"
+#                             + validate_title(i)
+#                             + "/"
+#                     )
+#                     file = path + f"{filename}.jpg"
+#                     if not os.path.exists(path):
+#                         os.mkdir(path)
+#                     with open(file, "wb") as f:
+#                         byte += f.write(user_manager.get(k).content)
+#                         progress_bar.update(1)
+#                         filename += 1
+#         print("下载完成. 总计下载了 {} 字节 ({})".format(byte, hum_convert(byte)))
+#         return True
 
 
 class BilibiliUserSpace:
@@ -1325,7 +1324,7 @@ class BilibiliInterface:
         self.source = "main"
         self.bilibili_favorite = BilibiliFavorite()
         self.interaction: BilibiliInteraction = BilibiliInteraction()
-        self.manga = BilibiliManga()
+        # self.manga = BilibiliManga()
         self.history = BilibiliHistory(user_manager.csrf)
         self.bangumi = BilibiliBangumi(self.quality)
         self.delay = 1
