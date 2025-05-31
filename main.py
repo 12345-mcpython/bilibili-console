@@ -114,6 +114,13 @@ view_user: 查看用户空间
     )
 
 
+class BilibiliDynamic():
+    @staticmethod
+    def get_dynamic():
+        r = user_manager.get("https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all")
+        return r.json()
+
+
 class BilibiliLogin:
     temp_header = {
         "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -1889,6 +1896,11 @@ class BilibiliInterface:
             else:
                 print("未知命令!")
 
+    def dynamic(self):
+        dynamics = BilibiliDynamic.get_dynamic()["data"]["items"]
+        for i in dynamics:
+            print(i)
+
     def login(self):
         if user_manager.is_login:
             print("已经登录!")
@@ -1959,6 +1971,8 @@ class BilibiliInterface:
                 self.download_favorite_video()
             elif command == "history":
                 self.view_history()
+            elif command == "dynamic":
+                self.dynamic()
             elif command == "view_self":
                 if user_manager.is_login:
                     self.user_space(user_manager.mid)
