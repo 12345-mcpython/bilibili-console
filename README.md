@@ -10,6 +10,8 @@ Laosun Bilibili Console Client (LBCC) 是一个跨平台B站命令行客户端.
 
 (上列图片不代表任何立场)
 
+项目暂缓新功能更新, 如有 feature request 请提交 issues.
+
 ## 使用
 
 [教程](USAGE.md)
