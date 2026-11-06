@@ -28,12 +28,14 @@ import datetime
 import getpass
 import json
 import os
+import re
 import reprlib
 import shutil
 import subprocess
 import sys
 import time
 import traceback
+import urllib.parse
 from typing import Generator, List
 
 import requests
@@ -51,8 +53,7 @@ from bilibili.utils import (
     encrypt_wbi,
     user_manager,
     hum_convert,
-    get_danmaku,
-    remove, parse_view, danmaku_provider,
+    remove, get_more_danmaku, danmaku_provider,
 )
 
 __version__ = "1.0.0-dev"
@@ -99,17 +100,21 @@ address/a: 按地址播放
 bangumi/b: 按地址播放番剧
 favorite/f: 查看收藏夹
 search/s: 搜索
-quit/q: 退出
+history: 查看历史记录
+dynamic: 查看动态
+view_self: 查看自己的空间
+view_user: 查看用户空间
+export_favorite: 导出收藏夹
+export_all_favorite: 导出所有收藏夹
+export_history: 导出历史记录
+download_favorite: 下载收藏夹视频
+refresh_login: 刷新登录状态
+switch_source: 切换视频源
+set_export_delay: 设置导出评论的请求间隔
 enable_online_watching: 开启在线观看
 disable_online_watching: 关闭在线观看
 clean_cache: 清除缓存
-refresh_login_state: 刷新登录状态
-export_favorite: 导出收藏夹
-export_all_favorite: 导出所有收藏夹
-download_favorite: 下载收藏夹视频
-history: 查看历史记录
-view_self: 查看自己的空间
-view_user: 查看用户空间
+quit/q: 退出
     """
     )
 
@@ -162,10 +167,12 @@ class BilibiliLogin:
                 "validate": validate, "seccode": validate + "|jordan"}
         r = requests.post("https://passport.bilibili.com/x/passport-login/web/login", data=data,
                           headers=BilibiliLogin.temp_login_header)
-        if r.json()["code"] != 0 or r.json()["data"]["message"].startswith("本次登录"):
+        rsp_json = r.json()
+        message = str((rsp_json.get("data") or {}).get("message") or "")
+        if rsp_json["code"] != 0 or message.startswith("本次登录"):
             print("登录失败!")
-            print(r.json()["message"])
-            print(r.json()["data"]["message"])
+            print(rsp_json.get("message"))
+            print(message)
             return False
         cookie = ""
         for i, j in r.cookies.items():
@@ -350,9 +357,8 @@ class BilibiliUserSpace:
             f"https://api.bilibili.com/x/relation/fans?vmid={mid}&pn=1&ps={pre_page}"
         )
         total = r.json()["data"]["total"]
-        for i in range(1, total // pre_page + 2):
-            if i == 5:
-                break
+        # B 站接口最多只允许翻到第 5 页
+        for i in range(1, min(total // pre_page + 2, 6)):
             r = user_manager.get(
                 f"https://api.bilibili.com/x/relation/fans?vmid={mid}&pn={i}&ps={pre_page}"
             )
@@ -367,9 +373,8 @@ class BilibiliUserSpace:
             f"https://api.bilibili.com/x/relation/followings?vmid={mid}&pn=1&ps={pre_page}"
         )
         total = r.json()["data"]["total"]
-        for i in range(1, total // pre_page + 2):
-            if i == 5:
-                break
+        # B 站接口最多只允许翻到第 5 页
+        for i in range(1, min(total // pre_page + 2, 6)):
             r = user_manager.get(
                 f"https://api.bilibili.com/x/relation/followings?vmid={mid}&pn={i}&ps={pre_page}"
             )
@@ -533,6 +538,7 @@ class BilibiliSearch:
         """
         pre_page = 5
         cursor = 1
+        keyword = urllib.parse.quote(keyword, safe="")
         while True:
             ls = user_manager.get(
                 f"https://api.bilibili.com/x/web-interface/wbi/search/type?page={cursor}"
@@ -743,17 +749,13 @@ class BilibiliFavorite:
                     f"https://api.bilibili.com/x/v3/fav/resource/list?ps=5&media_id={fav_id}&pn={cursor}"
                 ).json()["data"]["medias"]
                 for i in medias:
-                    # 清理数据
-                    del i["type"]
-                    del i["bv_id"]
-                    del i["ugc"]
-                    del i["season"]
-                    del i["ogv"]
-                    del i["link"]
-                    i["publish_time"] = i["pubtime"]
-                    del i["pubtime"]
-                    del i["ctime"]
-                    i["cover"] = i["cover"].replace("http", "https")
+                    # 清理数据, 失效稿件可能缺少部分字段
+                    for key in ("type", "bv_id", "ugc", "season", "ogv", "link", "ctime"):
+                        i.pop(key, None)
+                    if "pubtime" in i:
+                        i["publish_time"] = i.pop("pubtime")
+                    if i.get("cover"):
+                        i["cover"] = i["cover"].replace("http", "https")
                 export["medias"] += medias
                 cursor += 1
                 progress_bar.update(1)
@@ -1010,7 +1012,7 @@ class BilibiliVideo:
                 print("选视频超出范围!")
                 continue
             if not return_information:
-                self.play(video[int(page) - 1]["cid"], self.bvid)
+                self.play(video[int(page) - 1]["cid"], title)
             else:
                 return (
                     video[int(page) - 1]["cid"],
@@ -1056,7 +1058,7 @@ class BilibiliVideo:
             elif not page.isdigit():
                 print("输入的并不是数字!")
                 continue
-            elif int(page) > len(video) or int(page) <= 0:
+            elif int(page) > len(videos) or int(page) <= 0:
                 print("选视频超出范围!")
                 continue
             view_short_video_info(videos[int(page) - 1]["bvid"])
@@ -1064,23 +1066,32 @@ class BilibiliVideo:
                 bvid=videos[int(page) - 1]["bvid"],
                 quality=self.quality,
                 view_online_watch=self.view_online_watch,
+                source=self.source,
             )
             selected_video.select_video()
             break
 
     def switch_quality(self, cid):
+        # 非番剧的 playurl 也需要带上 qn, 否则返回的画质列表与当前状态不一致; 这里不能使用缓存
         if self.bangumi:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?cid={cid}&fnval=16&qn={self.quality}"
         else:
-            url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&bvid={self.bvid}&fnval=16"
-        play_url_request = user_manager.get(url, cache=True)
-        can_use_quality = {v["id"] for v in play_url_request.json()["data"]["dash"]["video"]}
-        can_use_quality_description = [quality_mapping[v] for v in can_use_quality]
-        quality_description_number_mapping = list(zip(can_use_quality_description, can_use_quality))
+            url = f"https://api.bilibili.com/x/player/playurl?cid={cid}&bvid={self.bvid}&fnval=16&qn={self.quality}"
+        play_url_request = user_manager.get(url)
+        data = play_url_request.json().get("result" if self.bangumi else "data") or {}
+        videos = (data.get("dash") or {}).get("video") or []
+        if not videos:
+            print("没有获取到画质信息, 可能需要登录或大会员! ")
+            return
+        can_use_quality = sorted({v["id"] for v in videos}, reverse=True)
+        quality_description_number_mapping = [
+            (quality_mapping.get(quality_id, f"{quality_id} 未知画质"), quality_id)
+            for quality_id in can_use_quality
+        ]
         for index, description in enumerate(quality_description_number_mapping):
             print(f"{index + 1}: {description[0]}")
         quality = input("选择画质: ")
-        if quality.isdigit() and int(quality) > 0 and int(quality) < len(quality_description_number_mapping) + 1:
+        if quality.isdigit() and 0 < int(quality) <= len(quality_description_number_mapping):
             self.quality = quality_description_number_mapping[int(quality) - 1][1]
             print("更改成功! ")
         else:
@@ -1099,6 +1110,13 @@ class BilibiliVideo:
         audios = play_url_request.json()["data" if not self.bangumi else "result"][
             "dash"
         ]["audio"]
+
+        # backup_url 可能为空, 主用 base_url 时也不需要回退源
+        def pick_url(item):
+            if self.source == "backup":
+                return (item.get("backup_url") or [item["base_url"]])[0]
+            return item["base_url"]
+
         video_mapping = {}
         audio_mapping = {}
 
@@ -1106,13 +1124,16 @@ class BilibiliVideo:
             if i["codecs"].startswith("avc"):
                 video_mapping[i["id"]] = {
                     "id": i["id"],
-                    "url": i["backup_url"][0] if self.source == "backup" else i['base_url'],
+                    "url": pick_url(i),
                     "width": i["width"],
                     "height": i["height"],
                 }
 
         for i in audios:
-            audio_mapping[i["id"]] = i["backup_url"][0]
+            audio_mapping[i["id"]] = pick_url(i)
+
+        if not video_mapping or not audio_mapping:
+            raise Exception("没有可用的视频流, 可能需要登录或大会员.")
 
         default_audio = sorted(list(audio_mapping.keys()), reverse=True)[0]
         default_video = sorted(list(video_mapping.keys()), reverse=True)[0]
@@ -1135,11 +1156,16 @@ class BilibiliVideo:
         global saw
         if not os.path.exists("cached"):
             os.mkdir("cached")
-        video_url, width, height, audio_url = self.get_video_and_audio_url(cid)
+        try:
+            video_url, width, height, audio_url = self.get_video_and_audio_url(cid)
+        except Exception as stream_error:
+            print("获取视频流失败! ")
+            print(stream_error)
+            return
 
         if not os.path.exists(f"cached/{cid}.ass"):
             a = danmaku_provider()(
-                get_danmaku(cid),
+                get_more_danmaku(cid),
                 width,
                 height,
                 reserve_blank=0,
@@ -1153,20 +1179,26 @@ class BilibiliVideo:
             )
             with open(f"cached/{cid}.ass", "w", encoding="utf-8") as f:
                 f.write(a)
-        command = (
-            f"mpv "
-            f'--sub-file="cached/{cid}.ass" '
-            f'--user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-            f'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.53" '
-            f'--referrer="https://www.bilibili.com"  '
-            f'--audio-file="{audio_url}" '
-            f'--title="{title}" '
-            f'"{video_url}"'
-        )
+        # 使用参数列表传参, 避免标题中的特殊字符被 shell 解释
+        command = [
+            "mpv",
+            f"--sub-file=cached/{cid}.ass",
+            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.53",
+            "--referrer=https://www.bilibili.com",
+            f"--audio-file={audio_url}",
+            f"--title={title}",
+            video_url,
+        ]
         if not saw:
             print("如有未显示视频或加载过卡可以在主选项中输入 switch_source 以换视频源. 该信息仅会在第一次播放时显示.")
             saw = True
-        with subprocess.Popen(command, shell=True) as p:
+        try:
+            process = subprocess.Popen(command)
+        except FileNotFoundError:
+            print("未找到 mpv, 请先安装 mpv 并加入 PATH 后再播放.")
+            return
+        with process as p:
             if self.view_online_watch:
                 try:
                     while p.poll() is None:
@@ -1198,50 +1230,64 @@ class BilibiliVideo:
             url = f"https://api.bilibili.com/pgc/player/web/playurl?qn={self.quality}&cid={cid}&ep_id={self.bvid}"
 
         req = user_manager.get(url)
-        download_url = req.json()["data" if not self.bangumi else "result"]["durl"][0][
-            "url"
-        ]
-        # width = req.json()["data" if not self.bangumi else "result"]["durl"][0]["width"]
-        # height = req.json()["data" if not self.bangumi else "result"]["durl"][0]["height"]
+        data = req.json().get("data" if not self.bangumi else "result") or {}
+        durl = data.get("durl") or []
+        if not durl:
+            print("没有获取到下载地址, 可能需要登录或大会员! ")
+            return False
+        download_url = durl[0]["url"]
         if base_dir:
             download_dir = "download/" + base_dir + \
                            "/" + validate_title(title) + "/"
         else:
             download_dir = "download/" + validate_title(title) + "/"
-        res = user_manager.get(download_url, stream=True)
-        length = float(res.headers["content-length"])
         if not os.path.exists("download"):
             os.mkdir("download")
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
         dts = download_dir + validate_title(part_title) + ".mp4"
-        if os.path.exists(dts):
-            c = input("文件已存在, 是否覆盖(y/n)? ")
+        exist_size = os.path.getsize(dts) if os.path.exists(dts) else 0
+        if exist_size:
+            c = input("文件已存在, 是否继续下载(已下载部分会保留) (y/n)? ")
             if c != "y":
                 print("停止操作.")
-                return -100
-        file = open(dts, "wb")
+                return False
+        # 断点续传: 已存在的部分用 Range 请求续传, 服务器不支持时从头开始
+        res = user_manager.get(
+            download_url, stream=True,
+            headers={"Range": f"bytes={exist_size}-"} if exist_size else None,
+        )
+        res_length = int(res.headers.get("content-length", 0))
+        if res.status_code != 206:
+            exist_size = 0
+        length = exist_size + res_length
+        file = open(dts, "ab" if exist_size else "wb")
         progress = tqdm(
             total=length,
-            initial=os.path.getsize(dts),
+            initial=exist_size,
             unit_scale=True,
             desc=reprlib.repr(validate_title(part_title)
                               ).replace("'", "") + ".mp4",
             unit="B",
         )
         try:
-            for chuck in res.iter_content(chunk_size=1024):
-                file.write(chuck)
-                progress.update(1024)
-        except KeyboardInterrupt:
+            for chunk in res.iter_content(chunk_size=64 * 1024):
+                if not chunk:
+                    continue
+                file.write(chunk)
+                progress.update(len(chunk))
+            progress.close()
             file.close()
-            os.remove(dts)
-            if len(os.listdir(download_dir)) == 0:
-                os.rmdir(download_dir)
-            print("取消下载.")
+        except KeyboardInterrupt:
+            progress.close()
+            file.close()
+            print(f"取消下载, 已保存 {os.path.getsize(dts)} 字节, 下次可继续下载.")
             return False
         if not file.closed:
             file.close()
+        if length and os.path.getsize(dts) < length:
+            print("下载未完成, 已保存部分文件, 下次可继续下载.")
+            return False
         if not os.path.exists(download_dir + validate_title(title) + ".jpg"):
             print("下载封面中...")
             with open(download_dir + validate_title(title) + ".jpg", "wb") as file:
@@ -1259,24 +1305,7 @@ class BilibiliVideo:
                     ).content.decode("utf-8")
                 )
             with open(download_dir + validate_title(part_title) + ".proto", "wb") as danmaku:
-                view = parse_view(cid)
-                total = int(view['dmSge']['total'])
-                danmaku_byte = [get_danmaku(cid, i)
-                                for i in range(1, total + 1)]
-                # a = danmaku_provider()(
-                #     b"".join(danmaku_byte),
-                #     width,
-                #     height,
-                #     reserve_blank=0,
-                #     font_face="SimHei",
-                #     font_size=25,
-                #     alpha=0.8,
-                #     duration_marquee=15.0,
-                #     duration_still=10.0,
-                #     comment_filter=None,
-                #     reduced=False
-                # )
-                danmaku.write(b"".join(danmaku_byte))
+                danmaku.write(get_more_danmaku(cid))
         return True
 
     def download_video_list(self, base_dir=""):
@@ -1292,9 +1321,9 @@ class BilibiliVideo:
             print(f"{count} / {total}")
             cid = i["cid"]
             part_title = i["part"]
-            if not self.download_one(
+            if self.download_one(
                     cid, pic, title=title, part_title=part_title, base_dir=base_dir
-            ):
+            ) is not True:
                 return False
         return True
 
@@ -1795,15 +1824,15 @@ class BilibiliInterface:
                 print(index + 1, ":")
                 print(
                     "作者: ",
-                    result["member"]["uname"],
+                    result["user"]["uname"],
                     " 日期: ",
-                    datetime.datetime.fromtimestamp(result["ctime"]).strftime(
+                    datetime.datetime.fromtimestamp(result["send_time"]).strftime(
                         "%Y-%m-%d %H:%M:%S"
                     ),
                     " 点赞量: ",
                     result["like"],
                 )
-                print("内容: ", result["content"]["message"])
+                print("内容: ", result["content"])
             while True:
                 command = input("评论选项: ")
                 if command == "quit" or command == "q":
@@ -1824,15 +1853,15 @@ class BilibiliInterface:
             if command == "play" or command == "p":
                 video.select_video()
             elif command == "switch_quality":
-                cid, title, _, _, _ = video.select_video(
-                    return_information=True
-                )
-                video.switch_quality(cid)
+                information = video.select_video(return_information=True)
+                if not information:
+                    continue
+                video.switch_quality(information[0])
             elif command == "download" or command == "d":
-                cid, title, part_title, pic, is_dynamic = video.select_video(
-                    return_information=True
-                )
-                print(is_dynamic)
+                information = video.select_video(return_information=True)
+                if not information:
+                    continue
+                cid, title, part_title, pic, is_dynamic = information
                 if is_dynamic:
                     print("互动视频无法下载! ")
                     return
@@ -1876,16 +1905,12 @@ class BilibiliInterface:
                 with open(f"comment_{bvid}.json", "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=4, ensure_ascii=False)
             elif command == "export_danmaku":
-                cid, title, _, _, _ = video.select_video(
-                    return_information=True
-                )
-                view = parse_view(cid)
-                total = int(view['dmSge']['total'])
-                danmaku_byte_list = [get_danmaku(
-                    cid, i) for i in range(1, total + 1)]
-                danmaku_byte = b"".join(danmaku_byte_list)
+                information = video.select_video(return_information=True)
+                if not information:
+                    continue
+                cid = information[0]
                 DM = DmSegMobileReply()
-                DM.ParseFromString(danmaku_byte)
+                DM.ParseFromString(get_more_danmaku(cid))
                 with open(f"{cid}.json", "w", encoding="utf-8") as f:
                     json.dump(MessageToJson(DM), f,
                               indent=4, ensure_ascii=False)
@@ -1937,15 +1962,15 @@ class BilibiliInterface:
             elif command == "help" or command == "h":
                 show_help()
             elif command == "bangumi" or command == "b":
-                bangumi_address = input("输入地址: ")
-                if bangumi_address.split("/")[-1].startswith("ep"):
-                    self.bangumi.select_bangumi(
-                        epid=bangumi_address.split("/")[-1].strip("ep")
-                    )
+                bangumi_address = input("输入地址: ").strip()
+                bangumi_id = re.search(r"(ep|ss)(\d+)", bangumi_address)
+                if not bangumi_id:
+                    print("地址解析错误, 请确保你输入的番剧地址正确.")
+                    continue
+                if bangumi_id.group(1) == "ep":
+                    self.bangumi.select_bangumi(epid=bangumi_id.group(2))
                 else:
-                    self.bangumi.select_bangumi(
-                        ssid=bangumi_address.split("/")[-1].strip("ss")
-                    )
+                    self.bangumi.select_bangumi(ssid=bangumi_id.group(2))
             elif command == "favorite" or command == "f":
                 self.favorite()
             elif command == "quit" or command == "q":
@@ -1957,8 +1982,10 @@ class BilibiliInterface:
             elif command == "disable_online_watching":
                 self.view_online_watch = False
             elif command == "clean_cache":
-                shutil.rmtree("cached")
-                os.mkdir("cached")
+                if os.path.exists("cached"):
+                    shutil.rmtree("cached")
+                os.makedirs("cached", exist_ok=True)
+                print("缓存已清除.")
             elif command == "refresh_login":
                 user_manager.refresh_login()
             elif command == "export_favorite":
