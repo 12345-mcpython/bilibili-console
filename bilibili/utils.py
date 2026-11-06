@@ -29,7 +29,8 @@ cached_response: dict[str, str] = {}
 
 class UserManager:
     def __init__(self, cookie=""):
-        self.cached_response: dict[str, requests.Response] = {}
+        self.cached_response: dict[tuple, tuple[requests.Response, float]] = {}
+        self.cache_ttl = 600
         self.session = requests.session()
         self.session.headers.update(
             {
@@ -44,25 +45,27 @@ class UserManager:
         ).get("bili_jct", "")
         self.is_login = False
 
-    # 这个函数不可能返回 None, 因为 if 已经对 cached_response 进行了验空
+    # 缓存以 (url, params) 为键, 并且有过期时间, 避免分页参数串用和 wbi key 永久缓存
     def get(self, url: str, params=None, cache=False, **kwargs) -> requests.Response:
-        if self.cached_response.get(url):
-            return self.cached_response.get(url)  # type: ignore
-        else:
-            count = 5
-            while True:
-                try:
-                    request = self.session.get(url, params=params, timeout=5, **kwargs)
-                    break
-                except requests.exceptions.RequestException as request_error:
-                    print("\n")
-                    print(f"{url}请求错误! 将会重试{count}次! ")
-                    count -= 1
-                    if count <= 0:
-                        raise request_error
-            if cache:
-                self.cached_response[url] = request
-            return request
+        cache_key = (url, tuple(sorted((params or {}).items())))
+        if cache:
+            cached = self.cached_response.get(cache_key)
+            if cached and time.time() - cached[1] < self.cache_ttl:
+                return cached[0]
+        count = 5
+        while True:
+            try:
+                request = self.session.get(url, params=params, timeout=5, **kwargs)
+                break
+            except requests.exceptions.RequestException as request_error:
+                print("\n")
+                print(f"{url}请求错误! 将会重试{count}次! ")
+                count -= 1
+                if count <= 0:
+                    raise request_error
+        if cache:
+            self.cached_response[cache_key] = (request, time.time())
+        return request
 
     def post(self, url: str, params=None, **kwargs) -> requests.Response:
         count = 5
@@ -79,10 +82,7 @@ class UserManager:
         return request
 
     def refresh_login(self):
-        if os.path.exists("cookie.txt"):
-            with open("cookie.txt") as file:
-                cookie = file.read()
-        self.session.headers["cookie"] = cookie
+        self.session.headers["cookie"] = read_cookie()
         print()
         print("刷新登录状态成功.")
         print()
@@ -124,31 +124,12 @@ def remove(remove_str: str, want_remove: str):
 
 
 def format_time(timestamp: int) -> str:
-    if timestamp > 60 * 60:
-        fmt = "{}:{}:{}"
-        hour = timestamp // (60 * 60)
-        minute = (timestamp - (hour * 60 * 60)) // 60
-        sec = timestamp - (hour * 60 * 60) - minute * 60
-        if minute < 10:
-            fmt = "{}:0{}:{}"
-        if sec < 10:
-            fmt = "{}:{}:0{}"
-        if sec < 10 and minute < 10:
-            fmt = "{}:0{}:0{}"
-        if hour > 10:
-            fmt = "1" + fmt
-        return fmt.format(hour, minute, sec)
-    else:
-        fmt = "{}:{}"
-        minute = timestamp // 60
-        if minute < 10:
-            fmt = "0{}:{}"
-        sec = timestamp - minute * 60
-        if sec < 10:
-            fmt = "{}:0{}"
-        if sec < 10 and minute < 10:
-            fmt = "0{}:0{}"
-        return fmt.format(minute, sec)
+    timestamp = max(int(timestamp), 0)
+    if timestamp >= 60 * 60:
+        return "{}:{:02d}:{:02d}".format(
+            timestamp // (60 * 60), timestamp % (60 * 60) // 60, timestamp % 60
+        )
+    return "{:02d}:{:02d}".format(timestamp // 60, timestamp % 60)
 
 
 def validate_title(title) -> str:
@@ -167,7 +148,7 @@ def av2bv(aid):
     tmp = (MAX_AID | aid) ^ XOR_CODE
     while int(tmp) != 0:
         bytes[bv_idx] = data[int(tmp % BASE)]
-        tmp /= BASE
+        tmp //= BASE
         bv_idx -= 1
     bytes[3], bytes[9] = bytes[9], bytes[3]
     bytes[4], bytes[7] = bytes[7], bytes[4]
@@ -189,11 +170,10 @@ def bv2av(bvid: str):
 def read_cookie():
     if os.path.exists("cookie.txt"):
         with open("cookie.txt") as f:
-            cookie = f.read().strip()
-            return cookie
-    else:
-        with open("cookie.txt", "w") as f:
-            f.write("")
+            return f.read().strip()
+    with open("cookie.txt", "w") as f:
+        f.write("")
+    return ""
 
 
 def encrypt_wbi(request_params: str):
@@ -241,9 +221,13 @@ def get_danmaku(cid: int, index: int = 1):
 
 
 def get_more_danmaku(cid: int):
-    view = parse_view(cid)
-    total = int(view['dmSge']['total'])
-    danmaku_byte = [get_danmaku(cid, i) for i in range(1, total + 1)]
+    # dmSge.total 是每页条数上限而不是弹幕段数, 这里以空响应作为结束标志
+    danmaku_byte = []
+    for index in range(1, 201):
+        segment = get_danmaku(cid, index)
+        if not segment:
+            break
+        danmaku_byte.append(segment)
     return b"".join(danmaku_byte)
 
 
